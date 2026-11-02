@@ -56,7 +56,7 @@ class MediaLibraryTest {
         val root = onMain { browser.getLibraryRoot(null) }.ok()
         assertEquals(context.getString(R.string.app_name), root.mediaMetadata.title.toString())
         val top = onMain { browser.getChildren(root.mediaId, 0, 50, null) }.ok()
-        assertEquals(listOf("Recently played", "Saved tracks", "Albums", "Playlists", "Downloads"), top.map { it.mediaMetadata.title.toString() })
+        assertEquals(listOf("Recently played", "Saved tracks", "Albums", "Playlists", "On device"), top.map { it.mediaMetadata.title.toString() })
         assertTrue(top.all { it.mediaMetadata.isBrowsable == true })
         val recent = onMain { browser.getChildren("recent", 0, 50, null) }.ok()
         val item = recent.first { it.mediaId == track.id }

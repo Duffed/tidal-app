@@ -34,7 +34,7 @@ fun LicensesDialog(onClose: () -> Unit) {
     var selected by remember { mutableIntStateOf(0) }
     val documents by produceState<List<String>?>(null) {
         value = withContext(Dispatchers.IO) {
-            listOf("THIRD_PARTY_NOTICES.md", "LICENSE", "Apache-2.0.txt", "Inter-OFL.txt", "Instrument-Serif-OFL.txt").map { name ->
+            listOf("THIRD_PARTY_NOTICES.md", "LICENSE", "Apache-2.0.txt", "Inter-OFL.txt", "Instrument-Serif-OFL.txt", "Space-Grotesk-OFL.txt", "JetBrains-Mono-OFL.txt").map { name ->
                 context.assets.open("licenses/$name").bufferedReader().use { it.readText() }
             }
         }
@@ -43,7 +43,7 @@ fun LicensesDialog(onClose: () -> Unit) {
         if (documents == null) CircularProgressIndicator()
         else Column {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(R.string.licenses_notices, R.string.licenses_gpl, R.string.licenses_apache, R.string.licenses_inter, R.string.licenses_serif).forEachIndexed { index, title ->
+                listOf(R.string.licenses_notices, R.string.licenses_gpl, R.string.licenses_apache, R.string.licenses_inter, R.string.licenses_serif, R.string.licenses_space, R.string.licenses_mono).forEachIndexed { index, title ->
                     FilterChip(selected == index, { selected = index }, label = { Text(stringResource(title)) })
                 }
             }

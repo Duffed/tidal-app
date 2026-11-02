@@ -20,14 +20,21 @@ import java.io.File
 /** Reproducible visual checks of the production components; never included in a release APK. */
 @UnstableApi
 class ThemePreviewActivity : ComponentActivity() {
+    companion object {
+        /** The names and lines of the sample music. Tests know them as data, not as interface text. */
+        val SAMPLE_TEXT = setOf("Night Walk", "Glass Rooms", "Slow Tide", "Paper Sun", "Harbour Lights", "Maren Vale", "Oskar Lind", "Maren Vale, Oskar Lind", "Late Hours", "Salt and Glass", "Example",
+            "Lanterns on the water, slow and wide", "Every window has a different tide", "Walk with me past the closing shops", "Where the evening hums and never stops",
+            "Hold the quiet, let the city fade", "Night walk, night walk, all the way home", "Streetlight stories, written in chalk", "Footsteps keeping time on the stone", "FLAC")
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val palette = intent.getStringExtra("direction") ?: "gallery"
-        val appearance = intent.getStringExtra("mode") ?: "dark"
+        val themeId = intent.getStringExtra("theme") ?: "dark"
+        val dark = themeFor(themeId, false).dark
         WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = appearance == "light"
-            isAppearanceLightNavigationBars = appearance == "light"
+            isAppearanceLightStatusBars = !dark
+            isAppearanceLightNavigationBars = !dark
         }
         val model = ViewModelProvider(this)[MainViewModel::class.java]
         val covers = File(filesDir, "theme-preview")
@@ -48,15 +55,15 @@ class ThemePreviewActivity : ComponentActivity() {
             "Where the evening hums and never stops" to 65_500L, "Hold the quiet, let the city fade" to 70_000L, "Night walk, night walk, all the way home" to 75_000L,
             "Streetlight stories, written in chalk" to 80_500L, "Footsteps keeping time on the stone" to 85_000L,
         ).map { LyricLine(it.second, it.first) }, "", "Example")
-        val state = AppState(signedIn = true, settings = Settings(theme = appearance, colorTheme = palette),
+        val state = AppState(signedIn = true, settings = Settings(theme = themeId, welcomeDone = true),
             recent = tracks.take(3), favorites = tracks, albums = albums,
             searchQuery = if (page == "search") "Harbour Lights" else "", search = SearchResult(tracks = listOf(tracks[0]), albums = listOf(albums[0])),
             playback = PlaybackState(queue = tracks, index = 0, nextIndex = 1, position = 64000, duration = tracks[0].durationMs, quality = "FLAC · 24-bit · 192 kHz"),
             detail = if (page == "album") albums[0] else null, detailTracks = if (page == "album") tracks.take(1) else emptyList(),
             lyrics = if (lyrics) sampleLyrics else null, lyricsStatus = if (lyrics) LyricsStatus.Ready else LyricsStatus.Idle, lyricsTrackId = tracks[0].id)
-        setContent { OpenTuneTheme(appearance, palette) {
+        setContent { OpenTuneTheme(themeId) {
             if (page == "icons") IconSheet() else CompositionLocalProvider(LocalOfflineMode provides true) {
-                OpenTuneRoot(model, state, initialTab = when (page) { "search" -> 1; "library" -> 2; "downloads" -> 3; else -> 0 },
+                OpenTuneRoot(model, state, initialDestination = when (page) { "search" -> Destination.Search; "library" -> Destination.Library; "downloads", "device" -> Destination.Device; else -> Destination.Home },
                     initialPlayer = page == "player", initialSettings = page == "settings", initialLyrics = lyrics)
             }
         } }

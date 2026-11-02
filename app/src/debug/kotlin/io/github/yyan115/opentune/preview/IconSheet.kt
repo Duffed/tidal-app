@@ -35,14 +35,14 @@ fun IconSheet() {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 Image(launcher, "OpenTune launcher", Modifier.size(78.dp))
-                Column { Text("OpenTune", fontFamily = EditorialFont, fontSize = 40.sp); UpperLabel("Icon family") }
+                Column { Text("OpenTune", style = AppFonts.title(40, 46)); UpperLabel("Icon family") }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             LazyVerticalGrid(GridCells.Fixed(4), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
                 items(icons) { (title, icon) ->
                     Column(Modifier.height(70.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                         Icon(icon, title, Modifier.size(25.dp), tint = MaterialTheme.colorScheme.onSurface)
-                        Text(title, Modifier.padding(top = 12.dp), fontFamily = InterfaceFont, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(title, Modifier.padding(top = 12.dp), fontFamily = AppFonts.body, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

@@ -26,6 +26,7 @@ class OpenTuneApp : Application() {
     val importer by lazy { LocalImporter(this, library) }
     val scrobbler by lazy { io.github.yyan115.opentune.data.Scrobbler(this) }
     val exporter by lazy { OfflineExporter(this) }
+    val folders by lazy { io.github.yyan115.opentune.data.LocalFolders(this) }
     val sources by lazy { AudioSources(this) }
 
     /** Counts the times that the device regained a network, so that screens can request again what failed while it was away. */

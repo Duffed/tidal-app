@@ -31,7 +31,7 @@ import io.github.yyan115.opentune.core.Track
 @UnstableApi
 @Composable
 fun ListenScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLogin: () -> Unit,
-    onLibrary: (Int) -> Unit, onMenu: (Track) -> Unit, onPlayer: () -> Unit) {
+    onLibrary: (Int) -> Unit, onDevice: () -> Unit, onMenu: (Track) -> Unit, onPlayer: () -> Unit) {
     fun available(track: Track) = track.isLocal || state.local.any { it.id == track.id }
     val recent = if (state.settings.offline) state.recent.filter(::available) else state.recent
     val current = state.playback.track?.takeIf { !state.settings.offline || available(it) }
@@ -45,7 +45,7 @@ fun ListenScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLog
     val pages: PagesViewModel = viewModel()
     val entries by pages.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val context = PageContext(state, vm, pages, scope, onMenu, stringResource(R.string.nav_listen))
+    val context = PageContext(state, vm, pages, scope, onMenu, stringResource(R.string.nav_home))
     val yourMixes = stringResource(R.string.home_your_mixes)
     val online = state.signedIn && !state.settings.offline
     LaunchedEffect(online) { if (online) { pages.load(PageRoute.ForYou); pages.load(PageRoute.Home) } }
@@ -101,7 +101,7 @@ fun ListenScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLog
         home?.page?.let { pageContent(it.tidied(yourMixes), home, PageRoute.Home.key, context, viewAll = false) }
         val local = state.local.filterNot { it.id == hero?.id }.take(3)
         if (local.isNotEmpty()) {
-            item { SectionTitle(stringResource(R.string.home_on_device), stringResource(R.string.action_view_all), { onLibrary(4) }) }
+            item { SectionTitle(stringResource(R.string.nav_device), stringResource(R.string.action_view_all), onDevice) }
             items(local, key = { "device:${it.id}" }) { track -> TrackRow(track, false,
                 { vm.play(state.local, state.local.indexOf(track)) }, { onMenu(track) }) }
         }
@@ -141,7 +141,7 @@ private fun ListeningArtwork(track: Track, quality: String, modifier: Modifier, 
             color = androidx.compose.ui.graphics.Color(0xE0121213), shape = RoundedCornerShape(3.dp)) {
             val readout = SourceReadout.from(quality)
             Text(listOfNotNull(readout.codec.ifBlank { null }, readout.bitsText(), readout.rateText()).joinToString(" · "), Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                fontFamily = InterfaceFont, fontSize = 9.sp, lineHeight = 14.sp, color = androidx.compose.ui.graphics.Color(0xFFF1EBDD))
+                fontFamily = AppFonts.body, fontSize = 9.sp, lineHeight = 14.sp, color = androidx.compose.ui.graphics.Color(0xFFF1EBDD))
         }
     }
 }
@@ -150,7 +150,7 @@ private fun ListeningArtwork(track: Track, quality: String, modifier: Modifier, 
 private fun ListeningTitle(track: Track, playing: Boolean, buffering: Boolean, modifier: Modifier, onPlay: () -> Unit) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f).padding(end = 14.dp)) {
-            Text(track.title, fontFamily = EditorialFont, fontSize = 36.sp, lineHeight = 40.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(track.title, style = AppFonts.title(36, 40), maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(track.artist, Modifier.padding(top = 5.dp), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }

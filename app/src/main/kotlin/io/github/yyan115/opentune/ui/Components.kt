@@ -64,7 +64,7 @@ fun Artwork(uri: String?, description: String?, modifier: Modifier = Modifier) {
 @Composable
 fun SectionTitle(title: String, action: String? = null, onAction: () -> Unit = {}) {
     Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 20.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f), fontFamily = EditorialFont, fontSize = 27.sp, lineHeight = 32.sp)
+        Text(title, Modifier.weight(1f), style = AppFonts.title(27, 32))
         if (action != null) TextButton(onClick = onAction) {
             Text(action, style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.width(7.dp)); Icon(OpenTuneIcons.ArrowForward, null, Modifier.size(16.dp))
@@ -101,7 +101,7 @@ fun ErrorCard(message: String, onRetry: (() -> Unit)? = null) {
 fun TrackRow(track: Track, playing: Boolean = false, onPlay: () -> Unit, onMenu: () -> Unit, index: Int? = null) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onPlay).padding(start = 24.dp, end = 8.dp, top = 11.dp, bottom = 11.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        if (index != null) Text("%02d".format(index + 1), Modifier.width(32.dp), fontFamily = FontFamily.Monospace, fontSize = 10.sp,
+        if (index != null) Text("%02d".format(index + 1), Modifier.width(32.dp), fontFamily = AppFonts.mono, fontSize = 10.sp,
             color = if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         else Artwork(track.artwork, null, Modifier.size(48.dp))
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
@@ -114,7 +114,7 @@ fun TrackRow(track: Track, playing: Boolean = false, onPlay: () -> Unit, onMenu:
                         style = MaterialTheme.typography.labelSmall)
                 }
                 if (track.isLocal) Icon(OpenTuneIcons.DownloadDone, stringResource(R.string.track_available_offline), Modifier.padding(end = 4.dp).size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(track.artist, fontFamily = InterfaceFont, fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(track.artist, fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -126,8 +126,8 @@ fun TrackRow(track: Track, playing: Boolean = false, onPlay: () -> Unit, onMenu:
 fun ReleaseCard(release: Release, onClick: () -> Unit) {
     Column(Modifier.width(152.dp).clickable(onClick = onClick).padding(4.dp)) {
         Artwork(release.artwork, null, Modifier.fillMaxWidth().aspectRatio(1f))
-        Text(release.title, Modifier.padding(top = 10.dp), fontFamily = InterfaceFont, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(release.artist.ifBlank { release.subtitle }, Modifier.padding(top = 3.dp), fontFamily = InterfaceFont, fontSize = 10.sp, lineHeight = 15.sp,
+        Text(release.title, Modifier.padding(top = 10.dp), fontFamily = AppFonts.body, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(release.artist.ifBlank { release.subtitle }, Modifier.padding(top = 3.dp), fontFamily = AppFonts.body, fontSize = 10.sp, lineHeight = 15.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -147,7 +147,7 @@ fun SettingRow(icon: ImageVector, title: String, subtitle: String? = null, onCli
 
 @Composable
 fun UpperLabel(text: String, modifier: Modifier = Modifier) {
-    Text(text.uppercase(), modifier, fontFamily = InterfaceFont, fontSize = 10.sp, lineHeight = 16.sp,
+    Text(text.uppercase(), modifier, fontFamily = AppFonts.body, fontSize = 10.sp, lineHeight = 16.sp,
         letterSpacing = 1.5.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 

@@ -9,36 +9,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import io.github.yyan115.opentune.R
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/** The places that the navigation offers. A listener who has not signed in sees only [Device] and [Search]. */
+enum class Destination(val tag: String, @androidx.annotation.StringRes val title: Int) {
+    Home("home", R.string.nav_home), Search("search", R.string.nav_search), Library("library", R.string.nav_library), Device("device", R.string.nav_device);
+
+    val icon: ImageVector get() = when (this) {
+        Home -> OpenTuneIcons.Headphones; Search -> OpenTuneIcons.Search; Library -> OpenTuneIcons.LibraryMusic; Device -> OpenTuneIcons.Device
+    }
+}
+
 @Composable
-fun OpenTuneRail(titles: List<String>, icons: List<ImageVector>, selected: Int, onSelect: (Int) -> Unit) {
+fun OpenTuneRail(destinations: List<Destination>, selected: Destination, onSelect: (Destination) -> Unit) {
     Column(Modifier.width(84.dp).fillMaxHeight().safeDrawingPadding().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        titles.forEachIndexed { index, title ->
-            val color = if (selected == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-            Column(Modifier.fillMaxWidth().heightIn(min = 72.dp).testTag("nav-$index").selectable(selected == index,
-                role = Role.Tab, onClick = { onSelect(index) }), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Icon(icons[index], null, Modifier.size(22.dp), tint = color)
-                Text(title, Modifier.padding(top = 6.dp), fontFamily = InterfaceFont, fontSize = 9.sp, color = color)
+        destinations.forEach { destination ->
+            val color = if (selected == destination) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            Column(Modifier.fillMaxWidth().heightIn(min = 72.dp).testTag("nav-${destination.tag}").selectable(selected == destination,
+                role = Role.Tab, onClick = { onSelect(destination) }), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Icon(destination.icon, null, Modifier.size(22.dp), tint = color)
+                Text(stringResource(destination.title), Modifier.padding(top = 6.dp), fontFamily = AppFonts.body, fontSize = 9.sp, maxLines = 1, color = color)
             }
         }
     }
 }
 
 @Composable
-fun OpenTuneNavigation(titles: List<String>, icons: List<ImageVector>, selected: Int, onSelect: (Int) -> Unit) {
+fun OpenTuneNavigation(destinations: List<Destination>, selected: Destination, onSelect: (Destination) -> Unit) {
     Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.SpaceAround) {
-        titles.forEachIndexed { index, title ->
-            val active = index == selected
-            Column(Modifier.weight(1f).heightIn(min = 58.dp).testTag("nav-$index")
-                .selectable(active, role = Role.Tab, onClick = { onSelect(index) }),
+        destinations.forEach { destination ->
+            val active = destination == selected
+            Column(Modifier.weight(1f).heightIn(min = 58.dp).testTag("nav-${destination.tag}")
+                .selectable(active, role = Role.Tab, onClick = { onSelect(destination) }),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                Icon(icons[index], null, Modifier.size(22.dp), tint = color)
-                Text(title, Modifier.padding(top = 6.dp), fontFamily = InterfaceFont, fontSize = 9.sp, lineHeight = 13.sp,
+                Icon(destination.icon, null, Modifier.size(22.dp), tint = color)
+                Text(stringResource(destination.title), Modifier.padding(top = 6.dp), fontFamily = AppFonts.body, fontSize = 9.sp, lineHeight = 13.sp, maxLines = 1,
                     fontWeight = if (active) FontWeight.Medium else FontWeight.Normal, color = color)
             }
         }
@@ -49,7 +60,7 @@ fun OpenTuneNavigation(titles: List<String>, icons: List<ImageVector>, selected:
 fun FilterTab(selected: Boolean, onClick: () -> Unit, label: String) {
     Column(Modifier.width(IntrinsicSize.Max).selectable(selected, role = Role.Tab, onClick = onClick)
         .padding(horizontal = 10.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontFamily = InterfaceFont, fontSize = 12.sp, lineHeight = 18.sp, maxLines = 1,
+        Text(label, fontFamily = AppFonts.body, fontSize = 12.sp, lineHeight = 18.sp, maxLines = 1,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(10.dp))

@@ -25,7 +25,7 @@
     <string name="credits_none">TIDAL lists no credits for this release.</string>
 
     <!-- Lyrics -->
-    <string name="lyrics_offline">Lyrics need a connection. They stay on the device once you have opened them.</string>
+    <string name="lyrics_offline">Lyrics need a connection. Once loaded, they stay available offline.</string>
     <string name="lyrics_error">The lyrics could not be loaded.</string>
     <string name="lyrics_none">There are no lyrics for this track.</string>
     <string name="lyrics_credit">Lyrics by %1$s</string>
@@ -40,7 +40,7 @@
     <string name="playlist_move_description">Move %1$s to a folder</string>
     <string name="move_title">Move %1$s</string>
     <string name="folder_top_level">Top level</string>
-    <string name="folder_none_hint">Create a folder first with New folder.</string>
+    <string name="folder_none_hint">No folders yet. Use New folder to create one.</string>
 
     <!-- Queue -->
     <string name="queue_title">Queue</string>
@@ -66,32 +66,9 @@
 
     <!-- Appearance -->
     <string name="appearance_title">Appearance</string>
-    <string name="appearance_system">System</string>
-    <string name="appearance_light">Light</string>
-    <string name="appearance_dark">Dark</string>
-    <string name="appearance_colour">Colour</string>
-    <string name="appearance_selected">Selected</string>
-    <string name="theme_studio">Studio</string>
-    <string name="theme_studio_description">Black &amp; white</string>
-    <string name="theme_cobalt">Cobalt</string>
-    <string name="theme_cobalt_description">Ink blue</string>
-    <string name="theme_paper">Paper</string>
-    <string name="theme_paper_description">Ivory &amp; burgundy</string>
-    <string name="theme_copper">Copper</string>
-    <string name="theme_copper_description">Warm charcoal</string>
-    <string name="theme_gallery">Gallery</string>
-    <string name="theme_gallery_description">Ink &amp; champagne</string>
-    <string name="theme_archive">Archive</string>
-    <string name="theme_archive_description">Oxblood &amp; bone</string>
-    <string name="theme_reference">Reference</string>
-    <string name="theme_reference_description">Midnight &amp; silver</string>
-
-    <!-- Navigation -->
-    <string name="nav_listen">Listen</string>
-    <string name="settings_theme_value">%1$s · %2$s</string>
 
     <!-- Licenses -->
-    <string name="licenses_title">Open-source licenses</string>
+    <string name="licenses_title">Licenses</string>
     <string name="licenses_notices">Notices</string>
     <string name="licenses_gpl">GPL 3</string>
     <string name="licenses_apache">Apache 2</string>
@@ -144,12 +121,11 @@
     <string name="action_import_audio">Import audio</string>
     <string name="home_saved_albums">Saved albums</string>
     <string name="home_recently_played">Recently played</string>
-    <string name="home_on_device">On your device</string>
     <string name="home_your_mixes">Your mixes</string>
 
     <!-- Pages -->
     <string name="page_empty_title">Nothing here yet</string>
-    <string name="page_empty_text">TIDAL returned no content for this page.</string>
+    <string name="page_empty_text">This page has no content.</string>
     <string name="action_load_more">Load more</string>
     <string name="video_play">Play video</string>
     <string name="badge_hires">HI-RES</string>
@@ -174,25 +150,25 @@
 
     <!-- Errors -->
     <string name="error_sign_in_expired">This sign-in expired. Start again.</string>
-    <string name="error_sign_in_wrong_callback">This is not a TIDAL sign-in callback.</string>
-    <string name="error_sign_in_other_attempt">This response belongs to a different sign-in. Start again.</string>
+    <string name="error_sign_in_wrong_callback">This sign-in link is not valid. Start again.</string>
+    <string name="error_sign_in_other_attempt">This sign-in link belongs to an earlier attempt. Start again.</string>
     <string name="error_sign_in_declined">Sign-in was cancelled or declined on TIDAL. Start a new sign-in.</string>
     <string name="error_sign_in_no_code">TIDAL did not return an authorization code.</string>
     <string name="error_sign_in_used">This sign-in expired or was already used. Start a new sign-in.</string>
-    <string name="error_sign_in_config_rejected">TIDAL rejected the sign-in configuration of this app. Update OpenTune and try again.</string>
+    <string name="error_sign_in_config_rejected">TIDAL no longer accepts this version of OpenTune for sign-in. Update the app and try again.</string>
     <string name="error_sign_in_failed">TIDAL could not finish sign-in. Start a new sign-in and try again.</string>
     <string name="error_sign_in_required">Sign in to TIDAL to continue.</string>
     <string name="error_session_expired">Your TIDAL session expired. Sign in again.</string>
     <string name="error_session_not_renewed">Your session could not be renewed.</string>
     <string name="error_lossy_audio">TIDAL returned lossy audio instead of lossless. Sign in again, or choose High quality to allow AAC.</string>
-    <string name="error_preview_only">TIDAL returned a preview instead of the full content. Check the access of this account.</string>
-    <string name="error_stream_invalid">The stream data from TIDAL is invalid.</string>
+    <string name="error_preview_only">TIDAL offered only a preview. Check that your subscription covers this content.</string>
+    <string name="error_stream_invalid">TIDAL sent a stream that OpenTune cannot read.</string>
     <string name="error_stream_unsupported">This stream format is not supported.</string>
     <string name="error_protected_stream">This stream requires content protection that this app does not support.</string>
     <string name="error_refresh_playlist">Refresh this playlist before editing it.</string>
     <string name="error_playlist_changed">This playlist changed elsewhere. Refresh it before editing again.</string>
-    <string name="error_unreadable_response">TIDAL returned an unreadable response.</string>
-    <string name="error_http_forbidden">TIDAL did not grant access. Check your subscription, region and client configuration.</string>
+    <string name="error_unreadable_response">TIDAL sent a response that OpenTune cannot read.</string>
+    <string name="error_http_forbidden">TIDAL denied access. Check that your subscription is active and available in your region.</string>
     <string name="error_http_not_found">This item is no longer available in your region.</string>
     <string name="error_http_rate_limit">TIDAL is limiting requests. Wait a moment and try again.</string>
     <string name="error_http_server">TIDAL is temporarily unavailable. Try again shortly.</string>
@@ -236,7 +212,7 @@
     <string name="output_title">Audio output</string>
     <string name="output_none">Android reports no audio outputs.</string>
     <string name="output_in_use">%1$s · in use</string>
-    <string name="output_note">The sample rates are what the output accepts. The format of the track is shown in the player.</string>
+    <string name="output_note">Sample rates are the ones that each output accepts. The player shows the format of the current track.</string>
 
     <!-- Volume normalization -->
     <string name="normalization_title">Volume normalization</string>
@@ -246,7 +222,7 @@
     <string name="normalization_off_hint">Play every track at its own level.</string>
     <string name="normalization_track_hint">Turn loud tracks down to even out the volume between tracks.</string>
     <string name="normalization_album_hint">Keep the level differences within an album.</string>
-    <string name="normalization_note">Uses the ReplayGain values from TIDAL. Quiet tracks are not amplified, so turn the volume up instead.</string>
+    <string name="normalization_note">Uses the ReplayGain values from TIDAL. Loud tracks are turned down. Quiet tracks keep their level.</string>
 
     <!-- Audio output -->
     <string name="output_kind_speaker">Phone speaker</string>
@@ -259,8 +235,8 @@
     <string name="output_kind_dock">Dock</string>
 
     <!-- Scrobbling -->
-    <string name="scrobble_title">Scrobbling</string>
-    <string name="scrobble_note">Sends the artist, title and album of each track you finish to a ListenBrainz server. Nothing is sent while this is off.</string>
+    <string name="scrobble_title">ListenBrainz</string>
+    <string name="scrobble_note">Sends the artist, title and album of each finished track to ListenBrainz or a compatible server. Nothing is sent while this is off.</string>
     <string name="scrobble_send">Send listens</string>
     <string name="scrobble_server">Server</string>
     <string name="scrobble_token">User token</string>
@@ -269,7 +245,7 @@
 
     <!-- Statistics -->
     <string name="stats_title">Listening statistics</string>
-    <string name="stats_note">Kept on this device. OpenTune never uploads them.</string>
+    <string name="stats_note">Statistics are calculated on this device and are never uploaded.</string>
     <plurals name="stats_days">
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
@@ -299,7 +275,6 @@
     <!-- Navigation -->
     <string name="nav_search">Search</string>
     <string name="nav_library">Library</string>
-    <string name="nav_downloads">Downloads</string>
     <string name="nav_settings">Settings</string>
 
     <!-- Release types -->
@@ -398,7 +373,6 @@
     <string name="sort_title">Title</string>
     <string name="sort_artist">Artist</string>
     <string name="library_saved_tracks">Saved tracks</string>
-    <string name="library_on_device">On device</string>
     <string name="library_mixes">Mixes</string>
     <string name="library_on_this_device">On this device</string>
 
@@ -433,15 +407,10 @@
     <string name="mixes_connect">Connect TIDAL to see your mixes.</string>
     <string name="mixes_offline">Mixes need a connection</string>
     <string name="mixes_offline_text">Turn off offline mode to see your mixes.</string>
-    <string name="device_none">No audio files yet</string>
-    <string name="device_none_text">Import FLAC, MP3, AAC, or other supported audio files. Your original files stay where they are.</string>
 
     <!-- Detail -->
     <string name="detail_no_tracks">No tracks</string>
     <string name="detail_no_tracks_text">Tracks added to this playlist will appear here.</string>
-
-    <!-- Downloads -->
-    <string name="downloads_intro">Available without a connection</string>
     <string name="downloads_clear">Clear download history</string>
     <string name="downloads_unnamed">TIDAL download</string>
     <string name="download_progress">%1$d%% downloaded</string>
@@ -452,12 +421,6 @@
     <string name="download_queued_wifi">Queued · Wi-Fi only</string>
     <string name="download_queued">Queued</string>
     <string name="download_cancel">Cancel download</string>
-    <plurals name="saved_track_count">
-        <item quantity="one">%d saved track</item>
-        <item quantity="other">%d saved tracks</item>
-    </plurals>
-    <string name="downloads_none">No downloads yet</string>
-    <string name="downloads_none_text">Use Download in a track\'s menu to save it here. By default, downloads wait for Wi-Fi.</string>
 
     <!-- Sign-in -->
     <string name="login_no_browser">A browser is needed to sign in. Install one and try again.</string>
@@ -468,40 +431,39 @@
     <!-- Settings -->
     <string name="settings_account">Account</string>
     <string name="settings_connected">TIDAL connected</string>
-    <string name="settings_connected_text">Collection and streaming enabled</string>
-    <string name="settings_connect_text">A subscription is required for full-track streaming</string>
+    <string name="settings_connected_text">Streaming and your collection are available</string>
+    <string name="settings_connect_text">Stream in lossless quality and browse your collection</string>
     <string name="settings_playback">Playback</string>
     <string name="settings_quality_wifi">Wi-Fi audio quality</string>
     <string name="settings_quality_mobile">Mobile audio quality</string>
-    <string name="settings_offline_text">Play only tracks saved on this device</string>
+    <string name="settings_offline_text">Play only what is on this device</string>
     <string name="settings_wifi_only">Download over Wi-Fi only</string>
-    <string name="settings_wifi_only_text">Downloads stay queued on mobile data</string>
+    <string name="settings_wifi_only_text">Wait for Wi-Fi before downloading</string>
     <string name="settings_off">Off</string>
     <string name="settings_on">On</string>
-    <string name="settings_output_text">See where the music plays</string>
+    <string name="settings_output_text">Output devices and supported sample rates</string>
     <string name="settings_bitperfect">Bit-perfect USB output</string>
-    <string name="settings_bitperfect_text">Experimental. Sends audio to a USB DAC unchanged when the DAC supports it. Not tested with a DAC yet.</string>
+    <string name="settings_bitperfect_text">Beta. Sends audio to a USB DAC without resampling. Needs Android 14 or later and a DAC that supports the track\'s sample rate.</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>
-    <string name="settings_privacy_data">Privacy and data</string>
     <string name="settings_keep_offline">Keep saved tracks offline</string>
-    <string name="settings_keep_offline_text">Downloads your saved TIDAL tracks in the background, 50 at a time.</string>
+    <string name="settings_keep_offline_text">Download your saved TIDAL tracks in the background for offline listening</string>
     <string name="settings_scrobble_on">On · %1$s</string>
-    <string name="settings_stats_text">Kept on this device</string>
+    <string name="settings_stats_text">Top tracks and artists</string>
     <string name="settings_backup">Back up data</string>
     <string name="settings_backup_text">Settings, device playlists and listening history</string>
     <string name="settings_restore">Restore data</string>
-    <string name="settings_restore_text">Merge a backup into this install</string>
+    <string name="settings_restore_text">Add a backup to this app</string>
     <string name="settings_clear_history">Clear listening history</string>
     <string name="settings_clear_history_text">Removes statistics and recent plays</string>
     <string name="settings_about">About</string>
     <string name="settings_version">OpenTune %1$s</string>
-    <string name="settings_tagline">Unofficial open-source TIDAL client</string>
+    <string name="settings_tagline">Unofficial open source client for TIDAL</string>
     <string name="settings_source">Source code</string>
     <string name="settings_privacy">Privacy</string>
-    <string name="settings_privacy_text">No ads, analytics, or account proxy. Streaming connects directly to TIDAL.</string>
-    <string name="settings_licenses">Open-source licenses</string>
-    <string name="settings_licenses_text">GPL-3.0-or-later and dependency notices</string>
+    <string name="settings_privacy_text">No ads, analytics or tracking. Streaming connects directly to TIDAL.</string>
+    <string name="settings_licenses">Licenses</string>
+    <string name="settings_licenses_text">Open source licenses and notices</string>
     <string name="history_clear_title">Clear listening history?</string>
     <string name="history_clear_text">Statistics and the recently played list are removed. Saved tracks and playlists stay.</string>
     <string name="signout_title">Disconnect TIDAL?</string>
@@ -600,4 +562,75 @@
     <string name="player_timer_label">Timer</string>
     <string name="player_label_download">Download</string>
     <string name="player_downloading">Downloading</string>
+    <string name="nav_home">Home</string>
+
+    <!-- Navigation -->
+    <string name="nav_device">On device</string>
+
+    <!-- Welcome -->
+    <string name="welcome_tagline">Stream TIDAL in lossless quality. Keep your own music alongside it.</string>
+    <string name="welcome_local">Use local music only</string>
+    <string name="welcome_note">Streaming requires a TIDAL subscription. OpenTune is an independent app and is not affiliated with TIDAL.</string>
+
+    <!-- On device -->
+    <string name="device_add_files">Add files</string>
+    <string name="device_add_folder">Add folder</string>
+    <string name="device_downloading">Downloading</string>
+    <string name="device_folders">Folders</string>
+    <string name="device_folder_scanning">Scanning · %1$d found</string>
+    <string name="device_folder_unavailable">Unavailable. Add the folder again.</string>
+    <string name="device_folder_rescan">Scan %1$s again</string>
+    <string name="device_folder_remove">Remove %1$s</string>
+    <string name="device_folder_remove_title">Remove %1$s?</string>
+    <string name="device_folder_remove_text">Its tracks leave the library. The files stay on your device.</string>
+    <string name="device_filter_all">All</string>
+    <string name="device_filter_tidal">From TIDAL</string>
+    <string name="device_filter_files">My files</string>
+    <string name="device_filter_empty">Nothing here yet.</string>
+    <string name="device_empty_title">Nothing on this device yet</string>
+    <string name="device_empty_text">Download tracks from TIDAL, or add your own audio files and folders. Folders stay up to date.</string>
+
+    <!-- Messages -->
+    <string name="notify_folder_failed">The folder could not be added. Choose another folder and try again.</string>
+
+    <!-- On device -->
+    <string name="device_playlists_hint">Playlists that you create appear here.</string>
+
+    <!-- Themes -->
+    <string name="theme_dark">Dark</string>
+    <string name="theme_dark_description">Neutral graphite with a soft blue accent</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_light_description">Clean and bright</string>
+    <string name="theme_obsidian">Obsidian</string>
+    <string name="theme_obsidian_description">True black for OLED screens</string>
+    <string name="theme_gold">Audiophile Gold</string>
+    <string name="theme_gold_description">Warm black with gold accents and serif titles</string>
+    <string name="theme_cyberpunk">Cyberpunk</string>
+    <string name="theme_cyberpunk_description">Violet night with magenta and cyan</string>
+    <string name="theme_neon">Neon</string>
+    <string name="theme_neon_description">Black with electric green</string>
+    <string name="theme_ocean">Ocean</string>
+    <string name="theme_ocean_description">Deep blue with teal</string>
+    <string name="theme_ember">Ember</string>
+    <string name="theme_ember_description">Warm dark with an orange glow</string>
+    <string name="theme_forest">Forest</string>
+    <string name="theme_forest_description">Deep green with sage</string>
+    <string name="theme_paper">Paper</string>
+    <string name="theme_paper_description">Ivory with burgundy and serif titles</string>
+    <string name="theme_sky">Sky</string>
+    <string name="theme_sky_description">Pale blue with a clear accent</string>
+    <string name="theme_rose">Rose</string>
+    <string name="theme_rose_description">Soft blush with raspberry</string>
+    <string name="theme_system">System</string>
+    <string name="theme_system_description">Follows the device: light by day, dark by night</string>
+    <string name="appearance_use">Use %1$s</string>
+    <string name="appearance_in_use">In use</string>
+    <string name="licenses_space">Space Grotesk</string>
+    <string name="licenses_mono">JetBrains Mono</string>
+
+    <!-- Settings -->
+    <string name="settings_downloads">Offline and downloads</string>
+    <string name="settings_listening">Listening</string>
+    <string name="settings_data">Your data</string>
+    <string name="settings_advanced">Advanced</string>
 </resources>

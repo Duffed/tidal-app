@@ -13,8 +13,7 @@ import java.security.MessageDigest
 
 class LocalImporter(private val context: Context, private val library: LibraryStore) {
     suspend fun import(uri: Uri): Track = withContext(Dispatchers.IO) {
-        val id = "local:" + MessageDigest.getInstance("SHA-256").digest(uri.toString().toByteArray())
-            .joinToString("") { "%02x".format(it) }.take(24)
+        val id = idFor(uri)
         val filename = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
             if (it.moveToFirst()) it.getString(0) else null
         } ?: context.getString(R.string.import_default_title)
@@ -33,5 +32,10 @@ class LocalImporter(private val context: Context, private val library: LibrarySt
                 localUri = uri.toString(), quality = if (mime.contains("flac")) "FLAC" else mime.substringAfterLast('/').uppercase())
                 .also(library::save)
         } finally { retriever.release() }
+    }
+
+    companion object {
+        /** The library id of a local file. The same address always gives the same id, so that a second scan finds what the first one stored. */
+        fun idFor(uri: Uri): String = "local:" + MessageDigest.getInstance("SHA-256").digest(uri.toString().toByteArray()).joinToString("") { "%02x".format(it) }.take(24)
     }
 }

@@ -76,7 +76,7 @@ private fun SyncedLyrics(lyrics: Lyrics, position: Long, onSeek: (Long) -> Unit)
                     val scale by animateFloatAsState(if (active) 1f else .82f, label = "line-scale")
                     Text(line.text.ifBlank { "♪" }, Modifier.fillMaxWidth().clickable { onSeek(line.timeMs) }.padding(vertical = 9.dp)
                         .graphicsLayer { scaleX = scale; scaleY = scale; transformOrigin = TransformOrigin(if (lyrics.rightToLeft) 1f else 0f, .5f) },
-                        fontFamily = EditorialFont, fontSize = 28.sp, lineHeight = 34.sp, color = color)
+                        style = AppFonts.title(28, 34), color = color)
                 }
                 item(key = "credit") { Attribution(lyrics) }
             }

@@ -19,6 +19,7 @@ import androidx.media3.common.util.UnstableApi
 import io.github.yyan115.opentune.ui.MainViewModel
 import io.github.yyan115.opentune.ui.OpenTuneRoot
 import io.github.yyan115.opentune.ui.OpenTuneTheme
+import io.github.yyan115.opentune.ui.themeFor
 import io.github.yyan115.opentune.ui.enterVideoPip
 import io.github.yyan115.opentune.ui.LocalNetworkEpoch
 import io.github.yyan115.opentune.ui.LocalOfflineMode
@@ -41,7 +42,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(incomingCallback) {
                 incomingCallback?.let { model.completeBrowserLogin(it); incomingCallback = null }
             }
-            val dark = state.settings.theme == "dark" || (state.settings.theme == "system" && isSystemInDarkTheme())
+            val dark = themeFor(state.settings.theme, isSystemInDarkTheme()).dark
             LaunchedEffect(dark) {
                 withFrameNanos { }
                 WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -49,7 +50,7 @@ class MainActivity : ComponentActivity() {
                     isAppearanceLightNavigationBars = !dark
                 }
             }
-            OpenTuneTheme(state.settings.theme, state.settings.colorTheme) { CompositionLocalProvider(LocalOfflineMode provides state.settings.offline, LocalNetworkEpoch provides networkEpoch) { OpenTuneRoot(model, state) } }
+            OpenTuneTheme(state.settings.theme) { CompositionLocalProvider(LocalOfflineMode provides state.settings.offline, LocalNetworkEpoch provides networkEpoch) { OpenTuneRoot(model, state) } }
         }
     }
 

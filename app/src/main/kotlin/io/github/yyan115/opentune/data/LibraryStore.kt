@@ -13,7 +13,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class LibraryStore(context: Context, databaseName: String = "library.db") : SQLiteOpenHelper(context, databaseName, null, 3) {
+class LibraryStore(context: Context, databaseName: String = "library.db") : SQLiteOpenHelper(context, databaseName, null, 4) {
     private val revision = MutableStateFlow(0L)
     val changes = revision.asStateFlow()
     override fun onCreate(db: SQLiteDatabase) {
@@ -23,6 +23,7 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
         db.execSQL("CREATE INDEX recent_tracks ON tracks(played DESC)")
         createCollectionTables(db)
         createHistoryTables(db)
+        createFolderTables(db)
     }
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true); db.enableWriteAheadLogging() }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -32,6 +33,12 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
             if (oldVersion == 2) db.execSQL("ALTER TABLE cloud_cache ADD COLUMN updated INTEGER NOT NULL DEFAULT 0")
             createHistoryTables(db)
         }
+        if (oldVersion < 4) createFolderTables(db)
+    }
+
+    private fun createFolderTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE local_folders (id TEXT PRIMARY KEY, uri TEXT NOT NULL UNIQUE, name TEXT NOT NULL, scanned_at INTEGER NOT NULL DEFAULT 0, track_count INTEGER NOT NULL DEFAULT 0)")
+        db.execSQL("CREATE TABLE folder_tracks (folder_id TEXT NOT NULL, track_id TEXT NOT NULL, PRIMARY KEY(folder_id, track_id), FOREIGN KEY(folder_id) REFERENCES local_folders(id) ON DELETE CASCADE)")
     }
 
     private fun createHistoryTables(db: SQLiteDatabase) {
@@ -254,4 +261,54 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
     @Synchronized private fun queryTracks(sql: String): List<Track> = readableDatabase.rawQuery(sql, null).use {
         buildList { while (it.moveToNext()) add(JsonCodec.decodeTrack(JSONObject(it.getString(0)))) }
     }
+
+    // Folders on the device that the listener chose, and the tracks that a scan found in each.
+
+    @Synchronized fun folders(): List<LocalFolder> = readableDatabase.rawQuery(
+        "SELECT id, uri, name, scanned_at, track_count FROM local_folders ORDER BY name COLLATE NOCASE", null).use { cursor ->
+        buildList { while (cursor.moveToNext()) add(LocalFolder(cursor.getString(0), cursor.getString(1), cursor.getString(2), cursor.getLong(3), cursor.getInt(4))) }
+    }
+
+    /** Adds a folder, or returns the one that exists for the same address. */
+    @Synchronized fun addFolder(uri: String, name: String): LocalFolder {
+        val id = java.security.MessageDigest.getInstance("SHA-256").digest(uri.toByteArray()).joinToString("") { "%02x".format(it) }.take(16)
+        writableDatabase.insertWithOnConflict("local_folders", null, ContentValues().apply { put("id", id); put("uri", uri); put("name", name) }, SQLiteDatabase.CONFLICT_IGNORE)
+        revision.value++
+        return folders().first { it.id == id }
+    }
+
+    /** Removes a folder and the tracks that no other folder holds. */
+    @Synchronized fun removeFolder(id: String) {
+        val orphans = folderTrackIds(id) - otherFolderTrackIds(id)
+        orphans.forEach(::removeLocal)
+        writableDatabase.delete("local_folders", "id=?", arrayOf(id))
+        revision.value++
+    }
+
+    @Synchronized fun folderTrackIds(id: String): Set<String> = readableDatabase.rawQuery("SELECT track_id FROM folder_tracks WHERE folder_id=?", arrayOf(id)).use { cursor ->
+        buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+    }
+
+    private fun otherFolderTrackIds(id: String): Set<String> = readableDatabase.rawQuery("SELECT track_id FROM folder_tracks WHERE folder_id<>?", arrayOf(id)).use { cursor ->
+        buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+    }
+
+    /** Stores the result of a scan. Tracks that the folder held before and no longer holds are removed from the library. */
+    @Synchronized fun recordScan(id: String, found: Set<String>, at: Long = System.currentTimeMillis()) {
+        val previous = folderTrackIds(id)
+        val keep = found + otherFolderTrackIds(id)
+        (previous - keep).forEach(::removeLocal)
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete("folder_tracks", "folder_id=?", arrayOf(id))
+            found.forEach { db.insertWithOnConflict("folder_tracks", null, ContentValues().apply { put("folder_id", id); put("track_id", it) }, SQLiteDatabase.CONFLICT_IGNORE) }
+            db.update("local_folders", ContentValues().apply { put("scanned_at", at); put("track_count", found.size) }, "id=?", arrayOf(id))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        revision.value++
+    }
 }
+
+/** A folder on the device that holds music. [scannedAt] is zero until the first scan finishes. */
+data class LocalFolder(val id: String, val uri: String, val name: String, val scannedAt: Long, val trackCount: Int)

@@ -29,7 +29,7 @@ class LocalPlaybackTest {
         model = ViewModelProvider(compose.activity)[MainViewModel::class.java]
         compose.runOnIdle {
             model.clearQueue()
-            model.settings { it.copy(theme = "light", colorTheme = "studio", offline = false) }
+            model.settings { it.copy(theme = "light", offline = false, welcomeDone = true) }
         }
         app.library.playlists().filter { it.title == "Evening" }.forEach { app.library.deletePlaylist(it.id) }
         val file = File(app.filesDir, "playback-test.flac")
@@ -41,9 +41,7 @@ class LocalPlaybackTest {
     }
 
     @Test fun localFlacPlaysThroughTheInterfaceAndPauses() {
-        compose.onNodeWithTag("nav-2").performClick()
-        compose.onNodeWithTag("library-filters").performScrollToNode(hasText("On device"))
-        compose.onNodeWithText("On device").performClick()
+        compose.onNodeWithTag("nav-device").performClick()
         compose.onNodeWithText("Night Walk").performClick()
         compose.waitUntil(25_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
         assertNull(model.state.value.playback.error)
@@ -94,8 +92,7 @@ class LocalPlaybackTest {
     }
 
     @Test fun localPlaylistCreationAndSavingArePersistent() {
-        compose.onNodeWithTag("nav-2").performClick()
-        compose.onNodeWithText("Playlists").performClick()
+        compose.onNodeWithTag("nav-device").performClick()
         compose.onNodeWithText("New playlist").performClick()
         compose.onNodeWithText("Name").performTextInput("Evening")
         compose.onNodeWithText("Create", useUnmergedTree = true).performClick()
@@ -110,12 +107,11 @@ class LocalPlaybackTest {
     }
 
     @Test fun aNewPlaylistFromTrackOptionsContainsThatTrack() {
-        compose.onNodeWithTag("nav-2").performClick()
-        compose.onNodeWithTag("library-filters").performScrollToNode(hasText("On device"))
-        compose.onNodeWithText("On device").performClick()
+        compose.onNodeWithTag("nav-device").performClick()
         compose.onNodeWithContentDescription("Options for Night Walk").performClick()
         compose.onNodeWithText("Add to playlist").performClick()
-        compose.onNodeWithText("New playlist").performClick()
+        // The playlist section behind the dialog has the same action, and the dialog's own button comes last.
+        compose.onAllNodesWithText("New playlist").onLast().performClick()
         compose.onNodeWithText("Name").performTextInput("Evening")
         compose.onNodeWithText("Create", useUnmergedTree = true).performClick()
         compose.waitUntil(5_000) { app.library.playlists().any { it.title == "Evening" && it.trackIds == listOf(track.id) } }
@@ -137,29 +133,27 @@ class LocalPlaybackTest {
     }
 
     @Test fun mainScreensAndThemeCanBeOpened() {
-        screenshot("listen")
-        compose.onNodeWithTag("nav-1").performClick()
+        screenshot("on-device")
+        compose.onNodeWithTag("nav-search").performClick()
         compose.onNodeWithText("Tracks, albums, artists").performTextInput("Night")
         compose.waitUntil(5_000) { model.state.value.searchQuery == "Night" }
         compose.onNodeWithText("Night Walk").assertIsDisplayed()
         screenshot("search-local")
-        compose.onNodeWithTag("nav-3").performClick()
-        compose.onNodeWithText("Available without a connection").assertIsDisplayed()
-        if (model.state.value.local.none { !it.id.startsWith("local:") }) compose.onNodeWithText("No downloads yet").assertIsDisplayed()
+        compose.onNodeWithTag("nav-device").performClick()
+        compose.onNodeWithText("Add files").assertIsDisplayed()
+        compose.onNodeWithText("Add folder").assertIsDisplayed()
         screenshot("downloads")
         compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Theme"))
         compose.onNodeWithText("Theme").performClick()
-        compose.onNodeWithText("Dark", useUnmergedTree = true).performClick()
-        compose.waitUntil(5_000) { model.state.value.settings.theme == "dark" }
-        compose.onNodeWithText("Cobalt").performClick()
-        compose.waitUntil(5_000) { model.state.value.settings.colorTheme == "cobalt" }
+        // The sheet opens on the current theme. A swipe moves to the next one, and its button applies it to the whole app.
+        compose.onNodeWithTag("theme-pager").performTouchInput { swipeLeft() }
+        compose.onNodeWithTag("theme-apply").performClick()
+        compose.waitUntil(5_000) { model.state.value.settings.theme != "light" }
+        val chosen = model.state.value.settings.theme
         compose.onNodeWithText("Done").performClick()
         compose.activityRule.scenario.recreate()
-        compose.waitUntil(5_000) {
-            val restored = ViewModelProvider(compose.activity)[MainViewModel::class.java].state.value.settings
-            restored.theme == "dark" && restored.colorTheme == "cobalt"
-        }
+        compose.waitUntil(5_000) { ViewModelProvider(compose.activity)[MainViewModel::class.java].state.value.settings.theme == chosen }
         screenshot("settings-dark")
     }
 

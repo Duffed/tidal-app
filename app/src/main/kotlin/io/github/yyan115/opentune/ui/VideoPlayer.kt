@@ -122,7 +122,7 @@ fun VideoPlayerOverlay(release: Release, offline: Boolean, onClose: () -> Unit) 
                 Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onClose) { Icon(OpenTuneIcons.Close, stringResource(R.string.video_close), tint = Color.White) }
                     Text(listOf(release.title, release.artist).filter(String::isNotBlank).joinToString(" · "), Modifier.weight(1f), color = Color.White,
-                        fontFamily = InterfaceFont, fontSize = 13.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        fontFamily = AppFonts.body, fontSize = 13.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     if (Build.VERSION.SDK_INT >= 26 && activity != null) IconButton(onClick = { activity.enterVideoPip() }) { Icon(OpenTuneIcons.Fullscreen, stringResource(R.string.video_pip), tint = Color.White) }
                 }
                 IconButton(onClick = { if (playing) player.pause() else player.play() }, modifier = Modifier.align(Alignment.Center).size(72.dp)

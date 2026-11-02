@@ -58,7 +58,7 @@ fun PageScreen(route: PageRoute, state: AppState, vm: MainViewModel, pages: Page
             } else {
                 val headerless = page.modules.none { it is ArtistHeader || it is AlbumHeader || it is MixHeader }
                 if (headerless) item(key = "title") {
-                    Text(page.title.ifBlank { route.title }, Modifier.padding(horizontal = 24.dp, vertical = 8.dp), fontFamily = EditorialFont, fontSize = 40.sp, lineHeight = 46.sp)
+                    Text(page.title.ifBlank { route.title }, Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = AppFonts.title(40, 46))
                 }
                 pageContent(page, entry, route.key, context, viewAll = headerless && page.modules.size == 1)
                 if (page.modules.isEmpty()) item(key = "empty") { EmptyState(OpenTuneIcons.SearchOff, stringResource(R.string.page_empty_title), stringResource(R.string.page_empty_text)) }
@@ -155,7 +155,7 @@ private fun LinksRow(module: LinksModule, ctx: PageContext) {
 fun LinkPill(label: String, onClick: () -> Unit) {
     Surface(onClick = onClick, shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Text(label, Modifier.padding(horizontal = 14.dp, vertical = 9.dp), fontFamily = InterfaceFont, fontSize = 12.sp, lineHeight = 16.sp)
+        Text(label, Modifier.padding(horizontal = 14.dp, vertical = 9.dp), fontFamily = AppFonts.body, fontSize = 12.sp, lineHeight = 16.sp)
     }
 }
 
@@ -172,7 +172,7 @@ fun PageCard(release: Release, modifier: Modifier = Modifier, fill: Boolean = fa
                 tint = androidx.compose.ui.graphics.Color.White)
         }
         val round = release.type == ReleaseType.ARTIST
-        Text(release.title, (if (round) Modifier.fillMaxWidth() else Modifier).padding(top = 10.dp), fontFamily = InterfaceFont, fontSize = 12.sp, lineHeight = 17.sp,
+        Text(release.title, (if (round) Modifier.fillMaxWidth() else Modifier).padding(top = 10.dp), fontFamily = AppFonts.body, fontSize = 12.sp, lineHeight = 17.sp,
             maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = if (round) androidx.compose.ui.text.style.TextAlign.Center else null)
         val detail = when (release.type) {
             ReleaseType.ARTIST -> ""
@@ -180,7 +180,7 @@ fun PageCard(release: Release, modifier: Modifier = Modifier, fill: Boolean = fa
             ReleaseType.VIDEO -> listOf(release.artist, release.subtitle).filter(String::isNotBlank).joinToString(" · ")
             else -> release.artist.ifBlank { release.subtitle }
         }
-        if (detail.isNotBlank()) Text(detail, Modifier.padding(top = 3.dp), fontFamily = InterfaceFont, fontSize = 10.sp, lineHeight = 15.sp,
+        if (detail.isNotBlank()) Text(detail, Modifier.padding(top = 3.dp), fontFamily = AppFonts.body, fontSize = 10.sp, lineHeight = 15.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = if (release.type == ReleaseType.MIX) 2 else 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -195,7 +195,7 @@ fun QualityBadges(tags: List<String>, modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         labels.forEach { label ->
             Text(label, Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(3.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
-                fontFamily = InterfaceFont, fontSize = 9.sp, lineHeight = 12.sp, letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                fontFamily = AppFonts.body, fontSize = 9.sp, lineHeight = 12.sp, letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -226,7 +226,7 @@ private fun ArtistHeaderRow(header: ArtistHeader, ctx: PageContext, routeKey: St
     val following = ctx.state.artists.any { it.id == header.artist.id }
     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)) {
         Artwork(header.artist.artwork, header.artist.title, Modifier.fillMaxWidth().aspectRatio(1.35f))
-        Text(header.artist.title, Modifier.padding(top = 18.dp), fontFamily = EditorialFont, fontSize = 42.sp, lineHeight = 48.sp)
+        Text(header.artist.title, Modifier.padding(top = 18.dp), style = AppFonts.title(42, 48))
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             TuneButton(onClick = { ctx.vm.playArtistTopTracks(header.artist.id) }, modifier = Modifier.weight(1f)) {
                 Icon(OpenTuneIcons.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.action_play))

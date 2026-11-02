@@ -64,7 +64,7 @@ class BrowseTree(private val app: OpenTuneApp) {
         FAVORITES -> R.string.library_saved_tracks
         ALBUMS -> R.string.label_albums
         PLAYLISTS -> R.string.label_playlists
-        else -> R.string.nav_downloads
+        else -> R.string.nav_device
     })
 
     private fun online() = app.tidal.signedIn && !app.settings.state.value.offline

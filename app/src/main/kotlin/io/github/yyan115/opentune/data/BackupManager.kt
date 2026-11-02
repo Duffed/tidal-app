@@ -25,7 +25,7 @@ class BackupManager(private val app: OpenTuneApp) {
             put("format", "opentune-backup"); put("version", 1); put("createdAt", System.currentTimeMillis())
             put("settings", JSONObject().apply {
                 put("quality", settings.quality.name); put("mobileQuality", settings.mobileQuality.name); put("downloadOnWifi", settings.downloadOnWifi)
-                put("theme", settings.theme); put("colorTheme", settings.colorTheme); put("normalization", settings.normalization)
+                put("theme", settings.theme); put("normalization", settings.normalization)
                 put("equalizer", settings.equalizer); put("equalizerLevels", JSONArray(settings.equalizerLevels)); put("bitPerfect", settings.bitPerfect)
                 put("keepFavoritesOffline", settings.keepFavoritesOffline); put("scrobble", settings.scrobble); put("scrobbleServer", settings.scrobbleServer)
             })
@@ -54,7 +54,7 @@ class BackupManager(private val app: OpenTuneApp) {
                 current.copy(
                     quality = quality("quality", current.quality), mobileQuality = quality("mobileQuality", current.mobileQuality),
                     downloadOnWifi = values.optBoolean("downloadOnWifi", current.downloadOnWifi),
-                    theme = values.optString("theme", current.theme), colorTheme = values.optString("colorTheme", current.colorTheme),
+                    theme = io.github.yyan115.opentune.ui.migrateTheme(values.optString("theme", current.theme), values.optString("colorTheme").ifBlank { null }),
                     normalization = values.optString("normalization", current.normalization), equalizer = values.optBoolean("equalizer", current.equalizer),
                     equalizerLevels = values.optJSONArray("equalizerLevels")?.let { array -> (0 until array.length()).map(array::getInt) } ?: current.equalizerLevels,
                     bitPerfect = values.optBoolean("bitPerfect", current.bitPerfect), keepFavoritesOffline = values.optBoolean("keepFavoritesOffline", current.keepFavoritesOffline),

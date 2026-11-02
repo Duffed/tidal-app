@@ -39,7 +39,7 @@ class LibraryArtworkLiveTest {
         try {
             shell("svc wifi disable"); shell("svc data disable")
             pump(3_000)
-            compose.onNodeWithTag("nav-2").performClick()
+            compose.onNodeWithTag("nav-library").performClick()
             val label = compose.activity.getString(R.string.label_playlists)
             compose.onNodeWithTag("library-filters").performScrollToNode(hasText(label))
             compose.onAllNodes(hasText(label) and hasClickAction()).onFirst().performClick()

@@ -39,7 +39,7 @@ class PagesLiveTest {
         assertTrue("For you has mixes", forYou.modules.any { it is CarouselModule && it.layout == CarouselLayout.MIXES })
         assertTrue("Home has tracks or albums", pages.state.value.getValue(PageRoute.Home.key).page!!.modules.any { it is TrackListModule || it is CarouselModule })
         settle(); LiveAccount.screenshot("listen-top")
-        compose.onNodeWithTag("nav-1").performClick()
+        compose.onNodeWithTag("nav-search").performClick()
         compose.waitUntil(30_000) { pages.state.value[PageRoute.Explore.key]?.page != null }
         assertTrue(pages.state.value.getValue(PageRoute.Explore.key).page!!.modules.any { it is LinksModule && it.cloud })
         settle(); LiveAccount.screenshot("search-explore")
@@ -50,7 +50,7 @@ class PagesLiveTest {
         compose.runOnIdle { model.search("Norah Jones Don't Know Why") }
         compose.waitUntil(30_000) { model.state.value.search.tracks.isNotEmpty() }
         val track = model.state.value.search.tracks.first { it.title.startsWith("Don't Know Why") }
-        compose.onNodeWithTag("nav-1").performClick()
+        compose.onNodeWithTag("nav-search").performClick()
         settle(); LiveAccount.screenshot("search-results")
 
         compose.runOnIdle { model.open(Release(track.albumId, track.album, track.artist, type = ReleaseType.ALBUM)) }
@@ -121,7 +121,7 @@ class PagesLiveTest {
             kotlinx.coroutines.runBlocking { app.tidal.moveToFolder(playlist.id, folder.id) }
             compose.runOnIdle { model.loadFolder() }
             compose.waitUntil(30_000) { model.state.value.folders[io.github.yyan115.opentune.core.TidalClient.ROOT_FOLDER].orEmpty().any { it.id == folder.id } }
-            compose.onNodeWithTag("nav-2").performClick()
+            compose.onNodeWithTag("nav-library").performClick()
             compose.onNodeWithTag("library-filters").performScrollToNode(androidx.compose.ui.test.hasText("Playlists"))
             compose.onNodeWithText("Playlists").performClick()
             compose.onNodeWithText(folderName).performScrollTo()

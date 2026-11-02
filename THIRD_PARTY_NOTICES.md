@@ -11,6 +11,8 @@ OpenTune uses these open source components.
 | Coil | [Coil](https://github.com/coil-kt/coil) | Apache-2.0 |
 | Inter | [Rasmus Andersson](https://github.com/rsms/inter) | OFL-1.1 |
 | Instrument Serif | [Instrument](https://github.com/Instrument/instrument-serif) | OFL-1.1 |
+| Space Grotesk | [Florian Karsten](https://github.com/floriankarsten/space-grotesk) | OFL-1.1 |
+| JetBrains Mono | [JetBrains](https://github.com/JetBrains/JetBrainsMono) | OFL-1.1 |
 | Guava | [Google](https://github.com/google/guava) | Apache-2.0 |
 | Gradle wrapper | [Gradle](https://github.com/gradle/gradle) | Apache-2.0 |
 

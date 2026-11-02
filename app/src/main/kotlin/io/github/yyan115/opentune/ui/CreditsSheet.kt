@@ -20,7 +20,7 @@ fun CreditsSheet(credits: CreditsUi, onClose: () -> Unit, onPerson: (Contributor
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         LazyColumn(Modifier.navigationBarsPadding(), contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp)) {
             item(key = "title") {
-                Text(stringResource(R.string.credits_title), fontFamily = EditorialFont, fontSize = 32.sp, lineHeight = 38.sp)
+                Text(stringResource(R.string.credits_title), style = AppFonts.title(32, 38))
                 Text(credits.title, Modifier.padding(top = 4.dp, bottom = 12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (credits.loading) item(key = "loading") { Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }

@@ -33,11 +33,11 @@ import io.github.yyan115.opentune.core.*
 @OptIn(ExperimentalMaterial3Api::class)
 @UnstableApi
 @Composable
-fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialTab: Int = 0, initialPlayer: Boolean = false, initialSettings: Boolean = false, initialLyrics: Boolean = false) {
+fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destination = Destination.Home, initialPlayer: Boolean = false, initialSettings: Boolean = false, initialLyrics: Boolean = false) {
     val context = LocalContext.current
     val resources = LocalResources.current
     val pagesVm: PagesViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    var tab by rememberSaveable { mutableIntStateOf(initialTab) }
+    var destinationName by rememberSaveable { mutableStateOf(initialDestination.name) }
     var libraryFilter by rememberSaveable { mutableIntStateOf(0) }
     var settings by rememberSaveable { mutableStateOf(initialSettings) }
     var login by rememberSaveable { mutableStateOf(false) }
@@ -59,8 +59,11 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialTab: Int = 0, initia
     val landscape = configuration.screenWidthDp > configuration.screenHeightDp
     val largeText = LocalDensity.current.fontScale > 1.3f
     val rail = landscape && !largeText
-    val navigationTitles = listOf(stringResource(R.string.nav_listen), stringResource(R.string.nav_search), stringResource(R.string.nav_library), stringResource(R.string.nav_downloads))
-    val navigationIcons = listOf(OpenTuneIcons.Headphones, OpenTuneIcons.Search, OpenTuneIcons.LibraryMusic, OpenTuneIcons.Download)
+    // TIDAL is the main way to use the app. Without an account the app offers the music on the device and a search over it.
+    val destinations = if (state.signedIn) listOf(Destination.Home, Destination.Search, Destination.Library, Destination.Device) else listOf(Destination.Device, Destination.Search)
+    val destination = Destination.entries.firstOrNull { it.name == destinationName }?.takeIf { it in destinations } ?: destinations.first()
+    val select: (Destination) -> Unit = { destinationName = it.name; settings = false; vm.closeAll() }
+    val welcome = !state.settings.welcomeDone && !state.signedIn
     val snackbar = remember { SnackbarHostState() }
     val inDetail = state.detail != null || state.routes.isNotEmpty()
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> vm.import(uris) }
@@ -71,19 +74,22 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialTab: Int = 0, initia
         if (uri != null && encoded != null) vm.export(JsonCodec.decodeTrack(org.json.JSONObject(encoded)), uri)
     }
     val importAudio = { importer.launch(arrayOf("audio/*")) }
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) vm.addDeviceFolder(uri) }
+    val addFolder = { folderPicker.launch(null) }
     val openLogin = { login = true }
     val openTrackMenu: (Track) -> Unit = { trackMenu = it; playlistPosition = null }
     LaunchedEffect(state.message) { state.message?.let { snackbar.showSnackbar(it); vm.messageShown() } }
-    LaunchedEffect(state.signedIn) { if (state.signedIn) login = false }
+    LaunchedEffect(state.signedIn) { if (state.signedIn) { login = false; vm.finishWelcome() } }
     BackHandler(enabled = state.detail != null || settings || state.routes.isNotEmpty()) { if (settings) settings = false else vm.closeDetail() }
 
-    Row(Modifier.fillMaxSize().then(if (landscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Start)) else Modifier)) {
-    if (rail) OpenTuneRail(navigationTitles, navigationIcons, tab) { index -> tab = index; settings = false; vm.closeAll() }
+    if (welcome) WelcomeScreen(onSignIn = openLogin, onLocalOnly = vm::finishWelcome)
+    else Row(Modifier.fillMaxSize().then(if (landscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Start)) else Modifier)) {
+    if (rail) OpenTuneRail(destinations, destination, select)
     Scaffold(modifier = Modifier.weight(1f),
         topBar = {
             val title = if (settings) stringResource(R.string.nav_settings) else state.detail?.let {
                 when (it.type) { ReleaseType.ALBUM -> stringResource(R.string.type_album); ReleaseType.ARTIST -> stringResource(R.string.type_artist); ReleaseType.PLAYLIST -> stringResource(R.string.type_playlist); ReleaseType.MIX -> stringResource(R.string.type_mix); ReleaseType.VIDEO -> stringResource(R.string.type_video); ReleaseType.FOLDER -> stringResource(R.string.type_folder) }
-            } ?: navigationTitles[tab]
+            } ?: stringResource(destination.title)
             Column(Modifier.statusBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(start = if (settings || inDetail || largeText) 8.dp else 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (settings || inDetail) IconButton(onClick = { if (settings) settings = false else vm.closeDetail() }) { Icon(OpenTuneIcons.ArrowBack, stringResource(R.string.action_back)) }
@@ -92,11 +98,10 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialTab: Int = 0, initia
                         Icon(OpenTuneIcons.Brand, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(9.dp))
                     }
-                    Text(stringResource(R.string.app_name), Modifier.weight(1f), fontFamily = InterfaceFont, fontSize = 11.sp, lineHeight = 16.sp,
+                    Text(stringResource(R.string.app_name), Modifier.weight(1f), fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp,
                         letterSpacing = 2.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                     if (!settings) {
-                        if (tab == 0 && !inDetail) IconButton(onClick = importAudio) { Icon(OpenTuneIcons.Add, stringResource(R.string.action_import_audio), Modifier.size(21.dp)) }
-                        if (tab == 2 && !inDetail && state.signedIn && !state.settings.offline) IconButton(onClick = vm::sync, enabled = !state.syncing) { Icon(OpenTuneIcons.Refresh, stringResource(R.string.library_refresh)) }
+                        if (destination == Destination.Library && !inDetail && state.signedIn && !state.settings.offline) IconButton(onClick = vm::sync, enabled = !state.syncing) { Icon(OpenTuneIcons.Refresh, stringResource(R.string.library_refresh)) }
                         state.detail?.takeIf { state.routes.isEmpty() }?.let { release ->
                             if (vm.canEdit(release)) IconButton(onClick = { playlistTitle = release.title; editPlaylist = true }) { Icon(OpenTuneIcons.Edit, stringResource(R.string.playlist_edit)) }
                             if (release.type == ReleaseType.ALBUM && state.signedIn) IconButton(onClick = { vm.favoriteAlbum(release) }) {
@@ -110,14 +115,13 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialTab: Int = 0, initia
                 }
                 if (!inDetail || settings) Text(title,
                     Modifier.padding(start = 24.dp, end = 24.dp, top = if (largeText) 2.dp else 6.dp, bottom = 14.dp),
-                    fontFamily = EditorialFont, fontSize = if (largeText) 30.sp else if (tab == 0 && !settings) 52.sp else 44.sp,
-                    lineHeight = if (largeText) 38.sp else if (tab == 0 && !settings) 58.sp else 50.sp)
+                    style = if (largeText) AppFonts.title(30, 38) else if (destination == Destination.Home && !settings) AppFonts.title(52, 58) else AppFonts.title(44, 50))
             }
         },
         bottomBar = {
             Column {
                 if (state.playback.track != null) MiniPlayer(state.playback, onOpen = { nowPlaying = true }, onPlay = vm::togglePlay, onNext = vm::next)
-                if (!settings && !landscape && !largeText) OpenTuneNavigation(navigationTitles, navigationIcons, tab) { index -> tab = index; settings = false; vm.closeAll() }
+                if (!settings && !landscape && !largeText) OpenTuneNavigation(destinations, destination, select)
                 else if (state.playback.track != null) Spacer(Modifier.navigationBarsPadding())
             }
         },
@@ -128,11 +132,12 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialTab: Int = 0, initia
                 settings -> SettingsScreen(state, vm, openLogin)
                 state.routes.isNotEmpty() -> PageScreen(state.routes.last(), state, vm, pagesVm, openTrackMenu)
                 state.detail != null -> DetailScreen(state, vm, { track, index -> trackMenu = track; playlistPosition = index })
-                tab == 0 -> ListenScreen(state, vm, importAudio, openLogin, { filter -> libraryFilter = filter; tab = 2 }, openTrackMenu, { nowPlaying = true })
-                tab == 1 -> SearchScreen(state, vm, openLogin, openTrackMenu)
-                tab == 2 -> LibraryScreen(state, vm, importAudio, openLogin, { newPlaylistTrack = null; playlistTitle = ""; newPlaylist = true }, openTrackMenu,
+                destination == Destination.Home -> ListenScreen(state, vm, importAudio, openLogin, { filter -> libraryFilter = filter; destinationName = Destination.Library.name },
+                    { destinationName = Destination.Device.name }, openTrackMenu, { nowPlaying = true })
+                destination == Destination.Search -> SearchScreen(state, vm, openLogin, openTrackMenu)
+                destination == Destination.Library -> LibraryScreen(state, vm, openLogin, { newPlaylistTrack = null; playlistTitle = ""; newPlaylist = true }, openTrackMenu,
                     libraryFilter, { libraryFilter = it })
-                else -> DownloadsScreen(state, vm, openTrackMenu)
+                else -> OnDeviceScreen(state, vm, importAudio, addFolder, openLogin, { newPlaylistTrack = null; playlistTitle = ""; newPlaylist = true }, openTrackMenu)
             }
             state.exportProgress?.let { percent -> Surface(Modifier.fillMaxWidth().align(androidx.compose.ui.Alignment.BottomCenter), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Column(Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
@@ -146,9 +151,9 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialTab: Int = 0, initia
 
     if (navigationMenu) ModalBottomSheet(onDismissRequest = { navigationMenu = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-            navigationTitles.forEachIndexed { index, title -> NavigationDrawerItem(selected = tab == index, label = { Text(title) },
-                icon = { Icon(navigationIcons[index], null) }, modifier = Modifier.padding(horizontal = 12.dp),
-                onClick = { tab = index; settings = false; vm.closeAll(); navigationMenu = false }) }
+            destinations.forEach { item -> NavigationDrawerItem(selected = destination == item, label = { Text(stringResource(item.title)) },
+                icon = { Icon(item.icon, null) }, modifier = Modifier.padding(horizontal = 12.dp),
+                onClick = { select(item); navigationMenu = false }) }
         }
     }
 
@@ -156,7 +161,8 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialTab: Int = 0, initia
     if (nowPlaying && state.playback.track != null) NowPlayingScreen(state, vm, onClose = { nowPlaying = false }, onQueue = { queue = true }, onMenu = openTrackMenu, onDownload = { track ->
         if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         vm.download(track)
-    }, initialLyrics = initialLyrics)
+    }, onAlbum = { track -> vm.open(Release(track.albumId, track.album, track.artist, track.artwork)); nowPlaying = false },
+        onArtist = { track -> vm.open(Release(track.artistId, track.artist.substringBefore(","), "", type = ReleaseType.ARTIST)); nowPlaying = false }, initialLyrics = initialLyrics)
     if (queue) QueueSheet(state, vm) { queue = false }
     trackMenu?.let { track ->
         ModalBottomSheet(onDismissRequest = { trackMenu = null; playlistPosition = null }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {

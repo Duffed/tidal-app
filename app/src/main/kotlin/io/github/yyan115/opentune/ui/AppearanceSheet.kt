@@ -1,89 +1,113 @@
 package io.github.yyan115.opentune.ui
 
-import io.github.yyan115.opentune.R
-import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import io.github.yyan115.opentune.R
+import io.github.yyan115.opentune.core.Track
 import io.github.yyan115.opentune.data.Settings
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+/**
+ * Lets the listener browse the themes. Each page is a small copy of the real interface in that theme, drawn with the real components.
+ * A theme applies to the whole app when the listener taps its button, and the sheet itself changes with it.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppearanceSheet(settings: Settings, onChange: (Settings) -> Unit, onClose: () -> Unit) {
-    val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
-    val columns = if (LocalDensity.current.fontScale > 1.3f || LocalConfiguration.current.screenWidthDp < 340) 1 else 2
-    val rows = appColorThemes.chunked(columns)
+    val ids = listOf(SYSTEM_THEME) + appThemes.map { it.id }
+    val systemDark = isSystemInDarkTheme()
+    val pager = rememberPagerState(initialPage = ids.indexOf(settings.theme).coerceAtLeast(0)) { ids.size }
+    val scope = rememberCoroutineScope()
+    val shown = ids[pager.currentPage]
+    val inUse = settings.theme == shown
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        LazyColumn(contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            stickyHeader {
-                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.appearance_title), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
-                    TextButton(onClick = onClose) { Text(stringResource(R.string.action_done)) }
-                }
+        val theme = themeFor(shown, systemDark)
+        val name = stringResource(if (shown == SYSTEM_THEME) R.string.theme_system else theme.nameRes)
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.appearance_title), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+                TextButton(onClick = onClose) { Text(stringResource(R.string.action_done)) }
             }
-            item {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("system" to R.string.appearance_system, "light" to R.string.appearance_light, "dark" to R.string.appearance_dark).forEach { (value, title) ->
-                        FilterChip(settings.theme == value, { onChange(settings.copy(theme = value)) }, label = { Text(stringResource(title)) })
+            // The previews and the description scroll when the screen is short. The button below them stays in view.
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+                HorizontalPager(pager, Modifier.fillMaxWidth().padding(top = 12.dp).testTag("theme-pager"), contentPadding = PaddingValues(horizontal = 36.dp), pageSpacing = 14.dp) { page ->
+                    ThemePreview(ids[page], systemDark, selected = settings.theme == ids[page])
+                }
+                Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(name, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+                    Text(stringResource(if (shown == SYSTEM_THEME) R.string.theme_system_description else theme.descriptionRes), Modifier.padding(top = 4.dp),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        ids.forEachIndexed { index, id ->
+                            val dot = themeFor(id, systemDark).scheme.primary
+                            Box(Modifier.size(if (index == pager.currentPage) 18.dp else 12.dp).clip(CircleShape).background(dot)
+                                .clickable(role = Role.Button, onClickLabel = stringResource(if (id == SYSTEM_THEME) R.string.theme_system else themeFor(id, systemDark).nameRes)) { scope.launch { pager.animateScrollToPage(index) } })
+                        }
                     }
                 }
             }
-            item { Text(stringResource(R.string.appearance_colour), style = MaterialTheme.typography.titleSmall) }
-            items(rows.size) { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    rows[row].forEach { palette ->
-                        ColorThemeCard(palette, dark, settings.colorTheme == palette.id,
-                            Modifier.weight(1f)) { onChange(settings.copy(colorTheme = palette.id)) }
-                    }
-                    if (rows[row].size < columns) Spacer(Modifier.weight(1f))
-                }
+            TuneButton(onClick = { onChange(settings.copy(theme = shown)) }, enabled = !inUse,
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 12.dp).heightIn(min = 52.dp).testTag("theme-apply")) {
+                if (inUse) { Icon(OpenTuneIcons.Check, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
+                Text(stringResource(if (inUse) R.string.appearance_in_use else R.string.appearance_use, name))
             }
         }
     }
 }
 
+private val SampleTracks = listOf(
+    Track("preview:night-walk", "Night Walk", "Harbour Lights", "Late Hours", durationMs = 186_000),
+    Track("preview:slow-tide", "Slow Tide", "Maren Vale", "Salt and Glass", durationMs = 175_000),
+)
+
+/** A picture of the interface in one theme. It uses the real components and does not react to taps. */
 @Composable
-private fun ColorThemeCard(palette: AppColorTheme, dark: Boolean, selected: Boolean, modifier: Modifier, onSelect: () -> Unit) {
-    val scheme = if (dark) palette.dark else palette.light
-    val shape = RoundedCornerShape(12.dp)
-    Column(modifier.selectable(selected, role = Role.RadioButton, onClick = onSelect)
-        .border(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
-        .clip(shape).background(scheme.background).padding(12.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.nav_listen), Modifier.weight(1f), color = scheme.onSurface, fontFamily = EditorialFont,
-                fontSize = 22.sp, fontWeight = FontWeight.Normal)
-            Spacer(Modifier.width(8.dp))
-            Box(Modifier.size(18.dp).background(scheme.primary, RoundedCornerShape(50)))
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(Modifier.size(34.dp).background(scheme.primaryContainer, RoundedCornerShape(palette.radius.dp)))
-            Column(Modifier.weight(1f).padding(top = 7.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Box(Modifier.fillMaxWidth(.85f).height(3.dp).background(scheme.onSurface.copy(alpha = .7f)))
-                Box(Modifier.fillMaxWidth(.6f).height(3.dp).background(scheme.onSurfaceVariant.copy(alpha = .5f)))
+private fun ThemePreview(id: String, systemDark: Boolean, selected: Boolean) {
+    val theme = themeFor(id, systemDark)
+    val name = stringResource(if (id == SYSTEM_THEME) R.string.theme_system else theme.nameRes)
+    OpenTuneTheme(id) {
+        val scheme = MaterialTheme.colorScheme
+        Surface(Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = name }, color = scheme.background, contentColor = scheme.onBackground,
+            shape = RoundedCornerShape(22.dp), border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) scheme.primary else scheme.outlineVariant)) {
+            Box {
+                Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
+                    Text(stringResource(R.string.nav_home), Modifier.padding(horizontal = 20.dp), style = AppFonts.title(40, 46))
+                    SectionTitle(stringResource(R.string.home_recently_played), stringResource(R.string.action_view_all))
+                    TrackRow(SampleTracks[0], true, {}, {})
+                    TrackRow(SampleTracks[1], false, {}, {})
+                    Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        TuneButton(onClick = {}, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.action_play)) }
+                        TuneOutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.Shuffle, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.action_shuffle)) }
+                    }
+                    MiniPlayer(PlaybackState(queue = SampleTracks, index = 0, playing = true, position = 64_000, duration = 186_000, nextIndex = 1), {}, {}, {})
+                    OpenTuneNavigation(listOf(Destination.Home, Destination.Search, Destination.Library, Destination.Device), Destination.Home) {}
+                }
+                // The preview shows the interface and does not use it, so it takes every tap.
+                Box(Modifier.matchParentSize().clickable(indication = null, interactionSource = null) {})
             }
-        }
-        Spacer(Modifier.height(16.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(palette.nameRes), Modifier.weight(1f), color = scheme.onSurface, fontFamily = InterfaceFont, fontSize = 12.sp)
-            if (selected) Icon(OpenTuneIcons.Check, stringResource(R.string.appearance_selected), Modifier.size(16.dp), tint = scheme.primary)
         }
     }
 }

@@ -60,9 +60,9 @@ fun MiniPlayer(state: PlaybackState, onOpen: () -> Unit, onPlay: () -> Unit, onN
             Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(start = 10.dp, end = 2.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                 Artwork(track.artwork, null, Modifier.size(35.dp))
                 Column(Modifier.weight(1f).padding(start = 12.dp, end = 4.dp)) {
-                    Text(track.title, fontFamily = InterfaceFont, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(track.title, fontFamily = AppFonts.body, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(if (state.error != null) stringResource(R.string.player_stopped) else track.artist, Modifier.padding(top = 2.dp),
-                        fontFamily = InterfaceFont, fontSize = 10.sp, lineHeight = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        fontFamily = AppFonts.body, fontSize = 10.sp, lineHeight = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = if (state.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = onPlay) {
@@ -79,7 +79,8 @@ fun MiniPlayer(state: PlaybackState, onOpen: () -> Unit, onPlay: () -> Unit, onN
 
 @UnstableApi
 @Composable
-fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, onQueue: () -> Unit, onMenu: (Track) -> Unit, onDownload: (Track) -> Unit, initialLyrics: Boolean = false) {
+fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, onQueue: () -> Unit, onMenu: (Track) -> Unit, onDownload: (Track) -> Unit,
+    onAlbum: (Track) -> Unit = {}, onArtist: (Track) -> Unit = {}, initialLyrics: Boolean = false) {
     val track = state.playback.track ?: return
     var lyrics by rememberSaveable { mutableStateOf(initialLyrics) }
     var timer by remember { mutableStateOf(false) }
@@ -105,7 +106,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                         IconButton(onClick = onClose) { Icon(OpenTuneIcons.KeyboardArrowDown, stringResource(R.string.player_close), Modifier.size(22.dp)) }
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                             UpperLabel(if (state.playback.source.isNotBlank()) stringResource(R.string.player_playing_from) else stringResource(R.string.player_from_album))
-                            Text(state.playback.source.ifBlank { track.album.ifBlank { stringResource(R.string.player_now_playing) } }, Modifier.padding(top = 3.dp), fontFamily = InterfaceFont,
+                            Text(state.playback.source.ifBlank { track.album.ifBlank { stringResource(R.string.player_now_playing) } }, Modifier.padding(top = 3.dp), fontFamily = AppFonts.body,
                                 fontSize = 11.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         IconButton(onClick = { onMenu(track) }) { Icon(OpenTuneIcons.MoreHoriz, stringResource(R.string.player_track_options), Modifier.size(22.dp)) }
@@ -115,20 +116,20 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                             if (lyrics) LyricsPanel(state, vm, Modifier.width(landscapeArtworkSize * 1.3f).height(landscapeArtworkSize))
                             else Artwork(track.artwork, stringResource(R.string.player_artwork, track.album), Modifier.size(landscapeArtworkSize))
                             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                                PlayerHeading(track, true)
+                                PlayerHeading(track, true, onAlbum, onArtist)
                                 GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, true)
                             }
                         }
                     } else if (scrolling) {
                         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
-                            PlayerHeading(track, true)
+                            PlayerHeading(track, true, onAlbum, onArtist)
                             if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxWidth().height(if (large) 220.dp else 260.dp))
                             else Artwork(track.artwork, stringResource(R.string.player_artwork, track.album), Modifier.size(if (large) 104.dp else 180.dp).align(Alignment.CenterHorizontally).padding(vertical = 8.dp))
                             GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, true)
                         }
                     } else {
                         Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp)) {
-                            PlayerHeading(track, dense)
+                            PlayerHeading(track, dense, onAlbum, onArtist)
                             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                 if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxSize())
                                 else Artwork(track.artwork, stringResource(R.string.player_artwork, track.album), Modifier.size(minOf(maxWidth - 20.dp, maxHeight - 8.dp).coerceAtLeast(0.dp)))
@@ -141,7 +142,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                                 Artwork(next.artwork, null, Modifier.size(34.dp))
                                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                                     UpperLabel(stringResource(R.string.player_next_in_queue))
-                                    Text(next.title, fontFamily = InterfaceFont, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(next.title, fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 Icon(OpenTuneIcons.PlaylistPlay, stringResource(R.string.player_open_queue), Modifier.size(21.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -156,11 +157,16 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
 }
 
 @Composable
-private fun PlayerHeading(track: Track, compact: Boolean) {
-    Text(track.title, Modifier.fillMaxWidth().padding(top = if (compact) 8.dp else 12.dp), fontFamily = EditorialFont,
-        fontSize = if (compact) 34.sp else 48.sp, lineHeight = if (compact) 40.sp else 54.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(track.artist, Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 18.dp), style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+private fun PlayerHeading(track: Track, compact: Boolean, onAlbum: (Track) -> Unit, onArtist: (Track) -> Unit) {
+    // A TIDAL track links to its album and its artist, as in TIDAL's own apps. A file on the device has neither page.
+    val album = track.albumId.isNotBlank() && !track.id.startsWith("local:")
+    val artist = track.artistId.isNotBlank() && !track.id.startsWith("local:")
+    Text(track.title, Modifier.fillMaxWidth().padding(top = if (compact) 8.dp else 12.dp)
+        .then(if (album) Modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.track_go_album)) { onAlbum(track) } else Modifier),
+        style = if (compact) AppFonts.title(34, 40) else AppFonts.title(48, 54), maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Text(track.artist, Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 18.dp).heightIn(min = 32.dp)
+        .then(if (artist) Modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.track_go_artist)) { onArtist(track) } else Modifier),
+        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -180,13 +186,13 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
             val format = SourceReadout.from(player.quality)
             val resolution = listOfNotNull(format.bitsText(), format.rateText()).joinToString(" · ")
             if (largeText) Column(Modifier.weight(1f)) {
-                Text(if (player.quality.isBlank()) stringResource(R.string.source_label) else format.codec.ifBlank { stringResource(R.string.source_not_reported) }, fontFamily = InterfaceFont, fontSize = 10.sp,
+                Text(if (player.quality.isBlank()) stringResource(R.string.source_label) else format.codec.ifBlank { stringResource(R.string.source_not_reported) }, fontFamily = AppFonts.body, fontSize = 10.sp,
                     letterSpacing = 1.5.sp, color = MaterialTheme.colorScheme.primary)
                 if (resolution.isNotBlank()) Text(resolution, Modifier.padding(top = 4.dp),
-                    fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    fontFamily = AppFonts.mono, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
-                Text(if (player.quality.isBlank()) stringResource(R.string.source_label) else format.codec.ifBlank { stringResource(R.string.source_not_reported) }, fontFamily = InterfaceFont, fontSize = 10.sp, letterSpacing = 1.5.sp, color = MaterialTheme.colorScheme.primary)
-                Text(if (resolution.isEmpty()) "" else "  /  $resolution", fontFamily = FontFamily.Monospace, fontSize = 10.sp,
+                Text(if (player.quality.isBlank()) stringResource(R.string.source_label) else format.codec.ifBlank { stringResource(R.string.source_not_reported) }, fontFamily = AppFonts.body, fontSize = 10.sp, letterSpacing = 1.5.sp, color = MaterialTheme.colorScheme.primary)
+                Text(if (resolution.isEmpty()) "" else "  /  $resolution", fontFamily = AppFonts.mono, fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.width(7.dp)); Icon(OpenTuneIcons.KeyboardArrowDown, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -202,8 +208,8 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
         thumb = { Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)) },
         track = { SliderDefaults.Track(it, Modifier.height(2.dp), colors = sliderColors, thumbTrackGapSize = 0.dp, drawStopIndicator = null) }, colors = sliderColors)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(formatDuration(seeking?.toLong() ?: player.position), fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(formatDuration(player.duration), fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(formatDuration(seeking?.toLong() ?: player.position), fontFamily = AppFonts.mono, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(formatDuration(player.duration), fontFamily = AppFonts.mono, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     Row(Modifier.fillMaxWidth().padding(vertical = if (compact) 12.dp else 18.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         IconToggleButton(player.shuffle, onCheckedChange = { vm.toggleShuffle() }) { Icon(OpenTuneIcons.Shuffle, stringResource(R.string.player_shuffle), Modifier.size(20.dp), tint = if (player.shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -239,7 +245,7 @@ private fun PlayerAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
         .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier).padding(vertical = 6.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 1.5.dp, color = shown) else Icon(icon, null, Modifier.size(22.dp), tint = shown)
-        Text(label, Modifier.padding(top = 3.dp), fontFamily = InterfaceFont, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = shown)
+        Text(label, Modifier.padding(top = 3.dp), fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = shown)
     }
 }
 
@@ -249,7 +255,8 @@ private fun DownloadAction(state: AppState, modifier: Modifier, onDownload: (Tra
     val downloaded = track.isLocal || state.local.any { it.id == track.id }
     val pending = state.downloads.any { "track:${track.id}" in it.tags && !it.state.isFinished }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    PlayerAction(if (downloaded) OpenTuneIcons.DownloadDone else OpenTuneIcons.Download,
-        stringResource(if (downloaded) R.string.player_downloaded else if (pending) R.string.player_downloading else R.string.player_label_download),
-        stringResource(if (downloaded) R.string.player_downloaded else R.string.player_download), muted, modifier, enabled = !downloaded && !pending, busy = pending) { onDownload(track) }
+    val file = track.id.startsWith("local:")
+    PlayerAction(if (file) OpenTuneIcons.Device else if (downloaded) OpenTuneIcons.DownloadDone else OpenTuneIcons.Download,
+        stringResource(if (file) R.string.nav_device else if (downloaded) R.string.player_downloaded else if (pending) R.string.player_downloading else R.string.player_label_download),
+        stringResource(if (file) R.string.nav_device else if (downloaded) R.string.player_downloaded else R.string.player_download), muted, modifier, enabled = !downloaded && !pending, busy = pending) { onDownload(track) }
 }

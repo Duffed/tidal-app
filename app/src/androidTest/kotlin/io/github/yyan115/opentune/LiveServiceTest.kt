@@ -117,7 +117,7 @@ class LiveServiceTest {
             shell("svc wifi enable"); shell("svc data enable")
             compose.waitUntil(20_000) { manager.getNetworkCapabilities(manager.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true }
             // Reconnection also starts library sync. It must not hide the failed search or its retry action.
-            compose.onNodeWithTag("nav-1").performClick()
+            compose.onNodeWithTag("nav-search").performClick()
             compose.onNodeWithText("Retry").performClick()
             compose.waitUntil(30_000) { model.state.value.search.tracks.isNotEmpty() }
             assertNull(model.state.value.searchError)

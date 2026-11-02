@@ -44,7 +44,7 @@ fun SourceDetailsSheet(label: String, onClose: () -> Unit) {
                 stringResource(R.string.source_sample_rate) to (source.rateText() ?: notReported)).forEachIndexed { index, (title, value) ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Box(Modifier.weight(1f).padding(end = 12.dp)) { UpperLabel(title) }
-                    Text(value, Modifier.testTag(listOf("source-codec", "source-bits", "source-rate")[index]), fontFamily = FontFamily.Monospace, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+                    Text(value, Modifier.testTag(listOf("source-codec", "source-bits", "source-rate")[index]), fontFamily = AppFonts.mono, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }

@@ -65,6 +65,7 @@ data class AppState(
     val settings: Settings = Settings(),
     val local: List<Track> = emptyList(), val favorites: List<Track> = emptyList(), val recent: List<Track> = emptyList(),
     val localPlaylists: List<LocalPlaylist> = emptyList(),
+    val deviceFolders: List<io.github.yyan115.opentune.data.LocalFolder> = emptyList(), val scans: Map<String, io.github.yyan115.opentune.data.ScanState> = emptyMap(),
     val albums: List<Release> = emptyList(), val playlists: List<Release> = emptyList(),
     val search: SearchResult = SearchResult(), val searchQuery: String = "", val searching: Boolean = false,
     val searchError: String? = null,
@@ -151,6 +152,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch { while (true) { delay(10_000); persistQueue() } }
         viewModelScope.launch { app.library.changes.collect { refreshLocal() } }
+        viewModelScope.launch { app.folders.scans.collect { scans -> ui.update { it.copy(scans = scans) } } }
+        viewModelScope.launch(Dispatchers.IO) { app.folders.rescanStale() }
         viewModelScope.launch { app.settings.state.collect { settings ->
             val wasOffline = ui.value.settings.offline
             ui.update { it.copy(settings = settings) }
@@ -212,10 +215,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val favorites = withContext(Dispatchers.IO) { app.library.favorites() }
         val recent = withContext(Dispatchers.IO) { app.library.recent() }
         val playlists = withContext(Dispatchers.IO) { app.library.playlists() }
+        val folders = withContext(Dispatchers.IO) { app.library.folders() }
         val pending = withContext(Dispatchers.IO) { app.library.pendingFavorites(app.tidal.accountId) }
         val localById = local.associateBy(Track::id)
         ui.update { it.copy(local = local, favorites = (favorites + cloudFavorites).filter { track -> pending[track.id] != false }.distinctBy(Track::id)
-            .map { track -> localById[track.id] ?: track }, recent = recent, localPlaylists = playlists) }
+            .map { track -> localById[track.id] ?: track }, recent = recent, localPlaylists = playlists, deviceFolders = folders) }
     }
 
     fun search(text: String) { query.value = text; ui.update { it.copy(searchQuery = text) } }
@@ -440,6 +444,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             refreshLocal()
         }
     }
+
+    /** Answers the first-launch screen. The listener either signed in or chose to use local music only. */
+    fun finishWelcome() { settings { it.copy(welcomeDone = true) } }
+
+    fun addDeviceFolder(tree: Uri) = viewModelScope.launch(Dispatchers.IO) {
+        try { app.folders.add(tree) }
+        catch (error: Exception) { if (error is CancellationException) throw error; notify(app.getString(R.string.notify_folder_failed)) }
+    }
+    fun removeDeviceFolder(id: String) = viewModelScope.launch(Dispatchers.IO) { app.folders.remove(id) }
+    fun rescanDeviceFolder(id: String) = viewModelScope.launch(Dispatchers.IO) { app.library.folders().firstOrNull { it.id == id }?.let(app.folders::rescan) }
 
     fun import(uris: List<Uri>) = viewModelScope.launch {
         var imported = 0

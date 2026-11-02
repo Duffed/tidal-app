@@ -183,7 +183,7 @@ private enum class LibrarySort(@androidx.annotation.StringRes val label: Int) { 
 
 @UnstableApi
 @Composable
-fun LibraryScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLogin: () -> Unit, onNewPlaylist: () -> Unit,
+fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNewPlaylist: () -> Unit,
     onMenu: (Track) -> Unit, filter: Int, onFilter: (Int) -> Unit) {
     val columns = if (LocalDensity.current.fontScale > 1.3f) 1 else 2
     val filters = rememberLazyListState()
@@ -193,12 +193,12 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLo
     var sortMenu by remember { mutableStateOf(false) }
     val pages: PagesViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val entries by pages.state.collectAsStateWithLifecycle()
-    val libraryTabs = listOf(R.string.library_saved_tracks, R.string.label_albums, R.string.label_artists, R.string.label_playlists, R.string.library_on_device, R.string.library_mixes).map { stringResource(it) }
+    val libraryTabs = listOf(R.string.library_saved_tracks, R.string.label_albums, R.string.label_artists, R.string.label_playlists, R.string.library_mixes).map { stringResource(it) }
     val onThisDevice = stringResource(R.string.library_on_this_device)
     val mixes = remember { PageRoute.path("pages/my_collection_my_mixes") }
     val scope = rememberCoroutineScope()
-    val context = PageContext(state, vm, pages, scope, onMenu, libraryTabs[5])
-    LaunchedEffect(filter, state.signedIn, state.settings.offline) { if (filter == 5 && state.signedIn && !state.settings.offline) pages.load(mixes) }
+    val context = PageContext(state, vm, pages, scope, onMenu, libraryTabs[4])
+    LaunchedEffect(filter, state.signedIn, state.settings.offline) { if (filter == 4 && state.signedIn && !state.settings.offline) pages.load(mixes) }
     val online = state.signedIn && !state.settings.offline
     var folderStack by rememberSaveable(stateSaver = FolderStackSaver) { mutableStateOf(emptyList<Pair<String, String>>()) }
     val openFolder = folderStack.lastOrNull()
@@ -293,7 +293,7 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLo
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
-            5 -> {
+            4 -> {
                 val entry = entries[mixes.key]
                 val page = entry?.page
                 if (page != null) pageContent(page, entry, mixes.key, context, viewAll = true)
@@ -306,11 +306,7 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLo
                     }
                 }
             }
-            else -> {
-                item { SectionTitle(pluralStringResource(R.plurals.track_count, state.local.size, state.local.size), stringResource(R.string.action_import), onImport) }
-                items(state.local, key = Track::id) { track -> TrackRow(track, state.playback.track?.id == track.id, { vm.play(state.local, state.local.indexOf(track), libraryTabs[4]) }, { onMenu(track) }) }
-                if (state.local.isEmpty()) item { EmptyState(OpenTuneIcons.AudioFile, stringResource(R.string.device_none), stringResource(R.string.device_none_text), stringResource(R.string.action_import_audio), onImport) }
-            }
+            else -> Unit
         }
     }
 }
@@ -345,41 +341,6 @@ fun DetailScreen(state: AppState, vm: MainViewModel, onMenu: (Track, Int) -> Uni
     }
 }
 
-@UnstableApi
-@Composable
-fun DownloadsScreen(state: AppState, vm: MainViewModel, onMenu: (Track) -> Unit) {
-    val active = state.downloads.filter { !it.state.isFinished || it.state == WorkInfo.State.FAILED }
-    val tracks = state.local.filterNot { it.id.startsWith("local:") }
-    val context = LocalContext.current
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
-        item { Text(stringResource(R.string.downloads_intro), Modifier.padding(horizontal = 24.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (state.downloads.any { it.state.isFinished }) item { TextButton(onClick = vm::clearDownloadHistory, modifier = Modifier.padding(horizontal = 16.dp)) { Text(stringResource(R.string.downloads_clear)) } }
-        items(active, key = { it.id }) { work ->
-            val trackId = work.tags.firstOrNull { it.startsWith("track:") }?.removePrefix("track:")
-            val track = state.downloadTracks[trackId]
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(OpenTuneIcons.Download, null, tint = MaterialTheme.colorScheme.primary)
-                    Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                        Text(track?.title ?: stringResource(R.string.downloads_unnamed), style = MaterialTheme.typography.titleSmall)
-                        Text(when (work.state) {
-                            WorkInfo.State.RUNNING -> stringResource(R.string.download_progress, work.progress.getInt("progress", 0))
-                            WorkInfo.State.FAILED -> context.downloadErrorText(work.outputData.getString("error"))
-                            WorkInfo.State.BLOCKED -> stringResource(R.string.download_waiting)
-                            else -> if (state.settings.downloadOnWifi) stringResource(R.string.download_queued_wifi) else stringResource(R.string.download_queued)
-                        }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (!work.state.isFinished) IconButton(onClick = { vm.cancelDownload(work) }) { Icon(OpenTuneIcons.Close, stringResource(R.string.download_cancel)) }
-                    else if (track != null) TextButton(onClick = { vm.download(track) }) { Text(stringResource(R.string.action_retry)) }
-                }
-                if (work.state == WorkInfo.State.RUNNING) LinearProgressIndicator(progress = { work.progress.getInt("progress", 0) / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
-            }
-        }
-        if (tracks.isNotEmpty()) item { SectionTitle(pluralStringResource(R.plurals.saved_track_count, tracks.size, tracks.size)) }
-        items(tracks, key = Track::id) { track -> TrackRow(track, state.playback.track?.id == track.id, { vm.play(tracks, tracks.indexOf(track)) }, { onMenu(track) }) }
-        if (tracks.isEmpty() && active.isEmpty()) item { EmptyState(OpenTuneIcons.Download, stringResource(R.string.downloads_none), stringResource(R.string.downloads_none_text)) }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @UnstableApi
@@ -432,29 +393,34 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
         item { SectionTitle(stringResource(R.string.settings_playback)) }
         item { SettingRow(OpenTuneIcons.Wifi, stringResource(R.string.settings_quality_wifi), stringResource(state.settings.quality.labelRes()), { quality = true }) }
         item { SettingRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_quality_mobile), stringResource(state.settings.mobileQuality.labelRes()), { mobile = true }) }
+        item { SettingRow(OpenTuneIcons.GraphicEq, stringResource(R.string.normalization_title), stringResource(when (state.settings.normalization) { "track" -> R.string.normalization_track; "album" -> R.string.normalization_album; else -> R.string.settings_off }), { normalization = true }) }
+        item { SettingRow(OpenTuneIcons.Equalizer, stringResource(R.string.eq_title), stringResource(if (state.settings.equalizer) R.string.settings_on else R.string.settings_off), { equalizer = true }) }
+        item { SettingRow(OpenTuneIcons.Headphones, stringResource(R.string.output_title), stringResource(R.string.settings_output_text), { output = true }) }
+        item { SectionTitle(stringResource(R.string.settings_downloads)) }
         item { SettingRow(OpenTuneIcons.CloudOff, stringResource(R.string.status_offline), stringResource(R.string.settings_offline_text), trailing = {
             Switch(state.settings.offline, { value -> vm.settings { it.copy(offline = value) } })
         }) }
         item { SettingRow(OpenTuneIcons.Download, stringResource(R.string.settings_wifi_only), stringResource(R.string.settings_wifi_only_text), trailing = {
             Switch(state.settings.downloadOnWifi, { value -> vm.settings { it.copy(downloadOnWifi = value) } })
         }) }
-        item { SettingRow(OpenTuneIcons.GraphicEq, stringResource(R.string.normalization_title), stringResource(when (state.settings.normalization) { "track" -> R.string.normalization_track; "album" -> R.string.normalization_album; else -> R.string.settings_off }), { normalization = true }) }
-        item { SettingRow(OpenTuneIcons.Equalizer, stringResource(R.string.eq_title), stringResource(if (state.settings.equalizer) R.string.settings_on else R.string.settings_off), { equalizer = true }) }
-        item { SettingRow(OpenTuneIcons.Headphones, stringResource(R.string.output_title), stringResource(R.string.settings_output_text), { output = true }) }
-        if (android.os.Build.VERSION.SDK_INT >= 34) item { SettingRow(OpenTuneIcons.Waves, stringResource(R.string.settings_bitperfect), stringResource(R.string.settings_bitperfect_text), trailing = {
-            Switch(state.settings.bitPerfect, { value -> vm.settings { it.copy(bitPerfect = value) } })
-        }) }
-        item { SectionTitle(stringResource(R.string.settings_appearance)) }
-        item { SettingRow(OpenTuneIcons.Contrast, stringResource(R.string.settings_theme), stringResource(R.string.settings_theme_value, stringResource(colorTheme(state.settings.colorTheme).nameRes), stringResource(when (state.settings.theme) { "light" -> R.string.appearance_light; "system" -> R.string.appearance_system; else -> R.string.appearance_dark })), { theme = true }) }
-        item { SectionTitle(stringResource(R.string.settings_privacy_data)) }
-        item { SettingRow(OpenTuneIcons.Download, stringResource(R.string.settings_keep_offline), stringResource(R.string.settings_keep_offline_text), trailing = {
+        item { SettingRow(OpenTuneIcons.DownloadDone, stringResource(R.string.settings_keep_offline), stringResource(R.string.settings_keep_offline_text), trailing = {
             Switch(state.settings.keepFavoritesOffline, { value -> vm.settings { it.copy(keepFavoritesOffline = value) } })
         }) }
-        item { SettingRow(OpenTuneIcons.GraphicEq, stringResource(R.string.scrobble_title), if (state.settings.scrobble) stringResource(R.string.settings_scrobble_on, state.settings.scrobbleServer.removePrefix("https://")) else stringResource(R.string.settings_off), { scrobbling = true }) }
+        item { SectionTitle(stringResource(R.string.settings_appearance)) }
+        item { SettingRow(OpenTuneIcons.Contrast, stringResource(R.string.settings_theme), stringResource(if (state.settings.theme == SYSTEM_THEME) R.string.theme_system else themeFor(state.settings.theme, false).nameRes), { theme = true }) }
+        item { SectionTitle(stringResource(R.string.settings_listening)) }
         item { SettingRow(OpenTuneIcons.LibraryMusic, stringResource(R.string.stats_title), stringResource(R.string.settings_stats_text), { stats = true }) }
+        item { SettingRow(OpenTuneIcons.Lyrics, stringResource(R.string.scrobble_title), if (state.settings.scrobble) stringResource(R.string.settings_scrobble_on, state.settings.scrobbleServer.removePrefix("https://")) else stringResource(R.string.settings_off), { scrobbling = true }) }
+        item { SectionTitle(stringResource(R.string.settings_data)) }
         item { SettingRow(OpenTuneIcons.SaveAlt, stringResource(R.string.settings_backup), stringResource(R.string.settings_backup_text), { backup.launch("opentune-backup.json") }) }
         item { SettingRow(OpenTuneIcons.Refresh, stringResource(R.string.settings_restore), stringResource(R.string.settings_restore_text), { restore.launch(arrayOf("application/json", "*/*")) }) }
         item { SettingRow(OpenTuneIcons.RemoveCircleOutline, stringResource(R.string.settings_clear_history), stringResource(R.string.settings_clear_history_text), { clearHistory = true }) }
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            item { SectionTitle(stringResource(R.string.settings_advanced)) }
+            item { SettingRow(OpenTuneIcons.Waves, stringResource(R.string.settings_bitperfect), stringResource(R.string.settings_bitperfect_text), trailing = {
+                Switch(state.settings.bitPerfect, { value -> vm.settings { it.copy(bitPerfect = value) } })
+            }) }
+        }
         item { SectionTitle(stringResource(R.string.settings_about)) }
         item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), stringResource(R.string.settings_tagline)) }
         item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_source), "github.com/yyan115/tidal-app", {
