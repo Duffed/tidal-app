@@ -121,7 +121,7 @@
     <string name="action_import_audio">Import audio</string>
     <string name="home_saved_albums">Saved albums</string>
     <string name="home_recently_played">Recently played</string>
-    <string name="home_your_mixes">Your mixes</string>
+    <string name="home_mixes">Mixes</string>
 
     <!-- Pages -->
     <string name="page_empty_title">Nothing here yet</string>
@@ -631,7 +631,7 @@
     <!-- Settings -->
     <string name="settings_downloads">Offline and downloads</string>
     <string name="settings_listening">Listening</string>
-    <string name="settings_data">Your data</string>
+    <string name="settings_data">Data</string>
     <string name="settings_advanced">Advanced</string>
     <string name="settings_autoplay">Autoplay</string>
     <string name="settings_autoplay_text">Keep playing similar music when the queue ends</string>

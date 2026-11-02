@@ -46,7 +46,7 @@ fun ListenScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLog
     val entries by pages.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = PageContext(state, vm, pages, scope, onMenu, stringResource(R.string.nav_home))
-    val yourMixes = stringResource(R.string.home_your_mixes)
+    val mixesTitle = stringResource(R.string.home_mixes)
     val online = state.signedIn && !state.settings.offline
     LaunchedEffect(online) { if (online) { pages.load(PageRoute.ForYou); pages.load(PageRoute.Home) } }
     val forYou = entries[PageRoute.ForYou.key]?.takeIf { online }
@@ -85,7 +85,7 @@ fun ListenScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLog
             }
             else if (!(state.signedIn && !state.settings.offline)) item { EmptyState(OpenTuneIcons.Album, stringResource(R.string.home_empty_title), stringResource(R.string.home_empty_text), stringResource(R.string.action_import_audio), onImport) }
         }
-        forYou?.page?.let { pageContent(it.tidied(yourMixes), forYou, PageRoute.ForYou.key, context, viewAll = false) }
+        forYou?.page?.let { pageContent(it.tidied(mixesTitle), forYou, PageRoute.ForYou.key, context, viewAll = false) }
         if (state.albums.isNotEmpty()) {
             item { SectionTitle(stringResource(R.string.home_saved_albums), stringResource(R.string.action_view_all), { onLibrary(1) }) }
             item { LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -98,7 +98,7 @@ fun ListenScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLog
             items(others, key = { "recent:${it.id}" }) { track -> TrackRow(track, false,
                 { vm.play(recent, recent.indexOf(track)) }, { onMenu(track) }) }
         }
-        home?.page?.let { pageContent(it.tidied(yourMixes), home, PageRoute.Home.key, context, viewAll = false) }
+        home?.page?.let { pageContent(it.tidied(mixesTitle), home, PageRoute.Home.key, context, viewAll = false) }
         val local = state.local.filterNot { it.id == hero?.id }.take(3)
         if (local.isNotEmpty()) {
             item { SectionTitle(stringResource(R.string.nav_device), stringResource(R.string.action_view_all), onDevice) }
@@ -119,7 +119,7 @@ fun ListenScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLog
  * Merges adjacent carousels that share a title and renames TIDAL's generic section names.
  * The rename matches the English title. In other languages TIDAL's own translated title stays.
  */
-private fun PageData.tidied(yourMixes: String): PageData {
+private fun PageData.tidied(mixesTitle: String): PageData {
     val result = mutableListOf<io.github.yyan115.opentune.core.PageModule>()
     for (module in modules) {
         val previous = result.lastOrNull()
@@ -128,7 +128,7 @@ private fun PageData.tidied(yourMixes: String): PageData {
         } else result += module
     }
     return copy(modules = result.map { module ->
-        if (module is CarouselModule && module.title == "Custom mixes") module.copy(title = yourMixes) else module
+        if (module is CarouselModule && module.title == "Custom mixes") module.copy(title = mixesTitle) else module
     })
 }
 
