@@ -104,6 +104,10 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                         if (destination == Destination.Library && !inDetail && state.signedIn && !state.settings.offline) IconButton(onClick = vm::sync, enabled = !state.syncing) { Icon(OpenTuneIcons.Refresh, stringResource(R.string.library_refresh)) }
                         state.detail?.takeIf { state.routes.isEmpty() }?.let { release ->
                             if (vm.canEdit(release)) IconButton(onClick = { playlistTitle = release.title; editPlaylist = true }) { Icon(OpenTuneIcons.Edit, stringResource(R.string.playlist_edit)) }
+                            if (release.type == ReleaseType.PLAYLIST && state.signedIn && !release.id.startsWith("local:") && !vm.canEdit(release)) IconButton(onClick = { vm.favoritePlaylist(release) }) {
+                                val saved = state.playlists.any { it.id == release.id }
+                                Icon(if (saved) OpenTuneIcons.Favorite else OpenTuneIcons.FavoriteBorder, if (saved) stringResource(R.string.playlist_unsave) else stringResource(R.string.playlist_save))
+                            }
                             if (release.type == ReleaseType.ALBUM && state.signedIn) IconButton(onClick = { vm.favoriteAlbum(release) }) {
                                 val saved = state.albums.any { it.id == release.id }
                                 Icon(if (saved) OpenTuneIcons.Favorite else OpenTuneIcons.FavoriteBorder, if (saved) stringResource(R.string.album_unsave) else stringResource(R.string.album_save))

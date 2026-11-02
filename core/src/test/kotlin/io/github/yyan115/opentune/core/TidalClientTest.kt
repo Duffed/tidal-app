@@ -226,6 +226,19 @@ class TidalClientTest {
         assertEquals("IN", request.requestUrl!!.queryParameter("countryCode"))
     }
 
+    @Test fun savingAPlaylistPostsItsIdAndRemovingItDeletesTheEntry() = runBlocking {
+        server.enqueue(MockResponse().setBody("{}")); server.enqueue(MockResponse().setBody("{}"))
+        client.setPlaylistFavorite("abc-123", true)
+        val save = server.takeRequest()
+        assertEquals("POST", save.method)
+        assertEquals("/v1/users/123/favorites/playlists", save.requestUrl!!.encodedPath)
+        assertEquals("uuids=abc-123", save.body.readUtf8())
+        client.setPlaylistFavorite("abc-123", false)
+        val remove = server.takeRequest()
+        assertEquals("DELETE", remove.method)
+        assertEquals("/v1/users/123/favorites/playlists/abc-123", remove.requestUrl!!.encodedPath)
+    }
+
     @Test fun pagesAskForTheLanguageOfTheDevice() = runBlocking {
         var language = "de_DE"
         val translated = TidalClient({ ClientIdentity("test-client", "test-secret") }, store,

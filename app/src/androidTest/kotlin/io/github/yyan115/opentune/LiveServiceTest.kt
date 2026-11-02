@@ -58,6 +58,19 @@ class LiveServiceTest {
         assertFalse(app.tidal.allPlaylists().any { it.id == playlist.id })
     }
 
+    @Test fun anEditorialPlaylistCanBeSavedAndRemoved() = runBlocking {
+        val found = app.tidal.search("Pop Rising").playlists.firstOrNull { it.id.isNotBlank() }
+        assertNotNull("The search finds a playlist to save", found)
+        val id = found!!.id
+        val alreadySaved = app.tidal.allPlaylists().any { it.id == id }
+        try {
+            if (!alreadySaved) app.tidal.setPlaylistFavorite(id, true)
+            assertTrue(app.tidal.allPlaylists().any { it.id == id })
+            app.tidal.setPlaylistFavorite(id, false)
+            assertTrue(app.tidal.allPlaylists().none { it.id == id })
+        } finally { if (alreadySaved) runCatching { app.tidal.setPlaylistFavorite(id, true) } else runCatching { app.tidal.setPlaylistFavorite(id, false) } }
+    }
+
     @Test fun temporaryFolderCanHoldAPlaylistAndBeRenamedAndRemoved() = runBlocking {
         val suffix = UUID.randomUUID().toString().take(8)
         val folder = app.tidal.createFolder("OpenTune check $suffix")

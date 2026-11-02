@@ -633,4 +633,10 @@
     <string name="settings_listening">Listening</string>
     <string name="settings_data">Your data</string>
     <string name="settings_advanced">Advanced</string>
+    <string name="settings_autoplay">Autoplay</string>
+    <string name="settings_autoplay_text">Keep playing similar music when the queue ends</string>
+
+    <!-- Playlists -->
+    <string name="playlist_save">Save playlist</string>
+    <string name="playlist_unsave">Remove saved playlist</string>
 </resources>

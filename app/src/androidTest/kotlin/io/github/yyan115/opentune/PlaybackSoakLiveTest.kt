@@ -126,4 +126,21 @@ class PlaybackSoakLiveTest {
             onMain { controller.release() }
         }
     }
+
+    /** At the end of the queue, autoplay adds similar tracks and keeps playing. */
+    @Test fun autoplayContinuesWithSimilarMusicWhenTheQueueEnds() {
+        compose.runOnIdle { model.settings { it.copy(offline = false, autoplay = true, quality = AudioQuality.LOSSLESS, mobileQuality = AudioQuality.LOSSLESS) } }
+        val track = longHiResTrack()
+        compose.runOnIdle { model.play(listOf(track)) }
+        val deadline = System.currentTimeMillis() + 60_000
+        while (System.currentTimeMillis() < deadline && !(model.state.value.playback.playing && model.state.value.playback.duration > 0)) Thread.sleep(300)
+        assertTrue("The track started", model.state.value.playback.playing)
+        compose.runOnIdle { model.seek(model.state.value.playback.duration - 4_000) }
+        val end = System.currentTimeMillis() + 60_000
+        while (System.currentTimeMillis() < end && !(model.state.value.playback.queue.size > 1 && model.state.value.playback.playing)) Thread.sleep(400)
+        val queue = model.state.value.playback.queue
+        assertTrue("Autoplay added tracks after the last one (queue of ${queue.size})", queue.size > 1)
+        assertTrue("The music kept playing", model.state.value.playback.playing)
+        assertTrue("The new track differs from the one that ended", model.state.value.playback.track?.id != track.id)
+    }
 }

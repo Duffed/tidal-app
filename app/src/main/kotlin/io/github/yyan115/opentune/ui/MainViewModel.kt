@@ -126,7 +126,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val player = controllerFuture.get()
                 controller = player
                 player.addListener(object : Player.Listener {
-                    override fun onEvents(player: Player, events: Player.Events) { updatePlayback(); persistQueue() }
+                    override fun onEvents(player: Player, events: Player.Events) {
+                        updatePlayback(); persistQueue()
+                        if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) && player.playbackState == Player.STATE_ENDED) continueWithSimilarMusic(player)
+                    }
                     override fun onPlayerError(error: PlaybackException) {
                         val cause = generateSequence<Throwable>(error) { it.cause }.last()
                         ui.update { it.copy(playback = it.playback.copy(error = when (cause) {
@@ -638,6 +641,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun dismissCredits() { ui.update { it.copy(credits = null) } }
 
+    /** When the queue ends, keeps playing music that resembles the last track, as TIDAL's own apps do. */
+    private fun continueWithSimilarMusic(player: Player) {
+        val state = ui.value
+        val last = state.playback.queue.lastOrNull() ?: return
+        if (!state.settings.autoplay || !state.signedIn || state.settings.offline || last.id.startsWith("local:")) return
+        viewModelScope.launch {
+            val known = state.playback.queue.map(Track::id).toSet()
+            val similar = try { app.tidal.trackRadio(last.id).filterNot { it.id in known } }
+            catch (error: Exception) { if (error is CancellationException) throw error; return@launch }
+            if (similar.isEmpty()) return@launch
+            val first = player.mediaItemCount
+            player.addMediaItems(similar.map(app.sources::unresolved))
+            player.seekTo(first, 0)
+            player.play()
+        }
+    }
+
     fun playTrackRadio(track: Track) = accountAction {
         val radio = app.tidal.trackRadio(track.id).filterNot { it.id == track.id }
         if (radio.isEmpty()) notify(app.getString(R.string.notify_no_radio_track)) else play(listOf(track) + radio)
@@ -828,6 +848,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val saved = ui.value.albums.any { it.id == release.id }
         app.tidal.setAlbumFavorite(release.id, !saved)
         ui.update { it.copy(albums = if (saved) it.albums.filterNot { album -> album.id == release.id } else listOf(release) + it.albums) }
+    }
+
+    fun favoritePlaylist(release: Release) = accountAction {
+        val saved = ui.value.playlists.any { it.id == release.id }
+        app.tidal.setPlaylistFavorite(release.id, !saved)
+        ui.update { it.copy(playlists = if (saved) it.playlists.filterNot { playlist -> playlist.id == release.id } else listOf(release) + it.playlists) }
     }
 
     private fun accountAction(action: suspend () -> Unit) = viewModelScope.launch {

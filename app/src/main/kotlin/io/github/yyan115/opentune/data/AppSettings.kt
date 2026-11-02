@@ -23,6 +23,8 @@ data class Settings(
     val scrobbleServer: String = "https://api.listenbrainz.org",
     /** Whether the first-launch screen was answered. */
     val welcomeDone: Boolean = false,
+    /** Keeps playing similar music from TIDAL when the queue ends. */
+    val autoplay: Boolean = true,
 )
 
 class AppSettings(context: Context) {
@@ -38,7 +40,7 @@ class AppSettings(context: Context) {
         preferences.getString("equalizerLevels", "").orEmpty().split(',').mapNotNull { it.trim().toIntOrNull() },
         preferences.getBoolean("bitPerfect", false), preferences.getBoolean("keepFavoritesOffline", false),
         preferences.getBoolean("scrobble", false), preferences.getString("scrobbleServer", "https://api.listenbrainz.org") ?: "https://api.listenbrainz.org",
-        preferences.getBoolean("welcomeDone", false)))
+        preferences.getBoolean("welcomeDone", false), preferences.getBoolean("autoplay", true)))
     val state = mutable.asStateFlow()
     fun update(transform: (Settings) -> Settings) {
         val next = transform(mutable.value)
@@ -48,7 +50,7 @@ class AppSettings(context: Context) {
             .putString("normalization", next.normalization).putBoolean("equalizer", next.equalizer)
             .putString("equalizerLevels", next.equalizerLevels.joinToString(",")).putBoolean("bitPerfect", next.bitPerfect)
             .putBoolean("keepFavoritesOffline", next.keepFavoritesOffline).putBoolean("scrobble", next.scrobble)
-            .putString("scrobbleServer", next.scrobbleServer).putBoolean("welcomeDone", next.welcomeDone).apply()
+            .putString("scrobbleServer", next.scrobbleServer).putBoolean("welcomeDone", next.welcomeDone).putBoolean("autoplay", next.autoplay).apply()
         mutable.value = next
     }
 }

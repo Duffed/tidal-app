@@ -393,6 +393,9 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
         item { SectionTitle(stringResource(R.string.settings_playback)) }
         item { SettingRow(OpenTuneIcons.Wifi, stringResource(R.string.settings_quality_wifi), stringResource(state.settings.quality.labelRes()), { quality = true }) }
         item { SettingRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_quality_mobile), stringResource(state.settings.mobileQuality.labelRes()), { mobile = true }) }
+        item { SettingRow(OpenTuneIcons.Radio, stringResource(R.string.settings_autoplay), stringResource(R.string.settings_autoplay_text), trailing = {
+            Switch(state.settings.autoplay, { value -> vm.settings { it.copy(autoplay = value) } })
+        }) }
         item { SettingRow(OpenTuneIcons.GraphicEq, stringResource(R.string.normalization_title), stringResource(when (state.settings.normalization) { "track" -> R.string.normalization_track; "album" -> R.string.normalization_album; else -> R.string.settings_off }), { normalization = true }) }
         item { SettingRow(OpenTuneIcons.Equalizer, stringResource(R.string.eq_title), stringResource(if (state.settings.equalizer) R.string.settings_on else R.string.settings_off), { equalizer = true }) }
         item { SettingRow(OpenTuneIcons.Headphones, stringResource(R.string.output_title), stringResource(R.string.settings_output_text), { output = true }) }

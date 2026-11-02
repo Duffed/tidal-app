@@ -228,6 +228,12 @@ class TidalClient(
 
     suspend fun renamePlaylist(id: String, title: String) { request("playlists/$id", method = "POST", form = mapOf("title" to title)) }
     suspend fun deletePlaylist(id: String) { request("playlists/$id", method = "DELETE") }
+    /** Saves or removes a playlist that someone else made, such as an editorial playlist. Playlists of the listener need no saving. */
+    suspend fun setPlaylistFavorite(id: String, favorite: Boolean) {
+        if (favorite) request("users/${userId()}/favorites/playlists", method = "POST", form = mapOf("uuids" to id))
+        else request("users/${userId()}/favorites/playlists/$id", method = "DELETE")
+    }
+
     suspend fun setAlbumFavorite(id: String, favorite: Boolean) {
         if (favorite) request("users/${userId()}/favorites/albums", method = "POST", form = mapOf("albumIds" to id))
         else request("users/${userId()}/favorites/albums/$id", method = "DELETE")
