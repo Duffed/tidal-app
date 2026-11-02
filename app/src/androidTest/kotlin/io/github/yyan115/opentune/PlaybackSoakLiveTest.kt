@@ -13,7 +13,9 @@ import io.github.yyan115.opentune.core.AudioQuality
 import io.github.yyan115.opentune.core.Track
 import io.github.yyan115.opentune.playback.PlaybackService
 import io.github.yyan115.opentune.ui.MainViewModel
+import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,6 +29,20 @@ class PlaybackSoakLiveTest {
     @get:Rule(order = 0) val account = LiveAccount.rule()
     @get:Rule(order = 1) val compose = createAndroidComposeRule<MainActivity>()
     private val model get() = ViewModelProvider(compose.activity)[MainViewModel::class.java]
+
+    /** Stops the player and empties its queue, so that a test never measures music that an earlier test left playing. */
+    private fun silence() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val controller = onMain { MediaController.Builder(context, SessionToken(context, ComponentName(context, PlaybackService::class.java))).buildAsync() }.get()
+        onMain { controller.stop(); controller.clearMediaItems() }
+        val end = System.currentTimeMillis() + 10_000
+        while (System.currentTimeMillis() < end && onMain { controller.mediaItemCount } > 0) Thread.sleep(200)
+        onMain { controller.release() }
+    }
+
+    @Before fun startFromSilence() = silence()
+
+    @After fun endInSilence() = silence()
 
     private data class Snapshot(val state: Int, val playing: Boolean, val ahead: Long, val position: Long)
 

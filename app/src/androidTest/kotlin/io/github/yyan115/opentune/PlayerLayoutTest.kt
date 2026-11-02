@@ -98,23 +98,34 @@ class PlayerLayoutTest {
                 screenshot("player-${screen.name}-failed")
                 throw AssertionError("${screen.name} (${screen.width}x${screen.height} at ${screen.density} dpi): ${failure.message}. The activity reports ${activityDisplay()}. The screen shows: $texts", failure)
             }
-            val density = compose.activity.resources.displayMetrics.density
-            val screenHeight = compose.activity.resources.displayMetrics.heightPixels
-            val navigation = ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
-            val bottom = queue.fetchSemanticsNode().boundsInWindow.bottom
-            val gap = (screenHeight - navigation - bottom) / density
-            // The title also appears on the screens behind the player, and all of them lie below the player's own title.
-            val heading = compose.onAllNodesWithText("Layout Check").fetchSemanticsNodes().minByOrNull { it.boundsInWindow.top }?.boundsInWindow
-            val headingVisible = heading != null && heading.top >= 0 && heading.bottom <= screenHeight
-            val transportTop = compose.onAllNodesWithContentDescription(compose.activity.getString(R.string.player_pause)).fetchSemanticsNodes().minOf { it.boundsInWindow.top }
-            val headingBottom = heading?.bottom ?: Float.MAX_VALUE
+            // The window of the player receives the system insets a moment after it opens, so the layout is measured until it has settled.
+            var layout = measure(queue)
+            val settleEnd = System.currentTimeMillis() + 10_000
+            while (!layout.fits && System.currentTimeMillis() < settleEnd) { Thread.sleep(250); layout = runCatching { measure(queue) }.getOrDefault(layout) }
             screenshot("player-${screen.name}")
-            if (gap !in 0f..24f) failures += "${screen.name}: the bottom row ends ${"%.0f".format(gap)} dp above the navigation bar"
-            if (!headingVisible || headingBottom > transportTop) failures += "${screen.name}: the title overlaps or hides behind the controls (title $heading, controls start at $transportTop, screen $screenHeight)"
+            if (layout.gap !in 0f..24f) failures += "${screen.name}: the bottom row ends ${"%.0f".format(layout.gap)} dp above the navigation bar"
+            if (!layout.titleClear) failures += "${screen.name}: the title overlaps or hides behind the controls (title ${layout.heading}, controls start at ${layout.transportTop}, screen ${layout.screenHeight})"
             InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
             pollUntil("the player to close") { !playerOpen() }
         }
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
+    }
+
+    /** Where the bottom row and the title sit, as measured at one moment. */
+    private class Layout(val gap: Float, val heading: androidx.compose.ui.geometry.Rect?, val transportTop: Float, val screenHeight: Int) {
+        val titleClear get() = heading != null && heading.top >= 0 && heading.bottom <= screenHeight && heading.bottom <= transportTop
+        val fits get() = gap in 0f..24f && titleClear
+    }
+
+    private fun measure(queue: SemanticsNodeInteraction): Layout {
+        compose.waitForIdle()
+        val metrics = compose.activity.resources.displayMetrics
+        val navigation = ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
+        val bottom = queue.fetchSemanticsNode().boundsInWindow.bottom
+        // The title also appears on the screens behind the player, and all of them lie below the player's own title.
+        val heading = compose.onAllNodesWithText("Layout Check").fetchSemanticsNodes().minByOrNull { it.boundsInWindow.top }?.boundsInWindow
+        val transportTop = compose.onAllNodesWithContentDescription(compose.activity.getString(R.string.player_pause)).fetchSemanticsNodes().minOf { it.boundsInWindow.top }
+        return Layout((metrics.heightPixels - navigation - bottom) / metrics.density, heading, transportTop, metrics.heightPixels)
     }
 
     private fun pollUntil(what: String, timeoutMillis: Long = 20_000, condition: () -> Boolean) {
