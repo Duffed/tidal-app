@@ -156,10 +156,10 @@ private fun PlayerHeading(track: Track, compact: Boolean, onAlbum: (Track) -> Un
     // A TIDAL track links to its album and its artist, as in TIDAL's own apps. A file on the device has neither page.
     val album = track.albumId.isNotBlank() && !track.id.startsWith("local:")
     val artist = track.artistId.isNotBlank() && !track.id.startsWith("local:")
-    Text(track.title, Modifier.fillMaxWidth().padding(top = if (compact) 8.dp else 12.dp)
+    Text(track.title, Modifier.fillMaxWidth().testTag("player-title").padding(top = if (compact) 8.dp else 12.dp)
         .then(if (album) Modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.track_go_album)) { onAlbum(track) } else Modifier),
         style = if (compact) AppFonts.title(34, 40) else AppFonts.title(48, 54), maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(track.artist, Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 18.dp).heightIn(min = 32.dp)
+    Text(track.artist, Modifier.fillMaxWidth().testTag("player-artist").padding(top = 6.dp, bottom = 18.dp).heightIn(min = 32.dp)
         .then(if (artist) Modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.track_go_artist)) { onArtist(track) } else Modifier),
         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
 }

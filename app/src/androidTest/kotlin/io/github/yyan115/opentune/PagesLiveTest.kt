@@ -45,6 +45,33 @@ class PagesLiveTest {
         settle(); LiveAccount.screenshot("search-explore")
     }
 
+    @Test fun thePlayerTitleAndArtistOpenTheAlbumAndTheArtistPage() {
+        compose.runOnIdle { model.settings { it.copy(offline = false, theme = "dark") } }
+        compose.runOnIdle { model.search("Norah Jones Don't Know Why") }
+        compose.waitUntil(30_000) { model.state.value.search.tracks.isNotEmpty() }
+        val track = model.state.value.search.tracks.first { it.title.startsWith("Don't Know Why") }
+        compose.runOnIdle { model.play(listOf(track)) }
+        compose.waitUntil(30_000) { model.state.value.playback.track != null }
+
+        compose.onNodeWithTag("mini-player").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("player-artist").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("player-artist").performClick()
+        val artistKey = PageRoute.artist(track.artistId).key
+        compose.waitUntil(30_000) { pages.state.value[artistKey]?.page != null }
+        assertEquals("The artist page is open", artistKey, model.state.value.routes.lastOrNull()?.key)
+        assertTrue("The player closes behind the page", compose.onAllNodesWithTag("player-artist").fetchSemanticsNodes().isEmpty())
+        settle(); LiveAccount.screenshot("player-artist-link")
+
+        compose.runOnIdle { model.closeAll() }
+        compose.onNodeWithTag("mini-player").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("player-title").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("player-title").performClick()
+        val albumKey = PageRoute.album(track.albumId).key
+        compose.waitUntil(30_000) { pages.state.value[albumKey]?.page != null }
+        assertEquals("The album page is open", albumKey, model.state.value.routes.lastOrNull()?.key)
+        settle(); LiveAccount.screenshot("player-album-link")
+    }
+
     @Test fun albumArtistCreditsAndLyricsWork() {
         compose.runOnIdle { model.settings { it.copy(offline = false, theme = "dark") } }
         compose.runOnIdle { model.search("Norah Jones Don't Know Why") }
