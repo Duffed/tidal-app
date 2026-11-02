@@ -28,31 +28,32 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** The documents of the dialog, in the order of its tabs. */
+private val Documents = listOf("THIRD_PARTY_NOTICES.md", "LICENSE", "Apache-2.0.txt", "Inter-OFL.txt", "Instrument-Serif-OFL.txt", "Space-Grotesk-OFL.txt", "JetBrains-Mono-OFL.txt")
+private val Tabs = listOf(R.string.licenses_notices, R.string.licenses_gpl, R.string.licenses_apache, R.string.licenses_inter, R.string.licenses_serif, R.string.licenses_space, R.string.licenses_mono)
+
+/** The licences and notices of the app. The tabs show at once and the text of a tab loads when the tab opens. */
 @Composable
 fun LicensesDialog(onClose: () -> Unit) {
     val context = LocalContext.current
     var selected by remember { mutableIntStateOf(0) }
-    val documents by produceState<List<String>?>(null) {
-        value = withContext(Dispatchers.IO) {
-            listOf("THIRD_PARTY_NOTICES.md", "LICENSE", "Apache-2.0.txt", "Inter-OFL.txt", "Instrument-Serif-OFL.txt", "Space-Grotesk-OFL.txt", "JetBrains-Mono-OFL.txt").map { name ->
-                context.assets.open("licenses/$name").bufferedReader().use { it.readText() }
-            }
-        }
+    val document by produceState<Pair<Int, String>?>(null, selected) {
+        val index = selected
+        value = index to withContext(Dispatchers.IO) { context.assets.open("licenses/${Documents[index]}").bufferedReader().use { it.readText() } }
     }
     AlertDialog(onDismissRequest = onClose, title = { Text(stringResource(R.string.licenses_title)) }, text = {
-        if (documents == null) CircularProgressIndicator()
-        else Column {
+        Column {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(R.string.licenses_notices, R.string.licenses_gpl, R.string.licenses_apache, R.string.licenses_inter, R.string.licenses_serif, R.string.licenses_space, R.string.licenses_mono).forEachIndexed { index, title ->
-                    FilterChip(selected == index, { selected = index }, label = { Text(stringResource(title)) })
-                }
+                Tabs.forEachIndexed { index, title -> FilterChip(selected == index, { selected = index }, label = { Text(stringResource(title)) }) }
             }
             key(selected) {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (selected != 0) SelectionContainer { Text(requireNotNull(documents)[selected], style = MaterialTheme.typography.bodySmall) }
+                    val text = document?.takeIf { it.first == selected }?.second
+                    if (text == null) CircularProgressIndicator(Modifier.padding(top = 16.dp))
+                    else if (selected != 0) SelectionContainer { Text(text, style = MaterialTheme.typography.bodySmall) }
                     else {
                         val links = remember { Regex("\\[([^]]+)]\\(([^)]+)\\)") }
-                        requireNotNull(documents)[0].split("\n\n").forEach { paragraph ->
+                        text.split("\n\n").forEach { paragraph ->
                             when {
                                 paragraph.startsWith("# ") -> Unit // The dialog already supplies the title.
                                 paragraph.startsWith("## ") -> Text(paragraph.removePrefix("## "), Modifier.padding(top = 8.dp), style = MaterialTheme.typography.titleMedium)

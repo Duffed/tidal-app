@@ -51,7 +51,7 @@ import org.json.JSONObject
 data class PlaybackState(
     val queue: List<Track> = emptyList(), val index: Int = 0,
     val playing: Boolean = false, val buffering: Boolean = false,
-    val position: Long = 0, val duration: Long = 0,
+    val duration: Long = 0,
     val shuffle: Boolean = false, val repeat: Int = Player.REPEAT_MODE_OFF,
     val quality: String = "", val error: String? = null,
     val nextIndex: Int = -1, val source: String = "",
@@ -94,6 +94,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         recentSearches = application.getSharedPreferences("search", Application.MODE_PRIVATE).getString("recent", null)
             ?.let { runCatching { org.json.JSONArray(it).let { array -> (0 until array.length()).map(array::getString) } }.getOrNull() }.orEmpty()))
     val state = ui.asStateFlow()
+    private val clock = MutableStateFlow(0L)
+    /** The playback position in milliseconds. It changes twice a second and has its own flow, so that only the views which show it redraw. */
+    val position = clock.asStateFlow()
     private val query = MutableStateFlow("")
     private val searchRetry = MutableStateFlow(0L)
     private val preferences = application.getSharedPreferences("playback", Application.MODE_PRIVATE)
@@ -147,7 +150,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             while (true) {
                 delay(500)
                 controller?.let { player ->
-                    ui.update { it.copy(playback = it.playback.copy(position = player.currentPosition.coerceAtLeast(0),
+                    clock.value = player.currentPosition.coerceAtLeast(0)
+                    ui.update { it.copy(playback = it.playback.copy(
                         quality = it.playback.track?.let { track -> app.sources.quality(track.id) ?: track.quality }.orEmpty(),
                         duration = player.duration.takeIf { d -> d > 0 } ?: it.playback.track?.durationMs ?: 0)) }
                 }

@@ -94,7 +94,7 @@ class PlaybackFeaturesTest {
         startPlaying()
         compose.runOnIdle { model.settings { it.copy(equalizer = true, equalizerLevels = List(info.bands) { if (it == 0) info.maxLevel else 0 }) } }
         compose.waitUntil(5_000) { model.state.value.settings.equalizer }
-        compose.waitUntil(10_000) { model.state.value.playback.position > 500 }
+        compose.waitUntil(10_000) { model.position.value > 500 }
         assertTrue(model.state.value.playback.playing)
         compose.runOnIdle { model.settings { it.copy(equalizer = false) } }
         compose.waitUntil(10_000) { model.state.value.playback.playing }

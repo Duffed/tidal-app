@@ -13,6 +13,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,8 +53,11 @@ fun PlayControl(playing: Boolean, buffering: Boolean = false, size: Dp = 72.dp, 
     }
 }
 
+/** The playback position in milliseconds. The activity provides the position of the player and a preview provides a fixed one. */
+val LocalPlaybackPosition = staticCompositionLocalOf<StateFlow<Long>> { MutableStateFlow(0L) }
+
 @Composable
-fun MiniPlayer(state: PlaybackState, onOpen: () -> Unit, onPlay: () -> Unit, onNext: () -> Unit) {
+fun MiniPlayer(state: PlaybackState, position: State<Long>, onOpen: () -> Unit, onPlay: () -> Unit, onNext: () -> Unit) {
     val track = state.track ?: return
     Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp).testTag("mini-player"),
         color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(7.dp),
@@ -71,7 +77,7 @@ fun MiniPlayer(state: PlaybackState, onOpen: () -> Unit, onPlay: () -> Unit, onN
                 }
                 IconButton(onClick = onNext, enabled = state.nextIndex >= 0) { Icon(OpenTuneIcons.SkipNext, stringResource(R.string.player_next), Modifier.size(20.dp)) }
             }
-            LinearProgressIndicator(progress = { if (state.duration > 0) (state.position.toFloat() / state.duration).coerceIn(0f, 1f) else 0f },
+            LinearProgressIndicator(progress = { if (state.duration > 0) (position.value.toFloat() / state.duration).coerceIn(0f, 1f) else 0f },
                 modifier = Modifier.fillMaxWidth().height(1.dp), gapSize = 0.dp, drawStopIndicator = {})
         }
     }
@@ -169,7 +175,6 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
     val timerOn = state.sleepEndsAt > 0 || state.sleepAtTrackEnd
     val timerDescription = stringResource(if (timerOn) R.string.player_timer_on else R.string.player_timer_set)
     val saved = state.favorites.any { it.id == track.id }
-    var seeking by remember(track.id) { mutableStateOf<Float?>(null) }
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).heightIn(min = 44.dp).clickable(onClick = onSource).semantics { contentDescription = sourceDetails }, verticalAlignment = Alignment.CenterVertically) {
             val format = SourceReadout.from(player.quality)
@@ -190,16 +195,7 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
             stringResource(if (saved) R.string.track_unsave else R.string.track_save), Modifier.size(22.dp), tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
     }
     player.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-    val sliderColors = SliderDefaults.colors(activeTrackColor = MaterialTheme.colorScheme.primary, inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant)
-    Slider(value = seeking ?: player.position.toFloat().coerceIn(0f, player.duration.coerceAtLeast(1).toFloat()), onValueChange = { seeking = it },
-        valueRange = 0f..player.duration.coerceAtLeast(1).toFloat(), enabled = player.duration > 0,
-        onValueChangeFinished = { seeking?.let { vm.seek(it.toLong()) }; seeking = null }, modifier = Modifier.fillMaxWidth().height(38.dp),
-        thumb = { Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)) },
-        track = { SliderDefaults.Track(it, Modifier.height(2.dp), colors = sliderColors, thumbTrackGapSize = 0.dp, drawStopIndicator = null) }, colors = sliderColors)
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(formatDuration(seeking?.toLong() ?: player.position), fontFamily = AppFonts.mono, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(formatDuration(player.duration), fontFamily = AppFonts.mono, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+    PlaybackSlider(vm, track.id, player.duration)
     Row(Modifier.fillMaxWidth().padding(vertical = if (compact) 12.dp else 18.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         IconToggleButton(player.shuffle, onCheckedChange = { vm.toggleShuffle() }) { Icon(OpenTuneIcons.Shuffle, stringResource(R.string.player_shuffle), Modifier.size(20.dp), tint = if (player.shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
         IconButton(onClick = vm::previous) { Icon(OpenTuneIcons.SkipPrevious, stringResource(R.string.player_previous), Modifier.size(29.dp)) }
@@ -235,6 +231,25 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
             timerDescription, if (timerOn) accent else muted, Modifier.weight(1f), onClick = onTimer)
         DownloadAction(state, Modifier.weight(1f), onDownload)
         PlayerAction(OpenTuneIcons.PlaylistPlay, stringResource(R.string.player_queue_count, player.queue.size), null, muted, Modifier.weight(1f), onClick = onQueue)
+    }
+}
+
+/** The seek bar and the two times. It reads the position itself, so that only this part redraws while a track plays. */
+@OptIn(ExperimentalMaterial3Api::class)
+@UnstableApi
+@Composable
+private fun PlaybackSlider(vm: MainViewModel, trackId: String, duration: Long) {
+    val position by LocalPlaybackPosition.current.collectAsStateWithLifecycle()
+    var seeking by remember(trackId) { mutableStateOf<Float?>(null) }
+    val sliderColors = SliderDefaults.colors(activeTrackColor = MaterialTheme.colorScheme.primary, inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant)
+    Slider(value = seeking ?: position.toFloat().coerceIn(0f, duration.coerceAtLeast(1).toFloat()), onValueChange = { seeking = it },
+        valueRange = 0f..duration.coerceAtLeast(1).toFloat(), enabled = duration > 0,
+        onValueChangeFinished = { seeking?.let { vm.seek(it.toLong()) }; seeking = null }, modifier = Modifier.fillMaxWidth().height(38.dp),
+        thumb = { Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)) },
+        track = { SliderDefaults.Track(it, Modifier.height(2.dp), colors = sliderColors, thumbTrackGapSize = 0.dp, drawStopIndicator = null) }, colors = sliderColors)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(formatDuration(seeking?.toLong() ?: position), fontFamily = AppFonts.mono, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(formatDuration(duration), fontFamily = AppFonts.mono, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

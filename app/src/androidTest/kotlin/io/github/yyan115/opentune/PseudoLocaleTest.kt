@@ -207,14 +207,15 @@ class PseudoLocaleTest {
      */
     private fun await(what: String, timeoutMillis: Long = 15_000, condition: () -> Boolean) {
         val end = System.currentTimeMillis() + timeoutMillis
+        var lastFailure: Throwable? = null
         while (System.currentTimeMillis() < end) {
             // The test clock advances only while the test synchronises, so a wait that only sleeps never shows work that finishes in the background.
-            if (runCatching { compose.waitForIdle(); condition() }.getOrDefault(false)) return
+            if (runCatching { compose.waitForIdle(); condition() }.onFailure { lastFailure = it }.getOrDefault(false)) return
             Thread.sleep(200)
         }
         val screen = runCatching { visibleTexts() }.getOrNull()
         runCatching { screenshot("pseudo-timeout") }
-        throw AssertionError("Timed out waiting for $what. Windows: ${runCatching { windows() }.getOrNull()}. The screen shows: $screen")
+        throw AssertionError("Timed out waiting for $what. Windows: ${runCatching { windows() }.getOrNull()}. The last failure was: $lastFailure. The screen shows: $screen", lastFailure)
     }
 
     private fun screenshot(name: String) {

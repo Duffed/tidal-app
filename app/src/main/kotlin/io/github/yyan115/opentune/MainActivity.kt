@@ -23,6 +23,7 @@ import io.github.yyan115.opentune.ui.themeFor
 import io.github.yyan115.opentune.ui.enterVideoPip
 import io.github.yyan115.opentune.ui.LocalNetworkEpoch
 import io.github.yyan115.opentune.ui.LocalOfflineMode
+import io.github.yyan115.opentune.ui.LocalPlaybackPosition
 import io.github.yyan115.opentune.core.SignInCallback
 
 @UnstableApi
@@ -50,7 +51,7 @@ class MainActivity : ComponentActivity() {
                     isAppearanceLightNavigationBars = !dark
                 }
             }
-            OpenTuneTheme(state.settings.theme) { CompositionLocalProvider(LocalOfflineMode provides state.settings.offline, LocalNetworkEpoch provides networkEpoch) { OpenTuneRoot(model, state) } }
+            OpenTuneTheme(state.settings.theme) { CompositionLocalProvider(LocalOfflineMode provides state.settings.offline, LocalNetworkEpoch provides networkEpoch, LocalPlaybackPosition provides model.position) { OpenTuneRoot(model, state) } }
         }
     }
 

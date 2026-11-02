@@ -15,6 +15,7 @@ import io.github.yyan115.opentune.core.Track
 import io.github.yyan115.opentune.core.SearchResult
 import io.github.yyan115.opentune.data.Settings
 import io.github.yyan115.opentune.ui.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 
 /** Reproducible visual checks of the production components; never included in a release APK. */
@@ -58,13 +59,13 @@ class ThemePreviewActivity : ComponentActivity() {
         val state = AppState(signedIn = true, settings = Settings(theme = themeId, welcomeDone = true),
             recent = tracks.take(3), favorites = tracks, albums = albums,
             searchQuery = if (page == "search") "Harbour Lights" else "", search = SearchResult(tracks = listOf(tracks[0]), albums = listOf(albums[0])),
-            playback = PlaybackState(queue = tracks, index = 0, nextIndex = 1, position = 64000, duration = tracks[0].durationMs, quality = "FLAC · 24-bit · 192 kHz"),
+            playback = PlaybackState(queue = tracks, index = 0, nextIndex = 1, duration = tracks[0].durationMs, quality = "FLAC · 24-bit · 192 kHz"),
             detail = if (page == "album") albums[0] else null, detailTracks = if (page == "album") tracks.take(1) else emptyList(),
             lyrics = if (lyrics) sampleLyrics else null, lyricsStatus = if (lyrics) LyricsStatus.Ready else LyricsStatus.Idle, lyricsTrackId = tracks[0].id)
         setContent { OpenTuneTheme(themeId) {
             if (page == "icons") IconSheet()
             else if (page == "appearance") AppearanceSheet(Settings(theme = themeId, welcomeDone = true), {}, {})
-            else CompositionLocalProvider(LocalOfflineMode provides true) {
+            else CompositionLocalProvider(LocalOfflineMode provides true, LocalPlaybackPosition provides MutableStateFlow(64_000L)) {
                 OpenTuneRoot(model, state, initialDestination = when (page) { "search" -> Destination.Search; "library" -> Destination.Library; "downloads", "device" -> Destination.Device; else -> Destination.Home },
                     initialPlayer = page == "player", initialSettings = page == "settings", initialLyrics = lyrics)
             }

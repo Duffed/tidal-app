@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,7 +104,7 @@ private fun ThemePreview(id: String, systemDark: Boolean, selected: Boolean) {
                         TuneButton(onClick = {}, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.action_play)) }
                         TuneOutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.Shuffle, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.action_shuffle)) }
                     }
-                    MiniPlayer(PlaybackState(queue = SampleTracks, index = 0, playing = true, position = 64_000, duration = 186_000, nextIndex = 1), {}, {}, {})
+                    MiniPlayer(PlaybackState(queue = SampleTracks, index = 0, playing = true, duration = 186_000, nextIndex = 1), remember { mutableStateOf(64_000L) }, {}, {}, {})
                     OpenTuneNavigation(listOf(Destination.Home, Destination.Search, Destination.Library, Destination.Device), Destination.Home) {}
                 }
                 // The preview shows the interface and does not use it, so it takes every tap.

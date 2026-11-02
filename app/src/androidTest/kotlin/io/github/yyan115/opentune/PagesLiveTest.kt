@@ -87,7 +87,7 @@ class PagesLiveTest {
         assertTrue("Lyrics have timing", lyrics.synced)
         val index = lyrics.lines.size / 2
         compose.runOnIdle { model.seek(lyrics.lines[index].timeMs + 400) }
-        compose.waitUntil(15_000) { model.state.value.playback.position >= lyrics.lines[index].timeMs }
+        compose.waitUntil(15_000) { model.position.value >= lyrics.lines[index].timeMs }
         settle(2500); LiveAccount.screenshot("player-lyrics")
         compose.runOnIdle { model.togglePlay() }
     }

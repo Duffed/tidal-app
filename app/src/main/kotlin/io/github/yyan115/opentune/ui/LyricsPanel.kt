@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import io.github.yyan115.opentune.core.Lyrics
 
@@ -42,7 +43,7 @@ fun LyricsPanel(state: AppState, vm: MainViewModel, modifier: Modifier = Modifie
         val lyrics = state.lyrics
         when {
             state.lyricsStatus == LyricsStatus.Loading || state.lyricsStatus == LyricsStatus.Idle -> CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 1.5.dp)
-            state.lyricsStatus == LyricsStatus.Ready && lyrics != null -> if (lyrics.synced) SyncedLyrics(lyrics, state.playback.position, vm::seek) else PlainLyrics(lyrics)
+            state.lyricsStatus == LyricsStatus.Ready && lyrics != null -> if (lyrics.synced) SyncedLyrics(lyrics, vm::seek) else PlainLyrics(lyrics)
             else -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
                 Text(when (state.lyricsStatus) {
                     LyricsStatus.Offline -> stringResource(R.string.lyrics_offline)
@@ -56,8 +57,10 @@ fun LyricsPanel(state: AppState, vm: MainViewModel, modifier: Modifier = Modifie
 }
 
 @Composable
-private fun SyncedLyrics(lyrics: Lyrics, position: Long, onSeek: (Long) -> Unit) {
-    val current = lyrics.lineAt(position + LEAD_MS)
+private fun SyncedLyrics(lyrics: Lyrics, onSeek: (Long) -> Unit) {
+    val position = LocalPlaybackPosition.current.collectAsStateWithLifecycle()
+    // The view changes only when the line changes, not each time the position does.
+    val current by remember(lyrics) { derivedStateOf { lyrics.lineAt(position.value + LEAD_MS) } }
     val listState = rememberLazyListState()
     var pausedUntil by remember { mutableLongStateOf(0L) }
     LaunchedEffect(listState) {

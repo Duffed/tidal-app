@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -34,6 +35,8 @@ import io.github.yyan115.opentune.core.*
 @UnstableApi
 @Composable
 fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destination = Destination.Home, initialPlayer: Boolean = false, initialSettings: Boolean = false, initialLyrics: Boolean = false) {
+    // The position changes twice a second. Only the mini player reads it, so the rest of the screen does not recompose.
+    val position = LocalPlaybackPosition.current.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val resources = LocalResources.current
     val pagesVm: PagesViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
@@ -124,7 +127,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
         },
         bottomBar = {
             Column {
-                if (state.playback.track != null) MiniPlayer(state.playback, onOpen = { nowPlaying = true }, onPlay = vm::togglePlay, onNext = vm::next)
+                if (state.playback.track != null) MiniPlayer(state.playback, position, onOpen = { nowPlaying = true }, onPlay = vm::togglePlay, onNext = vm::next)
                 if (!settings && !landscape && !largeText) OpenTuneNavigation(destinations, destination, select)
                 else if (state.playback.track != null) Spacer(Modifier.navigationBarsPadding())
             }

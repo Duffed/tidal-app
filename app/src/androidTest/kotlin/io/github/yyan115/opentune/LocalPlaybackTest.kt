@@ -47,7 +47,7 @@ class LocalPlaybackTest {
         compose.waitUntil(25_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
         assertNull(model.state.value.playback.error)
         assertTrue("FLAC did not begin playing", model.state.value.playback.playing)
-        compose.waitUntil(10_000) { model.state.value.playback.position > 500 }
+        compose.waitUntil(10_000) { model.position.value > 500 }
         screenshot("library-playing")
         compose.onNodeWithContentDescription("Pause").performClick()
         compose.waitUntil(5_000) { !model.state.value.playback.playing }
@@ -71,9 +71,9 @@ class LocalPlaybackTest {
         compose.waitUntil(15_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
         assertNull(model.state.value.playback.error)
         assertTrue(model.state.value.playback.playing)
-        compose.waitUntil(5_000) { model.state.value.playback.position > 500 }
+        compose.waitUntil(5_000) { model.position.value > 500 }
         compose.runOnIdle { model.seek(15_000) }
-        compose.waitUntil(5_000) { model.state.value.playback.position in 15_000..25_000 }
+        compose.waitUntil(5_000) { model.position.value in 15_000..25_000 }
         compose.runOnIdle { model.togglePlay() }
     }
 
@@ -81,7 +81,7 @@ class LocalPlaybackTest {
         compose.runOnIdle { model.play(listOf(track)) }
         compose.waitUntil(15_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
         assertNull(model.state.value.playback.error)
-        compose.waitUntil(5_000) { model.state.value.playback.position > 500 }
+        compose.waitUntil(5_000) { model.position.value > 500 }
         compose.onNodeWithTag("mini-player").performClick()
         compose.onNodeWithContentDescription("Audio source details").performClick()
         compose.onNodeWithTag("source-codec").assertTextEquals("FLAC")

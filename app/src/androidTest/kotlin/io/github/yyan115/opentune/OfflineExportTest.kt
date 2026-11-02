@@ -54,10 +54,10 @@ class OfflineExportTest {
         }
         compose.waitUntil(20_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
         assertNull(model.state.value.playback.error)
-        compose.waitUntil(5_000) { model.state.value.playback.position > 500 }
+        compose.waitUntil(5_000) { model.position.value > 500 }
         val nearEnd = model.state.value.playback.duration - 20_000
         compose.runOnIdle { model.seek(nearEnd) }
-        compose.waitUntil(10_000) { model.state.value.playback.position > nearEnd + 500 }
+        compose.waitUntil(10_000) { model.position.value > nearEnd + 500 }
         assertTrue(model.state.value.playback.playing)
         compose.runOnIdle { model.togglePlay(); model.settings { it.copy(offline = false) } }
     }
