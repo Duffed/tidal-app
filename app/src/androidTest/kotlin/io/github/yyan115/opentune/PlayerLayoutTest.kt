@@ -2,6 +2,7 @@ package io.github.yyan115.opentune
 
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.core.view.ViewCompat
@@ -59,7 +60,13 @@ class PlayerLayoutTest {
             pollUntil("the app to show after the display change") { compose.onAllNodesWithTag("mini-player").fetchSemanticsNodes().isNotEmpty() || playerOpen() }
             if (!playerOpen()) compose.onNodeWithTag("mini-player").performClick()
             val queue = compose.onNodeWithText(compose.activity.getString(R.string.player_queue_count, 1))
-            pollUntil("the player to show") { queue.isDisplayed() }
+            try { pollUntil("the player to show") { queue.isDisplayed() } }
+            catch (failure: AssertionError) {
+                val texts = runCatching { compose.onAllNodes(isRoot(), useUnmergedTree = true).fetchSemanticsNodes().flatMap { root -> generateSequence(listOf(root)) { level -> level.flatMap { it.children }.takeIf { it.isNotEmpty() } }.flatten().toList() }
+                    .flatMap { node -> listOfNotNull(node.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)?.joinToString { it.text }) }.filter { it.isNotBlank() } }.getOrNull()
+                screenshot("player-${screen.name}-failed")
+                throw AssertionError("${screen.name} (${screen.width}x${screen.height} at ${screen.density} dpi): ${failure.message}. The screen shows: $texts", failure)
+            }
             val density = compose.activity.resources.displayMetrics.density
             val screenHeight = compose.activity.resources.displayMetrics.heightPixels
             val navigation = ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0

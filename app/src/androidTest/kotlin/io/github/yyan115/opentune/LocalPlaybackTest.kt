@@ -42,6 +42,7 @@ class LocalPlaybackTest {
 
     @Test fun localFlacPlaysThroughTheInterfaceAndPauses() {
         compose.onNodeWithTag("nav-device").performClick()
+        compose.onNodeWithTag("device-list").performScrollToNode(hasText("Night Walk"))
         compose.onNodeWithText("Night Walk").performClick()
         compose.waitUntil(25_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
         assertNull(model.state.value.playback.error)
@@ -93,6 +94,7 @@ class LocalPlaybackTest {
 
     @Test fun localPlaylistCreationAndSavingArePersistent() {
         compose.onNodeWithTag("nav-device").performClick()
+        compose.onNodeWithTag("device-list").performScrollToNode(hasText("New playlist"))
         compose.onNodeWithText("New playlist").performClick()
         compose.onNodeWithText("Name").performTextInput("Evening")
         compose.onNodeWithText("Create", useUnmergedTree = true).performClick()
@@ -100,6 +102,7 @@ class LocalPlaybackTest {
         val playlist = app.library.playlists().first { it.title == "Evening" }
         app.library.addToPlaylist(playlist.id, track)
         compose.waitUntil(5_000) { model.state.value.localPlaylists.any { it.id == playlist.id && it.trackIds.size == 1 } }
+        compose.onNodeWithTag("device-list").performScrollToNode(hasText("Evening"))
         compose.onNodeWithText("Evening").performClick()
         compose.onNodeWithText("Night Walk").assertIsDisplayed()
         assertEquals(track.id, app.library.playlistTracks(playlist.id).single().id)
@@ -108,8 +111,9 @@ class LocalPlaybackTest {
 
     @Test fun aNewPlaylistFromTrackOptionsContainsThatTrack() {
         compose.onNodeWithTag("nav-device").performClick()
+        compose.onNodeWithTag("device-list").performScrollToNode(hasContentDescription("Options for Night Walk"))
         compose.onNodeWithContentDescription("Options for Night Walk").performClick()
-        compose.onNodeWithText("Add to playlist").performClick()
+        compose.onNodeWithText("Add to playlist").performScrollTo().performClick()
         // The playlist section behind the dialog has the same action, and the dialog's own button comes last.
         compose.onAllNodesWithText("New playlist").onLast().performClick()
         compose.onNodeWithText("Name").performTextInput("Evening")

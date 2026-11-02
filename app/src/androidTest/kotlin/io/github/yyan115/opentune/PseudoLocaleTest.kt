@@ -107,9 +107,16 @@ class PseudoLocaleTest {
         compose.onNodeWithTag("welcome-local").performClick()
         await("the On device screen") { compose.onAllNodesWithTag("nav-device").fetchSemanticsNodes().isNotEmpty() }
         sweep("On device")
-        inWindow("New playlist") { compose.onNode(hasText(s(R.string.playlist_new)) and hasClickAction()).performClick() }
-        inWindow("Track options") { compose.onAllNodesWithContentDescription(s(R.string.track_options, "Night Walk")).onFirst().performClick() }
+        inWindow("New playlist") {
+            compose.onNodeWithTag("device-list").performScrollToNode(hasText(s(R.string.playlist_new)))
+            compose.onNode(hasText(s(R.string.playlist_new)) and hasClickAction()).performClick()
+        }
+        inWindow("Track options") {
+            compose.onNodeWithTag("device-list").performScrollToNode(hasContentDescription(s(R.string.track_options, "Night Walk")))
+            compose.onAllNodesWithContentDescription(s(R.string.track_options, "Night Walk")).onFirst().performClick()
+        }
         for (filter in listOf(R.string.device_filter_tidal, R.string.device_filter_files, R.string.device_filter_all)) {
+            compose.onNodeWithTag("device-list").performScrollToNode(hasText(s(filter)))
             compose.onAllNodes(hasText(s(filter)) and hasClickAction()).onFirst().performClick()
             sweep("On device ${s(filter)}")
         }
