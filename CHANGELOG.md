@@ -20,6 +20,7 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 - The player keeps its controls at the bottom of the screen on every screen height and display size. The actions below the transport controls are equal columns with captions, so longer translations shorten a caption and never move a button.
 - Playback buffers up to 90 seconds ahead. Lossless tracks used to run down to an empty buffer between loads, which paused the music after a short hiccup. A silent connection now fails after 12 seconds, loads retry for longer, and playback resumes by itself when the network returns.
 - Covers that fail to load are requested again after a pause and when the network returns.
+- Only the progress views redraw while a track plays. The rest of the screen no longer updates twice a second, which keeps scrolling and navigation smooth during playback.
 - Settings are grouped into Account, Playback, Offline and downloads, Appearance, Listening, Your data and Advanced. Bit-perfect USB output moved to Advanced. Scrobbling is named ListenBrainz.
 - The wording of settings, messages and errors is revised.
 - Home replaces Listen in the navigation.
