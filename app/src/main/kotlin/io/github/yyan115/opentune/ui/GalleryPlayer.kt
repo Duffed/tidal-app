@@ -96,7 +96,9 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
             BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
                 val large = LocalDensity.current.fontScale > 1.3f
                 val landscape = maxWidth > maxHeight && maxWidth >= 480.dp && !large
-                val compact = maxHeight < 700.dp || large
+                // The controls stay at the bottom of the screen. Only a very short screen scrolls the whole page.
+                val scrolling = maxHeight < 480.dp || (large && maxHeight < 700.dp)
+                val dense = maxHeight < 700.dp || large
                 val landscapeArtworkSize = minOf(maxHeight - 100.dp, maxWidth * .35f)
                 Column(Modifier.fillMaxSize()) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -117,7 +119,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                                 GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, true)
                             }
                         }
-                    } else if (compact) {
+                    } else if (scrolling) {
                         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
                             PlayerHeading(track, true)
                             if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxWidth().height(if (large) 220.dp else 260.dp))
@@ -126,14 +128,14 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                         }
                     } else {
                         Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp)) {
-                            PlayerHeading(track, false)
+                            PlayerHeading(track, dense)
                             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                 if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxSize())
-                                else Artwork(track.artwork, stringResource(R.string.player_artwork, track.album), Modifier.size(minOf(maxWidth - 20.dp, maxHeight - 8.dp)))
+                                else Artwork(track.artwork, stringResource(R.string.player_artwork, track.album), Modifier.size(minOf(maxWidth - 20.dp, maxHeight - 8.dp).coerceAtLeast(0.dp)))
                             }
-                            GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, false)
+                            GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, dense)
                         }
-                        state.playback.queue.getOrNull(state.playback.nextIndex)?.let { next ->
+                        if (!dense) state.playback.queue.getOrNull(state.playback.nextIndex)?.let { next ->
                             HorizontalDivider(Modifier.padding(horizontal = 24.dp), color = MaterialTheme.colorScheme.outlineVariant)
                             Row(Modifier.fillMaxWidth().clickable(onClick = onQueue).padding(horizontal = 24.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Artwork(next.artwork, null, Modifier.size(34.dp))
@@ -214,29 +216,40 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
                 Modifier.size(20.dp), tint = if (player.repeat != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    // A longer translation wraps the buttons onto a second line instead of squeezing their labels.
-    FlowRow(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, itemVerticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = onLyrics, colors = ButtonDefaults.textButtonColors(contentColor = if (lyricsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant),
-            modifier = Modifier.semantics { contentDescription = lyricsDescription }) {
-            Icon(OpenTuneIcons.Lyrics, null, Modifier.size(17.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.player_lyrics), fontSize = 11.sp)
-        }
-        val remaining by rememberSleepMinutes(state.sleepEndsAt)
-        IconButton(onClick = onTimer, modifier = Modifier.semantics { contentDescription = timerDescription }) {
-            Icon(OpenTuneIcons.Timer, null, Modifier.size(20.dp), tint = if (timerOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (timerOn) Text(if (state.sleepAtTrackEnd) stringResource(R.string.player_timer_end) else stringResource(R.string.player_timer_minutes, remaining ?: 0), fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-        DownloadButton(state, onDownload)
-        TextButton(onClick = onQueue) { Icon(OpenTuneIcons.PlaylistPlay, null, Modifier.size(20.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.player_queue_count, player.queue.size), fontSize = 11.sp) }
+    val remaining by rememberSleepMinutes(state.sleepEndsAt)
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val accent = MaterialTheme.colorScheme.primary
+    // Four equal columns with one-line captions, so a longer translation shortens a caption and never moves a button.
+    Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.Top) {
+        PlayerAction(OpenTuneIcons.Lyrics, stringResource(R.string.player_lyrics), lyricsDescription, if (lyricsActive) accent else muted, Modifier.weight(1f), onClick = onLyrics)
+        PlayerAction(OpenTuneIcons.Timer,
+            if (!timerOn) stringResource(R.string.player_timer_label) else if (state.sleepAtTrackEnd) stringResource(R.string.player_timer_end) else stringResource(R.string.player_timer_minutes, remaining ?: 0),
+            timerDescription, if (timerOn) accent else muted, Modifier.weight(1f), onClick = onTimer)
+        DownloadAction(state, Modifier.weight(1f), onDownload)
+        PlayerAction(OpenTuneIcons.PlaylistPlay, stringResource(R.string.player_queue_count, player.queue.size), null, muted, Modifier.weight(1f), onClick = onQueue)
+    }
+}
+
+/** An action below the transport controls: an icon with a one-line caption. */
+@Composable
+private fun PlayerAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, description: String?, tint: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false, onClick: () -> Unit) {
+    val shown = if (enabled) tint else tint.copy(alpha = .45f)
+    Column(modifier.heightIn(min = 52.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+        .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier).padding(vertical = 6.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 1.5.dp, color = shown) else Icon(icon, null, Modifier.size(22.dp), tint = shown)
+        Text(label, Modifier.padding(top = 3.dp), fontFamily = InterfaceFont, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = shown)
     }
 }
 
 @Composable
-private fun DownloadButton(state: AppState, onDownload: (Track) -> Unit) {
+private fun DownloadAction(state: AppState, modifier: Modifier, onDownload: (Track) -> Unit) {
     val track = state.playback.track ?: return
     val downloaded = track.isLocal || state.local.any { it.id == track.id }
     val pending = state.downloads.any { "track:${track.id}" in it.tags && !it.state.isFinished }
-    IconButton(onClick = { onDownload(track) }, enabled = !downloaded && !pending) {
-        if (pending) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 1.5.dp)
-        else Icon(if (downloaded) OpenTuneIcons.DownloadDone else OpenTuneIcons.Download, stringResource(if (downloaded) R.string.player_downloaded else R.string.player_download), Modifier.size(21.dp))
-    }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    PlayerAction(if (downloaded) OpenTuneIcons.DownloadDone else OpenTuneIcons.Download,
+        stringResource(if (downloaded) R.string.player_downloaded else if (pending) R.string.player_downloading else R.string.player_label_download),
+        stringResource(if (downloaded) R.string.player_downloaded else R.string.player_download), muted, modifier, enabled = !downloaded && !pending, busy = pending) { onDownload(track) }
 }

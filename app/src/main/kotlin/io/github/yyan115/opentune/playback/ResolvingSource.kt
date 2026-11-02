@@ -33,6 +33,8 @@ class ResolvingSource(private val app: OpenTuneApp, private val original: MediaI
     private var scope: CoroutineScope? = null
     override fun getMediaItem(): MediaItem = original
 
+    private companion object { const val LOAD_RETRIES = 8 }
+
     override fun prepareSourceInternal(mediaTransferListener: TransferListener?) {
         super.prepareSourceInternal(mediaTransferListener)
         val handler = Handler(android.os.Looper.myLooper()!!)
@@ -48,7 +50,7 @@ class ResolvingSource(private val app: OpenTuneApp, private val original: MediaI
                         if (scope === owner) {
                             val factory = DefaultMediaSourceFactory(app.sources.dataSource(app.settings.state.value.offline || offlineCopy || track.localUri?.startsWith("opentune-offline:") == true))
                             drmProvider?.let(factory::setDrmSessionManagerProvider)
-                            loadPolicy?.let(factory::setLoadErrorHandlingPolicy)
+                            factory.setLoadErrorHandlingPolicy(loadPolicy ?: androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(LOAD_RETRIES))
                             val source = factory.createMediaSource(resolved)
                             // Preparation may immediately publish a timeline and request a period.
                             child = source

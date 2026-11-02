@@ -595,4 +595,9 @@
     <string name="placeholder_untitled">Untitled</string>
     <string name="placeholder_unknown_artist">Unknown artist</string>
     <string name="scrobble_token_valid">The token is valid.</string>
+
+    <!-- Player -->
+    <string name="player_timer_label">Timer</string>
+    <string name="player_label_download">Download</string>
+    <string name="player_downloading">Downloading</string>
 </resources>

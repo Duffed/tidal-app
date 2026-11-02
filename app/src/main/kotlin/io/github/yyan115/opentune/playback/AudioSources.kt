@@ -40,7 +40,9 @@ class AudioSources(private val app: OpenTuneApp) {
     data class Gains(val track: Double?, val trackPeak: Double?, val album: Double?, val albumPeak: Double?)
     val cache by lazy { SimpleCache(File(app.filesDir, "offline_audio"), NoOpCacheEvictor(), StandaloneDatabaseProvider(app)) }
     private val streamingCache by lazy { SimpleCache(File(app.cacheDir, "streaming_audio"), LeastRecentlyUsedCacheEvictor(256L * 1024 * 1024), StandaloneDatabaseProvider(app)) }
-    private val upstream: DataSource.Factory by lazy { DefaultDataSource.Factory(app, OkHttpDataSource.Factory(app.http)) }
+    /** A silent connection fails after twelve seconds, so the player retries before its buffer runs dry. */
+    private val streamingHttp by lazy { app.http.newBuilder().connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS).readTimeout(12, java.util.concurrent.TimeUnit.SECONDS).build() }
+    private val upstream: DataSource.Factory by lazy { DefaultDataSource.Factory(app, OkHttpDataSource.Factory(streamingHttp)) }
     fun dataSource(offlineOnly: Boolean = false): CacheDataSource.Factory = CacheDataSource.Factory()
         .setCache(cache).setCacheWriteDataSinkFactory(null)
         .setUpstreamDataSourceFactory(if (offlineOnly) DefaultDataSource.Factory(app, androidx.media3.datasource.PlaceholderDataSource.FACTORY)

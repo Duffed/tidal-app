@@ -7,6 +7,8 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.AudioMixerAttributes
 import android.media.audiofx.Equalizer
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -15,8 +17,10 @@ import android.os.SystemClock
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
@@ -69,6 +73,15 @@ class PlaybackService : MediaLibraryService() {
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) = applyBitPerfect()
     }
 
+    private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
+    private var retryJob: Job? = null
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            val error = player.playerError ?: return
+            if (isTransient(error)) { android.util.Log.i("OpenTune", "Network is back, preparing the player again"); player.prepare() }
+        }
+    }
+
     // Listening time of the current track, for the history and for scrobbling.
     private var listenedTrack: Track? = null
     private var listenStartedAt = 0L
@@ -79,6 +92,7 @@ class PlaybackService : MediaLibraryService() {
         super.onCreate()
         app = application as OpenTuneApp
         player = ExoPlayer.Builder(this)
+            .setLoadControl(streamingLoadControl())
             .setMediaSourceFactory(OpenTuneSourceFactory(app))
             .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(), true)
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_NETWORK).build()
@@ -99,7 +113,15 @@ class PlaybackService : MediaLibraryService() {
                 else if (playingSince != 0L) { listenedMs += SystemClock.elapsedRealtime() - playingSince; playingSince = 0 }
                 updateWidget()
             }
-            override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_ENDED) finishListening() }
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) finishListening()
+                if (playbackState == Player.STATE_READY) retryJob?.cancel()
+            }
+            override fun onPlayerError(error: PlaybackException) {
+                val transient = isTransient(error)
+                android.util.Log.w("OpenTune", "Playback error ${error.errorCodeName}, transient=$transient, chain=${generateSequence<Throwable>(error) { it.cause }.joinToString(" > ") { it.javaClass.simpleName }}")
+                if (transient) scheduleRetry()
+            }
             override fun onAudioSessionIdChanged(audioSessionId: Int) { applyEqualizer(); applyBitPerfect() }
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                 if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM && sleepAtTrackEnd) clearSleepTimer()
@@ -109,6 +131,7 @@ class PlaybackService : MediaLibraryService() {
         scope.launch { app.settings.state.collect { applyNormalization(); applyEqualizer(); applyBitPerfect() } }
         scope.launch { runCatching { app.scrobbler.flush() } }
         if (Build.VERSION.SDK_INT >= 23) audioManager.registerAudioDeviceCallback(deviceCallback, Handler(Looper.getMainLooper()))
+        runCatching { connectivity.registerDefaultNetworkCallback(networkCallback, Handler(Looper.getMainLooper())) }
 
         val activity = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         session = MediaLibrarySession.Builder(this, player, object : MediaLibrarySession.Callback {
@@ -296,9 +319,47 @@ class PlaybackService : MediaLibraryService() {
     override fun onDestroy() {
         finishListening()
         if (Build.VERSION.SDK_INT >= 23) audioManager.unregisterAudioDeviceCallback(deviceCallback)
+        runCatching { connectivity.unregisterNetworkCallback(networkCallback) }
         app.sources.onGains = null
         WidgetState.write(this, null); NowPlayingWidget.refresh(this)
         runCatching { equalizer?.release() }
         scope.cancel(); session?.player?.release(); session?.release(); session = null; super.onDestroy()
+    }
+
+    /**
+     * Lossless tracks run at several megabits per second, and the default limit of 12.5 MB holds only 11 to 20 seconds of them.
+     * The player keeps up to 90 seconds or 64 MB ahead and starts a track after one second of audio.
+     */
+    private fun streamingLoadControl() = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(40_000, 90_000, 1_000, 3_000)
+        .setTargetBufferBytes(64 * 1024 * 1024)
+        .setPrioritizeTimeOverSizeThresholds(true)
+        .build()
+
+    /**
+     * A lost connection or an overloaded server passes by, and an expired stream address is replaced when the player prepares again.
+     * Other failures, such as a track that no longer exists, do not pass.
+     */
+    private fun isTransient(error: PlaybackException): Boolean {
+        val chain = generateSequence<Throwable>(error) { it.cause }.toList()
+        chain.filterIsInstance<io.github.yyan115.opentune.core.ServiceException>().firstOrNull()?.let { return it.status == 429 || it.status in 500..599 }
+        chain.filterIsInstance<androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException>().firstOrNull()?.let {
+            return it.responseCode == 403 || it.responseCode == 429 || it.responseCode in 500..599
+        }
+        return error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+            error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT || chain.any { it is java.io.IOException }
+    }
+
+    /** Prepares the player again after a short wait, and again with longer waits, until playback resumes. */
+    private fun scheduleRetry() {
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            for (wait in listOf(2_000L, 4_000L, 8_000L, 15_000L, 30_000L, 30_000L, 30_000L, 30_000L)) {
+                delay(wait)
+                if (player.playerError == null || !player.playWhenReady) { android.util.Log.i("OpenTune", "Retry stopped: error=${player.playerError != null} playWhenReady=${player.playWhenReady}"); return@launch }
+                android.util.Log.i("OpenTune", "Retrying playback after ${wait / 1000} s")
+                player.prepare()
+            }
+        }
     }
 }
