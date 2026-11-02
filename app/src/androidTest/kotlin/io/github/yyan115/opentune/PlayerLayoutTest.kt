@@ -55,12 +55,34 @@ class PlayerLayoutTest {
 
     private data class Screen(val width: Int, val height: Int, val density: Int, val name: String)
 
+    /**
+     * Sets the display to [screen]. A display accepts at most twice its physical size on some system versions,
+     * so a larger screen is set with fewer pixels and the same size in dp, which gives the same layout.
+     */
+    private fun applyDisplay(screen: Screen): Screen {
+        shell("wm size ${screen.width}x${screen.height}")
+        val (width, height) = displaySize()
+        val applied = if (width == screen.width && height == screen.height) screen else {
+            val scale = minOf(width.toDouble() / screen.width, height.toDouble() / screen.height)
+            Screen((screen.width * scale).toInt(), (screen.height * scale).toInt(), (screen.density * scale).toInt(), screen.name).also { shell("wm size ${it.width}x${it.height}") }
+        }
+        shell("wm density ${applied.density}")
+        return applied
+    }
+
+    /** The size that the display runs with now: the override when one is set, otherwise the physical size. */
+    private fun displaySize(): Pair<Int, Int> {
+        val line = shellOutput("wm size").lines().lastOrNull { it.contains("size:") } ?: throw AssertionError("The display size is unknown")
+        val (width, height) = Regex("(\\d+)x(\\d+)").find(line)!!.destructured
+        return width.toInt() to height.toInt()
+    }
+
     @After fun restoreScreen() { shell("wm size reset"); shell("wm density reset") }
 
     @Test fun bottomRowSitsDirectlyAboveTheNavigationBarOnEveryScreen() {
         val failures = mutableListOf<String>()
-        for (screen in screens) {
-            shell("wm size ${screen.width}x${screen.height}"); shell("wm density ${screen.density}")
+        for (requested in screens) {
+            val screen = applyDisplay(requested)
             // The system recreates the activity after a display change, and for a moment no screen exists.
             // A tap on the mini player during that moment is lost, so the tap repeats until the player shows.
             val queue = compose.onNodeWithText(compose.activity.getString(R.string.player_queue_count, 2))
@@ -98,7 +120,8 @@ class PlayerLayoutTest {
     private fun pollUntil(what: String, timeoutMillis: Long = 20_000, condition: () -> Boolean) {
         val end = System.currentTimeMillis() + timeoutMillis
         while (System.currentTimeMillis() < end) {
-            if (runCatching(condition).getOrDefault(false)) return
+            // The test clock advances only while the test synchronises, so a wait that only sleeps never shows work that finishes in the background.
+            if (runCatching { compose.waitForIdle(); condition() }.getOrDefault(false)) return
             Thread.sleep(250)
         }
         throw AssertionError("Timed out waiting for $what")
@@ -118,9 +141,10 @@ class PlayerLayoutTest {
 
     private fun playerOpen() = compose.onAllNodesWithText(compose.activity.getString(R.string.player_queue_count, 2)).fetchSemanticsNodes().isNotEmpty()
 
-    private fun shell(command: String) {
-        InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command).use { ParcelFileDescriptor.AutoCloseInputStream(it).readBytes() }
-    }
+    private fun shell(command: String) { shellOutput(command) }
+
+    private fun shellOutput(command: String): String =
+        InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command).use { String(ParcelFileDescriptor.AutoCloseInputStream(it).readBytes()) }
 
     private fun screenshot(name: String) {
         compose.waitForIdle()

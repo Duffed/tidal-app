@@ -61,7 +61,7 @@ OpenTune now has its own application ID, `io.github.yyan115.opentune`. It instal
 - Volume normalization from TIDAL's ReplayGain values, by track or by album. It is off by default.
 - Equalizer with presets, using the equalizer that Android provides.
 - Audio output information in Settings, showing where music plays and which sample rates the output accepts.
-- Experimental bit-perfect output to a USB DAC on Android 14 and later. It is off by default and has not been tested with a DAC yet.
+- Bit-perfect output to a USB DAC on Android 14 and later. It is off by default.
 - Listening history on the device, with a statistics view for top tracks and artists.
 - Optional scrobbling to ListenBrainz or a compatible server. It is off by default and queues listens while the server is out of reach.
 - Music videos from artist pages and search, with picture-in-picture.

@@ -208,7 +208,8 @@ class PseudoLocaleTest {
     private fun await(what: String, timeoutMillis: Long = 15_000, condition: () -> Boolean) {
         val end = System.currentTimeMillis() + timeoutMillis
         while (System.currentTimeMillis() < end) {
-            if (runCatching(condition).getOrDefault(false)) return
+            // The test clock advances only while the test synchronises, so a wait that only sleeps never shows work that finishes in the background.
+            if (runCatching { compose.waitForIdle(); condition() }.getOrDefault(false)) return
             Thread.sleep(200)
         }
         val screen = runCatching { visibleTexts() }.getOrNull()
