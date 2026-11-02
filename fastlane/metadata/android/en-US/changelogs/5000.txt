@@ -1,0 +1,3 @@
+- A welcome screen on the first launch. Sign in to TIDAL, or use local music only. Without an account the app offers On device and Search.
+- On device replaces Downloads. It holds the tracks downloaded from TIDAL, audio files, folders and playlists made on the device, with filters for each.
+- Folders on the device. Add a folder with the system folder picker and OpenTune scans it, reads its subfolders and keeps it up to date.

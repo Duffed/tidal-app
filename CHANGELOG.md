@@ -4,6 +4,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-02
+
 ### Added
 
 - A welcome screen on the first launch. Sign in to TIDAL, or use local music only. Without an account the app offers On device and Search.
