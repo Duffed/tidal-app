@@ -136,17 +136,6 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                             }
                             GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, dense)
                         }
-                        if (!dense) state.playback.queue.getOrNull(state.playback.nextIndex)?.let { next ->
-                            HorizontalDivider(Modifier.padding(horizontal = 24.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                            Row(Modifier.fillMaxWidth().clickable(onClick = onQueue).padding(horizontal = 24.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Artwork(next.artwork, null, Modifier.size(34.dp))
-                                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                                    UpperLabel(stringResource(R.string.player_next_in_queue))
-                                    Text(next.title, fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                                Icon(OpenTuneIcons.PlaylistPlay, stringResource(R.string.player_open_queue), Modifier.size(21.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
                     }
                 }
             }
@@ -221,6 +210,19 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
                 stringResource(when (player.repeat) { Player.REPEAT_MODE_ONE -> R.string.player_repeat_one; Player.REPEAT_MODE_ALL -> R.string.player_repeat_all; else -> R.string.player_repeat_off }),
                 Modifier.size(20.dp), tint = if (player.repeat != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+    // The next track sits above the actions, so that the actions stay the lowest element of the screen.
+    if (!compact) player.queue.getOrNull(player.nextIndex)?.let { next ->
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(Modifier.fillMaxWidth().clickable(onClick = onQueue).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Artwork(next.artwork, null, Modifier.size(34.dp))
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                UpperLabel(stringResource(R.string.player_next_in_queue))
+                Text(next.title, fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(OpenTuneIcons.PlaylistPlay, stringResource(R.string.player_open_queue), Modifier.size(21.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
     val remaining by rememberSleepMinutes(state.sleepEndsAt)
     val muted = MaterialTheme.colorScheme.onSurfaceVariant

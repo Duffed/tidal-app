@@ -3,6 +3,7 @@ package io.github.yyan115.opentune
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.core.view.ViewCompat
@@ -11,6 +12,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import io.github.yyan115.opentune.core.Track
 import io.github.yyan115.opentune.ui.MainViewModel
 import org.junit.Assert.assertTrue
@@ -21,24 +24,26 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 
-/** The player's bottom row must sit directly above the system navigation area, whatever the screen and navigation style. */
+/** The player's bottom row must sit directly above the system navigation area, whatever the screen and navigation style, also when a next track is queued. */
 @UnstableApi
 @RunWith(AndroidJUnit4::class)
 class PlayerLayoutTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private lateinit var model: MainViewModel
     private lateinit var track: Track
+    private lateinit var next: Track
 
     @Before fun playOneTrack() {
         val app = compose.activity.application as OpenTuneApp
         model = ViewModelProvider(compose.activity)[MainViewModel::class.java]
-        compose.runOnIdle { model.clearQueue(); model.settings { it.copy(offline = false) } }
+        compose.runOnIdle { model.clearQueue(); model.settings { it.copy(offline = false, welcomeDone = true) } }
         val file = File(app.filesDir, "layout-test.flac")
         InstrumentationRegistry.getInstrumentation().context.assets.open("night-walk.flac").use { input -> file.outputStream().use(input::copyTo) }
         track = Track("local:layout-test", "Layout Check", "Test Artist", "Layout Album", durationMs = 30_000, localUri = Uri.fromFile(file).toString(), quality = "FLAC · 24-bit · 96 kHz")
-        app.library.save(track)
-        compose.waitUntil(10_000) { model.state.value.local.any { it.id == track.id } }
-        compose.runOnIdle { model.play(listOf(track)) }
+        next = track.copy(id = "local:layout-next", title = "Layout Next")
+        app.library.save(track); app.library.save(next)
+        compose.waitUntil(10_000) { model.state.value.local.any { it.id == track.id } && model.state.value.local.any { it.id == next.id } }
+        compose.runOnIdle { model.play(listOf(track, next)) }
         compose.waitUntil(30_000) { model.state.value.playback.track != null }
     }
 
@@ -57,15 +62,19 @@ class PlayerLayoutTest {
         for (screen in screens) {
             shell("wm size ${screen.width}x${screen.height}"); shell("wm density ${screen.density}")
             // The system recreates the activity after a display change, and for a moment no screen exists.
-            pollUntil("the app to show after the display change") { compose.onAllNodesWithTag("mini-player").fetchSemanticsNodes().isNotEmpty() || playerOpen() }
-            if (!playerOpen()) compose.onNodeWithTag("mini-player").performClick()
-            val queue = compose.onNodeWithText(compose.activity.getString(R.string.player_queue_count, 1))
-            try { pollUntil("the player to show") { queue.isDisplayed() } }
-            catch (failure: AssertionError) {
+            // A tap on the mini player during that moment is lost, so the tap repeats until the player shows.
+            val queue = compose.onNodeWithText(compose.activity.getString(R.string.player_queue_count, 2))
+            try {
+                pollUntil("the app to use the new display") { resumedActivityUses(screen) }
+                pollUntil("the player to show") {
+                    if (!playerOpen() && compose.onAllNodesWithTag("mini-player").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithTag("mini-player").performClick()
+                    queue.isDisplayed()
+                }
+            } catch (failure: AssertionError) {
                 val texts = runCatching { compose.onAllNodes(isRoot(), useUnmergedTree = true).fetchSemanticsNodes().flatMap { root -> generateSequence(listOf(root)) { level -> level.flatMap { it.children }.takeIf { it.isNotEmpty() } }.flatten().toList() }
                     .flatMap { node -> listOfNotNull(node.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)?.joinToString { it.text }) }.filter { it.isNotBlank() } }.getOrNull()
                 screenshot("player-${screen.name}-failed")
-                throw AssertionError("${screen.name} (${screen.width}x${screen.height} at ${screen.density} dpi): ${failure.message}. The screen shows: $texts", failure)
+                throw AssertionError("${screen.name} (${screen.width}x${screen.height} at ${screen.density} dpi): ${failure.message}. The activity reports ${activityDisplay()}. The screen shows: $texts", failure)
             }
             val density = compose.activity.resources.displayMetrics.density
             val screenHeight = compose.activity.resources.displayMetrics.heightPixels
@@ -95,7 +104,19 @@ class PlayerLayoutTest {
         throw AssertionError("Timed out waiting for $what")
     }
 
-    private fun playerOpen() = compose.onAllNodesWithText(compose.activity.getString(R.string.player_queue_count, 1)).fetchSemanticsNodes().isNotEmpty()
+    /** The size and density that the resumed activity runs with, or null while the system recreates it. */
+    private fun activityDisplay(): String? {
+        var result: String? = null
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            result = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED).firstOrNull()
+                ?.resources?.displayMetrics?.let { "${it.widthPixels}x${it.heightPixels} at ${it.densityDpi} dpi" }
+        }
+        return result
+    }
+
+    private fun resumedActivityUses(screen: Screen) = activityDisplay().let { it != null && it.startsWith("${screen.width}x") && it.endsWith("at ${screen.density} dpi") }
+
+    private fun playerOpen() = compose.onAllNodesWithText(compose.activity.getString(R.string.player_queue_count, 2)).fetchSemanticsNodes().isNotEmpty()
 
     private fun shell(command: String) {
         InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command).use { ParcelFileDescriptor.AutoCloseInputStream(it).readBytes() }
@@ -106,7 +127,9 @@ class PlayerLayoutTest {
         InstrumentationRegistry.getInstrumentation().uiAutomation.waitForIdle(250, 5_000)
         val output = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
         val directory = (output?.let(::File) ?: File(compose.activity.getExternalFilesDir(null), "screenshots")).apply { mkdirs() }
+        // Some system versions return no screenshot while a window changes, so the view hierarchy is the fallback.
         val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            ?: runCatching { compose.onRoot().captureToImage().asAndroidBitmap() }.getOrNull() ?: return
         File(directory, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
