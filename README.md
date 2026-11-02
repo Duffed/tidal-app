@@ -2,20 +2,22 @@
 
 <img src="docs/branding/opentune-mark.svg" width="72" alt="OpenTune icon">
 
-Unofficial open source Android music player for TIDAL.
+A full-featured, unofficial and open source Android music player for TIDAL.
 
-OpenTune plays your TIDAL library in lossless quality, along with your own audio files. It has no ads, analytics or tracking, and it connects only to TIDAL.
+Stream your TIDAL library in lossless quality, with synced lyrics, offline listening, Android Auto and twelve themes. Add your own audio files and folders, and they play alongside TIDAL in the same player. OpenTune has no ads, analytics or tracking, and it connects only to TIDAL.
 
 [![Check](https://github.com/yyan115/tidal-app/actions/workflows/check.yml/badge.svg)](https://github.com/yyan115/tidal-app/actions/workflows/check.yml)
 [![Release](https://img.shields.io/github/v/release/yyan115/tidal-app?include_prereleases)](https://github.com/yyan115/tidal-app/releases)
 [![License](https://img.shields.io/github/license/yyan115/tidal-app)](LICENSE)
 
 <p align="center">
-  <img src="docs/screenshots/home.png" width="220" alt="Listen screen">
+  <img src="docs/screenshots/home.png" width="220" alt="Home with a track to continue and saved albums">
   &nbsp;
   <img src="docs/screenshots/player.png" width="220" alt="Player showing the source format">
   &nbsp;
   <img src="docs/screenshots/lyrics.png" width="220" alt="Lyrics that follow the song">
+  &nbsp;
+  <img src="docs/screenshots/themes.png" width="220" alt="The theme picker with a live preview">
 </p>
 
 ## Install
@@ -38,21 +40,31 @@ gh attestation verify opentune-<version>.apk --repo yyan115/tidal-app
 
 ## Features
 
-- Stream TIDAL in lossless FLAC, up to 24-bit/192 kHz where TIDAL provides it. Lossless settings never fall back to AAC.
-- Follow the lyrics as the song plays. The current line is highlighted and a tap on a line seeks to it.
-- Find music from your TIDAL mixes, radio stations, new releases, genres and moods, and open artist and album pages with biographies, reviews and credits.
-- Search the catalogue and browse your saved tracks, albums, artists and playlists. Create and edit TIDAL playlists.
-- See the codec, bit depth and sample rate of the playing track.
-- Download tracks and play them without a connection or an account.
-- Play local audio files and combine them with TIDAL tracks in playlists.
-- Edit the queue, shuffle and repeat. Control playback from the notification, the lock screen or a Bluetooth device.
-- Use offline mode and Wi-Fi-only downloads, and optionally keep your saved tracks downloaded.
-- Set a sleep timer, normalize volume, use an equalizer and watch music videos.
-- Browse your library from a car or a Bluetooth device, ask a voice assistant to play music, and control playback from a home screen widget.
-- See your own listening statistics, back up your device data and optionally scrobble to ListenBrainz.
-- Export downloads and local files to a folder you choose.
+**TIDAL**
 
-The [usage guide](docs/usage.md) covers signing in, audio quality, downloads and export. All text is ready for translation, see [docs/translating.md](docs/translating.md).
+- Lossless streaming up to 24-bit/192 kHz where TIDAL provides it. A lossless setting never falls back to AAC. The player shows the codec, bit depth and sample rate of the source.
+- Home with your mixes, radio, new releases, genres and moods. Artist and album pages with biographies, reviews and credits. Music videos with picture-in-picture.
+- Your library: saved tracks, albums, artists, playlists, folders and mixes. Create and edit playlists, organise them in folders and save playlists from other people.
+- Lyrics that follow the song, track and artist radio, and autoplay that keeps the music going when the queue ends.
+- Downloads, offline mode and a setting that keeps your saved tracks downloaded.
+
+**Your own music**
+
+- Add audio files, or add a folder and OpenTune keeps it in sync. **On device** lists everything stored on the phone, from TIDAL downloads to your own files.
+- Local music plays without an account, and local and TIDAL tracks can share a playlist.
+
+**Playback and system**
+
+- Gapless playback with a deep buffer, queue editing, sleep timer, equalizer, volume normalization and audio output information. Bit-perfect USB output is available as a beta on Android 14 and later.
+- Controls in the notification, on the lock screen, on Bluetooth devices and in Android Auto. A home screen widget and voice requests such as "play Nujabes".
+
+**Your phone, your way**
+
+- Twelve themes, each with its own colours, shapes and type, and a setting that follows the device. The picker previews every theme before you choose.
+- Listening statistics, backup and restore, and optional listening history in ListenBrainz.
+- Every piece of text is in a string resource, so translations can be added without changing code, see [docs/translating.md](docs/translating.md).
+
+The [usage guide](docs/usage.md) explains each part.
 
 ## Privacy
 
@@ -60,7 +72,7 @@ OpenTune connects to TIDAL. It has no ads, analytics, crash reporting or server 
 
 - You sign in on TIDAL's website in your browser. OpenTune never receives your password.
 - Account tokens are stored encrypted with a key held in the Android Keystore.
-- OpenTune requests no storage, location, contacts or microphone permissions. It reads only the files you pick with the system file picker.
+- OpenTune requests no storage, location, contacts or microphone permissions. It reads only the files and folders that you pick with the system file picker.
 - Android backup and device transfer exclude OpenTune data.
 
 TIDAL still receives your account and streaming requests.

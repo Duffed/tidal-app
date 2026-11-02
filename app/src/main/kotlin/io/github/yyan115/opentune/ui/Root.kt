@@ -98,7 +98,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                         Icon(OpenTuneIcons.Brand, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(9.dp))
                     }
-                    Text(stringResource(R.string.app_name), Modifier.weight(1f), fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp,
+                    Text(stringResource(R.string.brand_name), Modifier.weight(1f), fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp,
                         letterSpacing = 2.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                     if (!settings) {
                         if (destination == Destination.Library && !inDetail && state.signedIn && !state.settings.offline) IconButton(onClick = vm::sync, enabled = !state.syncing) { Icon(OpenTuneIcons.Refresh, stringResource(R.string.library_refresh)) }

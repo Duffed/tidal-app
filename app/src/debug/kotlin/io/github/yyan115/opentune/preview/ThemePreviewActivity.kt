@@ -62,7 +62,9 @@ class ThemePreviewActivity : ComponentActivity() {
             detail = if (page == "album") albums[0] else null, detailTracks = if (page == "album") tracks.take(1) else emptyList(),
             lyrics = if (lyrics) sampleLyrics else null, lyricsStatus = if (lyrics) LyricsStatus.Ready else LyricsStatus.Idle, lyricsTrackId = tracks[0].id)
         setContent { OpenTuneTheme(themeId) {
-            if (page == "icons") IconSheet() else CompositionLocalProvider(LocalOfflineMode provides true) {
+            if (page == "icons") IconSheet()
+            else if (page == "appearance") AppearanceSheet(Settings(theme = themeId, welcomeDone = true), {}, {})
+            else CompositionLocalProvider(LocalOfflineMode provides true) {
                 OpenTuneRoot(model, state, initialDestination = when (page) { "search" -> Destination.Search; "library" -> Destination.Library; "downloads", "device" -> Destination.Device; else -> Destination.Home },
                     initialPlayer = page == "player", initialSettings = page == "settings", initialLyrics = lyrics)
             }

@@ -4,6 +4,27 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- A welcome screen on the first launch. Sign in to TIDAL, or use local music only. Without an account the app offers On device and Search.
+- On device replaces Downloads. It holds the tracks downloaded from TIDAL, audio files, folders and playlists made on the device, with filters for each.
+- Folders on the device. Add a folder with the system folder picker and OpenTune scans it, reads its subfolders and keeps it up to date.
+- Twelve themes: Dark, Light, Obsidian, Audiophile Gold, Cyberpunk, Neon, Ocean, Ember, Forest, Paper, Sky and Rose, and a choice that follows the device. Each has its own colours, corner shapes and type. The theme picker previews each theme with the real interface.
+- The player title opens the album, and the artist name opens the artist page.
+- Autoplay keeps similar music playing when the queue ends. It is on by default and can be turned off under Settings.
+- Save playlists from other people, such as editorial playlists, from the playlist page.
+- Space Grotesk and JetBrains Mono join the bundled fonts, with their licences.
+
+### Changed
+
+- The player keeps its controls at the bottom of the screen on every screen height and display size. The actions below the transport controls are equal columns with captions, so longer translations shorten a caption and never move a button.
+- Playback buffers up to 90 seconds ahead. Lossless tracks used to run down to an empty buffer between loads, which paused the music after a short hiccup. A silent connection now fails after 12 seconds, loads retry for longer, and playback resumes by itself when the network returns.
+- Covers that fail to load are requested again after a pause and when the network returns.
+- Settings are grouped into Account, Playback, Offline and downloads, Appearance, Listening, Your data and Advanced. Bit-perfect USB output moved to Advanced. Scrobbling is named ListenBrainz.
+- The wording of settings, messages and errors is revised.
+- Home replaces Listen in the navigation.
+- The theme setting is a single choice. Existing settings and backups map to the closest theme.
+
 ## [0.4.0] - 2026-11-01
 
 ### Added

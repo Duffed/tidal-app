@@ -31,7 +31,7 @@ Device tests need an emulator or a connected device. They play an original 24-bi
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-Gradle retrieves the screenshots under `app/build/outputs/connected_android_test_additional_output/`.
+Gradle retrieves the screenshots under `app/build/outputs/connected_android_test_additional_output/`. `PlayerLayoutTest` changes the display size and density of the device while it runs and restores them afterwards. `PseudoLocaleTest` runs the screens in a pseudo-language to find text that is not translatable.
 
 Live account checks are opt-in and do not run in CI. Install the debug app and the instrumentation APK, sign in normally in **OpenTune Debug**, then run:
 
@@ -41,7 +41,7 @@ adb shell am instrument -w -r -e liveAccount true \
   io.github.yyan115.opentune.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-These checks download a track, change and restore a saved-track entry, and create and remove a temporary playlist. Add `-e networkToggle true` only on a dedicated test device. That check turns Wi-Fi and mobile data off and on. Never put account credentials or tokens in source files or CI secrets.
+`LiveServiceTest` downloads a track, changes and restores a saved-track entry, and creates and removes a temporary playlist and folder. `PlaybackSoakLiveTest` plays a long track for several minutes and checks the start time, the buffer, outages of the network and autoplay. `LibraryArtworkLiveTest` checks that covers load again after an outage. Add `-e keepSession true` to leave the account signed in on a development device. Add `-e networkToggle true` to `LiveServiceTest` only on a dedicated test device, because it turns Wi-Fi and mobile data off and on. Never put account credentials or tokens in source files or CI secrets.
 
 ## Text and translation
 

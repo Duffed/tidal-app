@@ -22,7 +22,7 @@ fun WelcomeScreen(onSignIn: () -> Unit, onLocalOnly: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.weight(1f))
             Icon(OpenTuneIcons.Brand, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
-            Text(stringResource(R.string.app_name), Modifier.padding(top = 20.dp), style = AppFonts.title(52, 58), textAlign = TextAlign.Center)
+            Text(stringResource(R.string.brand_name), Modifier.padding(top = 20.dp), style = AppFonts.title(52, 58), textAlign = TextAlign.Center)
             Text(stringResource(R.string.welcome_tagline), Modifier.padding(top = 12.dp), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.weight(1f))
             TuneButton(onClick = onSignIn, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("welcome-sign-in")) { Text(stringResource(R.string.login_button)) }

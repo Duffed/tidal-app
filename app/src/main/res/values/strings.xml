@@ -639,4 +639,7 @@
     <!-- Playlists -->
     <string name="playlist_save">Save playlist</string>
     <string name="playlist_unsave">Remove saved playlist</string>
+
+    <!-- App -->
+    <string name="brand_name">OpenTune</string>
 </resources>

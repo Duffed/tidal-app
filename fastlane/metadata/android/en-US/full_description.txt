@@ -1,15 +1,16 @@
-OpenTune is an unofficial, open source Android music player for TIDAL. It also plays your own audio files.
+OpenTune is a full-featured, unofficial and open source Android music player for TIDAL. It also plays your own audio files and folders.
 
 OpenTune has no ads, analytics or tracking, and it connects only to TIDAL.
 
 <ul>
-<li>Stream TIDAL in lossless FLAC, up to 24-bit/192 kHz where TIDAL provides it.</li>
-<li>Search the catalogue and browse your saved tracks, albums and playlists. Create and edit TIDAL playlists.</li>
-<li>See the codec, bit depth and sample rate of the playing track.</li>
-<li>Download tracks and play them without a connection or an account.</li>
-<li>Play local audio files and combine them with TIDAL tracks in playlists.</li>
-<li>Edit the queue, shuffle and repeat. Control playback from the notification, the lock screen or a Bluetooth device.</li>
-<li>Use offline mode and Wi-Fi-only downloads.</li>
+<li>Stream TIDAL in lossless FLAC, up to 24-bit/192 kHz where TIDAL provides it, and see the format of the playing track.</li>
+<li>Home, mixes, radio, new releases, artist and album pages with biographies and credits, and music videos.</li>
+<li>Your library: saved tracks, albums, artists, playlists and folders. Create and edit playlists.</li>
+<li>Lyrics that follow the song, and autoplay when the queue ends.</li>
+<li>Download tracks, keep your saved tracks offline and listen without a connection.</li>
+<li>Add audio files and folders. They stay up to date and play in the same player as TIDAL.</li>
+<li>Twelve themes with a live preview, a sleep timer, an equalizer and volume normalization.</li>
+<li>Controls in the notification, on the lock screen, on Bluetooth devices and in Android Auto, and a home screen widget.</li>
 </ul>
 
 You sign in on TIDAL's website in your browser. OpenTune never receives your password.
