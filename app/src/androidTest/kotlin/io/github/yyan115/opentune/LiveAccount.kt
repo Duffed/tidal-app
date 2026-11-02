@@ -35,8 +35,11 @@ object LiveAccount {
             app.sessions.write(requireNotNull(supplied))
             try { base.evaluate() }
             finally {
-                app.tidal.signOut()
-                previous?.let(app.sessions::write)
+                // `-e keepSession true` leaves the account signed in for manual checks on a development device.
+                if (InstrumentationRegistry.getArguments().getString("keepSession") != "true") {
+                    app.tidal.signOut()
+                    previous?.let(app.sessions::write)
+                }
             }
         }
     } }

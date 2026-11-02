@@ -26,18 +26,38 @@ import coil3.request.crossfade
 import androidx.compose.ui.platform.LocalContext
 import io.github.yyan115.opentune.core.Release
 import io.github.yyan115.opentune.core.Track
+import kotlinx.coroutines.delay
 
 val LocalOfflineMode = staticCompositionLocalOf { false }
 
+/** Changes whenever the device regains a network, so that pictures that failed to load are requested again. */
+val LocalNetworkEpoch = staticCompositionLocalOf { 0 }
+
+private val ArtworkRetryDelays = listOf(2_000L, 5_000L, 12_000L)
+
+/**
+ * A cover picture. A load that fails is requested again after two, five and twelve seconds.
+ * When the device regains a network, the schedule starts again at once, because a request made while it was away fails.
+ */
 @Composable
 fun Artwork(uri: String?, description: String?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val offline = LocalOfflineMode.current
-    val request = remember(uri, offline, context) { ImageRequest.Builder(context).data(uri)
-        .crossfade(true).networkCachePolicy(if (offline) CachePolicy.DISABLED else CachePolicy.ENABLED).build() }
+    val epoch = LocalNetworkEpoch.current
+    var attempt by remember(uri) { mutableIntStateOf(0) }
+    var failures by remember(uri) { mutableIntStateOf(0) }
+    val request = remember(uri, offline, context, attempt) { ImageRequest.Builder(context).data(uri)
+        .crossfade(true).networkCachePolicy(if (offline) CachePolicy.DISABLED else CachePolicy.ENABLED)
+        .listener(onError = { r, result -> failures++; android.util.Log.w("OpenTune", "Cover ${r.data.toString().takeLast(36)} failed: ${result.throwable.javaClass.simpleName}") },
+            onSuccess = { _, _ -> failures = 0 }).build() }
+    LaunchedEffect(epoch) { if (failures > 0) { failures = 0; attempt++ } }
+    LaunchedEffect(failures) {
+        if (failures in 1..ArtworkRetryDelays.size && !offline) { delay(ArtworkRetryDelays[failures - 1]); attempt++ }
+    }
     Box(modifier.clip(MaterialTheme.shapes.small).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
         Icon(OpenTuneIcons.Album, null, Modifier.fillMaxSize(.32f), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f))
-        if (uri != null) AsyncImage(request, description, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        // A new key makes a new image painter, which loads again. A changed request alone does not always restart a load.
+        if (uri != null) key(attempt) { AsyncImage(request, description, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
     }
 }
 

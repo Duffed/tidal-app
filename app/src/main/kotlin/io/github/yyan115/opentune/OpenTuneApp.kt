@@ -28,9 +28,17 @@ class OpenTuneApp : Application() {
     val exporter by lazy { OfflineExporter(this) }
     val sources by lazy { AudioSources(this) }
 
+    /** Counts the times that the device regained a network, so that screens can request again what failed while it was away. */
+    val networkEpoch = kotlinx.coroutines.flow.MutableStateFlow(0)
+
     override fun onCreate() {
         super.onCreate()
         applyPlaceholders()
+        runCatching {
+            getSystemService(android.net.ConnectivityManager::class.java).registerDefaultNetworkCallback(object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) { networkEpoch.value += 1 }
+            })
+        }
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {

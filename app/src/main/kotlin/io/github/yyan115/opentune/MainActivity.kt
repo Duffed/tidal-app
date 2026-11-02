@@ -20,6 +20,7 @@ import io.github.yyan115.opentune.ui.MainViewModel
 import io.github.yyan115.opentune.ui.OpenTuneRoot
 import io.github.yyan115.opentune.ui.OpenTuneTheme
 import io.github.yyan115.opentune.ui.enterVideoPip
+import io.github.yyan115.opentune.ui.LocalNetworkEpoch
 import io.github.yyan115.opentune.ui.LocalOfflineMode
 import io.github.yyan115.opentune.core.SignInCallback
 
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val model: MainViewModel = viewModel()
             val state by model.state.collectAsStateWithLifecycle()
+            val networkEpoch by (application as OpenTuneApp).networkEpoch.collectAsStateWithLifecycle()
             LaunchedEffect(incomingSearch) { incomingSearch?.let { model.playFromSearch(it); incomingSearch = null } }
             LaunchedEffect(incomingCallback) {
                 incomingCallback?.let { model.completeBrowserLogin(it); incomingCallback = null }
@@ -47,7 +49,7 @@ class MainActivity : ComponentActivity() {
                     isAppearanceLightNavigationBars = !dark
                 }
             }
-            OpenTuneTheme(state.settings.theme, state.settings.colorTheme) { CompositionLocalProvider(LocalOfflineMode provides state.settings.offline) { OpenTuneRoot(model, state) } }
+            OpenTuneTheme(state.settings.theme, state.settings.colorTheme) { CompositionLocalProvider(LocalOfflineMode provides state.settings.offline, LocalNetworkEpoch provides networkEpoch) { OpenTuneRoot(model, state) } }
         }
     }
 
