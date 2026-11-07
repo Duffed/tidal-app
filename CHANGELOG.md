@@ -4,6 +4,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-11-07
+
 ### Changed
 
 - OpenTune is licensed under Apache-2.0 and no longer under GPL-3.0-or-later. Releases up to 0.6.3 stay under the GPL for those who have them.

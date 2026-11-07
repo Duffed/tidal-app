@@ -1,0 +1,3 @@
+- OpenTune is licensed under Apache-2.0 and no longer under GPL-3.0-or-later. Releases up to 0.6.3 stay under the GPL for those who have them.
+- Signing in opens the browser at once, without a sheet in between. A bar shows while the app completes the sign-in, and a failure appears as a message.
+- The first screen reads "Unofficial open source music player for TIDAL with local playback", and its note puts each sentence on its own line.
