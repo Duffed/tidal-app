@@ -14,6 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.yyan115.opentune.playback.AudioSpectrum
+import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
@@ -56,15 +58,19 @@ fun PlayControl(playing: Boolean, buffering: Boolean = false, size: Dp = 72.dp, 
 /** The playback position in milliseconds. The activity provides the position of the player and a preview provides a fixed one. */
 val LocalPlaybackPosition = staticCompositionLocalOf<StateFlow<Long>> { MutableStateFlow(0L) }
 
+/** The mini player. A swipe to either side stops playback and clears the queue. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun MiniPlayer(state: PlaybackState, position: State<Long>, onOpen: () -> Unit, onPlay: () -> Unit, onNext: () -> Unit) {
+fun MiniPlayer(state: PlaybackState, position: State<Long>, onOpen: () -> Unit, onPlay: () -> Unit, onNext: () -> Unit, onDismiss: () -> Unit = {}) {
     val track = state.track ?: return
-    Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp).testTag("mini-player"),
+    val swipe = rememberSwipeToDismissBoxState(confirmValueChange = { value -> if (value != SwipeToDismissBoxValue.Settled) { onDismiss(); true } else false })
+    SwipeToDismissBox(swipe, backgroundContent = {}, modifier = Modifier.testTag("mini-player")) {
+    Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(7.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f))) {
         Column {
             Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(start = 10.dp, end = 2.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                Artwork(track.artwork, null, Modifier.size(35.dp))
+                TrackArtwork(track, null, Modifier.size(35.dp))
                 Column(Modifier.weight(1f).padding(start = 12.dp, end = 4.dp)) {
                     Text(track.title, fontFamily = AppFonts.body, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(if (state.error != null) stringResource(R.string.player_stopped) else track.artist, Modifier.padding(top = 2.dp),
@@ -80,6 +86,7 @@ fun MiniPlayer(state: PlaybackState, position: State<Long>, onOpen: () -> Unit, 
             LinearProgressIndicator(progress = { if (state.duration > 0) (position.value.toFloat() / state.duration).coerceIn(0f, 1f) else 0f },
                 modifier = Modifier.fillMaxWidth().height(1.dp), gapSize = 0.dp, drawStopIndicator = {})
         }
+    }
     }
 }
 
@@ -120,7 +127,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                     if (landscape) {
                         Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                             if (lyrics) LyricsPanel(state, vm, Modifier.width(landscapeArtworkSize * 1.3f).height(landscapeArtworkSize))
-                            else Artwork(track.artwork, stringResource(R.string.player_artwork, track.album), Modifier.size(landscapeArtworkSize))
+                            else PlayerArtwork(track, stringResource(R.string.player_artwork, track.album), Modifier.size(landscapeArtworkSize), state.settings.visualizer, state.playback.playing)
                             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                                 PlayerHeading(track, true, onAlbum, onArtist)
                                 GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, true)
@@ -130,7 +137,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
                             PlayerHeading(track, true, onAlbum, onArtist)
                             if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxWidth().height(if (large) 220.dp else 260.dp))
-                            else Artwork(track.artwork, stringResource(R.string.player_artwork, track.album), Modifier.size(if (large) 104.dp else 180.dp).align(Alignment.CenterHorizontally).padding(vertical = 8.dp))
+                            else PlayerArtwork(track, stringResource(R.string.player_artwork, track.album), Modifier.size(if (large) 104.dp else 180.dp).align(Alignment.CenterHorizontally).padding(vertical = 8.dp), state.settings.visualizer, state.playback.playing)
                             GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, true)
                         }
                     } else {
@@ -138,7 +145,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                             PlayerHeading(track, dense, onAlbum, onArtist)
                             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                 if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxSize())
-                                else Artwork(track.artwork, stringResource(R.string.player_artwork, track.album), Modifier.size(minOf(maxWidth - 20.dp, maxHeight - 8.dp).coerceAtLeast(0.dp)))
+                                else PlayerArtwork(track, stringResource(R.string.player_artwork, track.album), Modifier.size(minOf(maxWidth - 20.dp, maxHeight - 8.dp).coerceAtLeast(0.dp)), state.settings.visualizer, state.playback.playing)
                             }
                             GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, dense)
                         }
@@ -147,15 +154,15 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
             }
         }
     }
-    if (source) SourceDetailsSheet(state.playback.quality) { source = false }
+    if (source) SourceDetailsSheet(state.playback.quality, state.playback.track, vm) { source = false }
     if (timer) SleepTimerSheet(state, vm) { timer = false }
 }
 
 @Composable
 private fun PlayerHeading(track: Track, compact: Boolean, onAlbum: (Track) -> Unit, onArtist: (Track) -> Unit) {
     // A TIDAL track links to its album and its artist, as in TIDAL's own apps. A file on the device has neither page.
-    val album = track.albumId.isNotBlank() && !track.id.startsWith("local:")
-    val artist = track.artistId.isNotBlank() && !track.id.startsWith("local:")
+    val album = track.albumId.isNotBlank() && !track.isFile
+    val artist = track.artistId.isNotBlank() && !track.isFile
     Text(track.title, Modifier.fillMaxWidth().testTag("player-title").padding(top = if (compact) 8.dp else 12.dp)
         .then(if (album) Modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.track_go_album)) { onAlbum(track) } else Modifier),
         style = if (compact) AppFonts.title(34, 40) else AppFonts.title(48, 54), maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -211,7 +218,7 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
     if (!compact) player.queue.getOrNull(player.nextIndex)?.let { next ->
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(Modifier.fillMaxWidth().clickable(onClick = onQueue).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Artwork(next.artwork, null, Modifier.size(34.dp))
+            TrackArtwork(next, null, Modifier.size(34.dp))
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 UpperLabel(stringResource(R.string.player_next_in_queue))
                 Text(next.title, fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -231,6 +238,48 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
             timerDescription, if (timerOn) accent else muted, Modifier.weight(1f), onClick = onTimer)
         DownloadAction(state, Modifier.weight(1f), onDownload)
         PlayerAction(OpenTuneIcons.PlaylistPlay, stringResource(R.string.player_queue_count, player.queue.size), null, muted, Modifier.weight(1f), onClick = onQueue)
+    }
+}
+
+/** The cover of the playing track. With the visualizer on, the cover dims and the spectrum of the music moves over it. */
+@Composable
+private fun PlayerArtwork(track: Track, description: String, modifier: Modifier, visualizer: Boolean, playing: Boolean) {
+    Box(modifier) {
+        TrackArtwork(track, description, Modifier.fillMaxSize().graphicsLayer { alpha = if (visualizer) .45f else 1f })
+        if (visualizer) SpectrumBars(playing, Modifier.matchParentSize().padding(12.dp).testTag("spectrum"))
+    }
+}
+
+/** Bars that follow the levels of the music, about thirty times a second. They sink when the music pauses. */
+@Composable
+private fun SpectrumBars(playing: Boolean, modifier: Modifier) {
+    val bands = 32
+    val levels = remember { FloatArray(bands) }
+    var frame by remember { mutableIntStateOf(0) }
+    val color = MaterialTheme.colorScheme.primary
+    LaunchedEffect(playing) {
+        val samples = FloatArray(io.github.yyan115.opentune.core.Spectrum.SIZE)
+        var last = 0L
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { now ->
+                if (now - last >= 33_000_000L) {
+                    last = now
+                    val fresh = if (playing && AudioSpectrum.latest(samples)) io.github.yyan115.opentune.core.Spectrum.bands(samples, AudioSpectrum.sampleRate, bands) else null
+                    for (i in 0 until bands) levels[i] = if (fresh != null) maxOf(fresh[i], levels[i] * .82f) else levels[i] * .88f
+                    frame++
+                }
+            }
+        }
+    }
+    androidx.compose.foundation.Canvas(modifier) {
+        frame.let { }
+        val gap = size.width / bands * .28f
+        val width = size.width / bands - gap
+        for (i in 0 until bands) {
+            val height = (size.height * levels[i].coerceIn(0f, 1f)).coerceAtLeast(2.dp.toPx())
+            drawRoundRect(color, androidx.compose.ui.geometry.Offset(i * (width + gap) + gap / 2, size.height - height), androidx.compose.ui.geometry.Size(width, height),
+                androidx.compose.ui.geometry.CornerRadius(width / 2))
+        }
     }
 }
 
@@ -269,11 +318,11 @@ private fun PlayerAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 @Composable
 private fun DownloadAction(state: AppState, modifier: Modifier, onDownload: (Track) -> Unit) {
     val track = state.playback.track ?: return
-    val downloaded = track.isLocal || state.local.any { it.id == track.id }
+    val downloaded = track.onDevice || state.local.any { it.id == track.id }
     val pending = state.downloads.any { "track:${track.id}" in it.tags && !it.state.isFinished }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val file = track.id.startsWith("local:")
+    val file = track.isFile
     PlayerAction(if (file) OpenTuneIcons.Device else if (downloaded) OpenTuneIcons.DownloadDone else OpenTuneIcons.Download,
-        stringResource(if (file) R.string.nav_device else if (downloaded) R.string.player_downloaded else if (pending) R.string.player_downloading else R.string.player_label_download),
-        stringResource(if (file) R.string.nav_device else if (downloaded) R.string.player_downloaded else R.string.player_download), muted, modifier, enabled = !downloaded && !pending, busy = pending) { onDownload(track) }
+        stringResource(if (file) R.string.label_local else if (downloaded) R.string.player_downloaded else if (pending) R.string.player_downloading else R.string.player_label_download),
+        stringResource(if (file) R.string.source_origin_file else if (downloaded) R.string.player_downloaded else R.string.player_download), muted, modifier, enabled = !downloaded && !pending, busy = pending) { onDownload(track) }
 }

@@ -36,7 +36,7 @@ class PagesTest {
         val page = fixture("artist.json")
         val header = page.modules.filterIsInstance<ArtistHeader>().single()
         assertEquals("Example Artist", header.artist.title)
-        assertEquals("Example Artist is a singer.\nShe plays piano. Example Album came first.", header.bio)
+        assertEquals("Example Artist is a singer.\n\nShe plays piano. Example Album came first.", header.bio)
         assertEquals("mix100", header.radioId)
         assertTrue(header.artist.artwork!!.endsWith("/750x750.jpg"))
         val carousels = page.modules.filterIsInstance<CarouselModule>()
@@ -106,7 +106,9 @@ class PagesTest {
     }
 
     @Test fun markupIsRemovedFromText() {
-        assertEquals("One Two\nThree", PageCodec.plainText("""[wimpLink artistId="1"]One[/wimpLink] <b>Two</b><br>Three"""))
+        assertEquals("One Two\n\nThree", PageCodec.plainText("""[wimpLink artistId="1"]One[/wimpLink] <b>Two</b><br>Three"""))
+        assertEquals("A\n\nB", PageCodec.plainText("A<br/>B"))
+        assertEquals("A\n\nB", PageCodec.plainText("A<br/><br/>B"))
         assertEquals("", PageCodec.plainText(null))
         assertEquals("", PageCodec.plainText("null"))
     }

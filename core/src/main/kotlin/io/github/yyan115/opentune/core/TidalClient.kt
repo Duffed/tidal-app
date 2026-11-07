@@ -170,7 +170,7 @@ class TidalClient(
         request("users/${userId()}/playlists", method = "POST", form = mapOf("title" to title, "description" to "")), ReleaseType.PLAYLIST).copy(ownerId = userId())
 
     suspend fun addToPlaylist(playlistId: String, trackId: String) {
-        require(!trackId.startsWith("local:")) { "Local files cannot be uploaded to TIDAL playlists." }
+        require(!isDeviceId(trackId)) { "Local files cannot be uploaded to TIDAL playlists." }
         val metadata = request("playlists/$playlistId")
         val etag = etags["playlists/$playlistId"] ?: throw ServiceException(409, "Refresh this playlist before editing it.", Problem.REFRESH_PLAYLIST)
         request("playlists/$playlistId/items", method = "POST", form = mapOf("trackIds" to trackId,

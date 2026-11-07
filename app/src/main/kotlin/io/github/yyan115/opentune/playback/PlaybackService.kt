@@ -22,6 +22,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.ShuffleOrder
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -35,6 +36,7 @@ import io.github.yyan115.opentune.MainActivity
 import io.github.yyan115.opentune.OpenTuneApp
 import io.github.yyan115.opentune.core.JsonCodec
 import io.github.yyan115.opentune.core.Normalization
+import io.github.yyan115.opentune.core.RepeatPolicy
 import io.github.yyan115.opentune.core.Track
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +51,8 @@ import org.json.JSONObject
 /** Custom commands that the app sends to the playback service. */
 object PlaybackCommands {
     val SleepTimer = SessionCommand("opentune.sleep", Bundle.EMPTY)
+    /** Shuffles the tracks after the current one, as when shuffle is turned on. Sent after a new queue was set while shuffle is on. */
+    val Reshuffle = SessionCommand("opentune.reshuffle", Bundle.EMPTY)
     const val ARG_MINUTES = "minutes"
     const val ARG_END_OF_TRACK = "endOfTrack"
     const val EXTRA_ENDS_AT = "sleepEndsAt"
@@ -67,6 +71,8 @@ class PlaybackService : MediaLibraryService() {
     private var sleepJob: Job? = null
     private var sleepAtTrackEnd = false
     private var bitPerfectDevice: AudioDeviceInfo? = null
+    /** The queue as it was before shuffle turned on, so that turning it off puts the tracks back in order. */
+    private var orderBeforeShuffle: List<MediaItem> = emptyList()
     private val audioManager by lazy { getSystemService(AudioManager::class.java) }
     private val deviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) = applyBitPerfect()
@@ -91,12 +97,22 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         app = application as OpenTuneApp
-        player = ExoPlayer.Builder(this)
+        // The renderers pass the audio through a processor that lets the visualizer see it. The audio itself does not change.
+        val renderers = object : androidx.media3.exoplayer.DefaultRenderersFactory(this) {
+            override fun buildAudioSink(context: android.content.Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean) =
+                androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context).setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams).setAudioProcessors(arrayOf(SpectrumProcessor())).build()
+        }
+        player = ExoPlayer.Builder(this, renderers)
             .setLoadControl(streamingLoadControl())
             .setMediaSourceFactory(OpenTuneSourceFactory(app))
             .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(), true)
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_NETWORK).build()
+        // Shuffle reorders the queue itself, so that the queue shows what plays next and "play next" and reordering do what they say.
+        // The player's own shuffle order stays the natural order.
+        player.setShuffleOrder(ShuffleOrder.UnshuffledShuffleOrder(0))
         player.addListener(object : Player.Listener {
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) { if (shuffleModeEnabled) shuffleUpcoming() else restoreOrder() }
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 finishListening()
                 val track = mediaItem?.let(::trackOf)
@@ -128,7 +144,7 @@ class PlaybackService : MediaLibraryService() {
             }
         })
         app.sources.onGains = { id -> Handler(Looper.getMainLooper()).post { if (player.currentMediaItem?.mediaId == id) applyNormalization() } }
-        scope.launch { app.settings.state.collect { applyNormalization(); applyEqualizer(); applyBitPerfect() } }
+        scope.launch { app.settings.state.collect { AudioSpectrum.enabled = it.visualizer; applyNormalization(); applyEqualizer(); applyBitPerfect() } }
         scope.launch { runCatching { app.scrobbler.flush() } }
         if (Build.VERSION.SDK_INT >= 23) audioManager.registerAudioDeviceCallback(deviceCallback, Handler(Looper.getMainLooper()))
         runCatching { connectivity.registerDefaultNetworkCallback(networkCallback, Handler(Looper.getMainLooper())) }
@@ -137,13 +153,16 @@ class PlaybackService : MediaLibraryService() {
         session = MediaLibrarySession.Builder(this, player, object : MediaLibrarySession.Callback {
             override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
                 if (controller.packageName != packageName && !controller.isTrusted) return MediaSession.ConnectionResult.reject()
-                val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon().add(PlaybackCommands.SleepTimer).build()
+                val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon().add(PlaybackCommands.SleepTimer).add(PlaybackCommands.Reshuffle).build()
                 return MediaSession.ConnectionResult.AcceptedResultBuilder(session).setAvailableSessionCommands(commands).build()
             }
 
             override fun onCustomCommand(session: MediaSession, controller: MediaSession.ControllerInfo, customCommand: SessionCommand, args: Bundle): ListenableFuture<SessionResult> {
-                if (customCommand.customAction != PlaybackCommands.SleepTimer.customAction) return Futures.immediateFuture(SessionResult(androidx.media3.session.SessionError.ERROR_NOT_SUPPORTED))
-                setSleepTimer(args.getInt(PlaybackCommands.ARG_MINUTES, 0), args.getBoolean(PlaybackCommands.ARG_END_OF_TRACK, false))
+                when (customCommand.customAction) {
+                    PlaybackCommands.SleepTimer.customAction -> setSleepTimer(args.getInt(PlaybackCommands.ARG_MINUTES, 0), args.getBoolean(PlaybackCommands.ARG_END_OF_TRACK, false))
+                    PlaybackCommands.Reshuffle.customAction -> shuffleUpcoming()
+                    else -> return Futures.immediateFuture(SessionResult(androidx.media3.session.SessionError.ERROR_NOT_SUPPORTED))
+                }
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
 
@@ -196,6 +215,38 @@ class PlaybackService : MediaLibraryService() {
                 return result
             }
         }).setSessionActivity(activity).build()
+    }
+
+    /** Puts the tracks after the current one in random order. The tracks before it and the current one stay where they are. */
+    private fun shuffleUpcoming() {
+        val count = player.mediaItemCount
+        orderBeforeShuffle = (0 until count).map(player::getMediaItemAt)
+        val current = player.currentMediaItemIndex
+        if (count - current < 3) return
+        val hours = app.settings.state.value.avoidRepeatHours
+        val recent = if (hours > 0) app.library.playedSince(System.currentTimeMillis() - hours * 3_600_000L) else emptySet()
+        player.replaceMediaItems(current + 1, count, RepeatPolicy.deferRecent(orderBeforeShuffle.subList(current + 1, count).shuffled(), { it.mediaId }, recent))
+    }
+
+    /**
+     * Puts the queue back in the order it had before shuffle turned on. The current track keeps playing.
+     * A track that was added after shuffle turned on follows the tracks that were there before.
+     */
+    private fun restoreOrder() {
+        val original = orderBeforeShuffle
+        orderBeforeShuffle = emptyList()
+        val count = player.mediaItemCount
+        if (original.isEmpty() || count == 0) return
+        val positions = HashMap<String, ArrayDeque<Int>>()
+        original.forEachIndexed { position, item -> positions.getOrPut(item.mediaId) { ArrayDeque() }.addLast(position) }
+        val queue = (0 until count).map(player::getMediaItemAt)
+        val ranked = queue.mapIndexed { index, item -> Triple(index, item, positions[item.mediaId]?.removeFirstOrNull() ?: (original.size + index)) }.sortedBy { it.third }
+        val current = player.currentMediaItemIndex
+        val at = ranked.indexOfFirst { it.first == current }
+        if (at < 0) return
+        // The part after the current track goes first, so that the index of the current track holds while it is replaced.
+        player.replaceMediaItems(current + 1, count, ranked.drop(at + 1).map { it.second })
+        if (current > 0) player.replaceMediaItems(0, current, ranked.take(at).map { it.second })
     }
 
     /** Writes what the home screen widget shows. A new cover is fetched in the background. */

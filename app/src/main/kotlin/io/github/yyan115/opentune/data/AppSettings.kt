@@ -25,6 +25,10 @@ data class Settings(
     val welcomeDone: Boolean = false,
     /** Keeps playing similar music from TIDAL when the queue ends. */
     val autoplay: Boolean = true,
+    /** Tracks played within this many hours come last in shuffle and are left out of radio and autoplay. Zero turns it off. */
+    val avoidRepeatHours: Int = 0,
+    /** Shows the spectrum of the music over the artwork in the player. */
+    val visualizer: Boolean = false,
 )
 
 class AppSettings(context: Context) {
@@ -40,7 +44,7 @@ class AppSettings(context: Context) {
         preferences.getString("equalizerLevels", "").orEmpty().split(',').mapNotNull { it.trim().toIntOrNull() },
         preferences.getBoolean("bitPerfect", false), preferences.getBoolean("keepFavoritesOffline", false),
         preferences.getBoolean("scrobble", false), preferences.getString("scrobbleServer", "https://api.listenbrainz.org") ?: "https://api.listenbrainz.org",
-        preferences.getBoolean("welcomeDone", false), preferences.getBoolean("autoplay", true)))
+        preferences.getBoolean("welcomeDone", false), preferences.getBoolean("autoplay", true), preferences.getInt("avoidRepeatHours", 0), preferences.getBoolean("visualizer", false)))
     val state = mutable.asStateFlow()
     fun update(transform: (Settings) -> Settings) {
         val next = transform(mutable.value)
@@ -50,7 +54,8 @@ class AppSettings(context: Context) {
             .putString("normalization", next.normalization).putBoolean("equalizer", next.equalizer)
             .putString("equalizerLevels", next.equalizerLevels.joinToString(",")).putBoolean("bitPerfect", next.bitPerfect)
             .putBoolean("keepFavoritesOffline", next.keepFavoritesOffline).putBoolean("scrobble", next.scrobble)
-            .putString("scrobbleServer", next.scrobbleServer).putBoolean("welcomeDone", next.welcomeDone).putBoolean("autoplay", next.autoplay).apply()
+            .putString("scrobbleServer", next.scrobbleServer).putBoolean("welcomeDone", next.welcomeDone).putBoolean("autoplay", next.autoplay)
+            .putInt("avoidRepeatHours", next.avoidRepeatHours).putBoolean("visualizer", next.visualizer).apply()
         mutable.value = next
     }
 }

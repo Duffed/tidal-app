@@ -52,7 +52,7 @@ class OfflineExporter(private val app: OpenTuneApp) {
     }
 
     suspend fun write(track: Track, destination: Uri, onProgress: (Int) -> Unit = {}) = withContext(Dispatchers.IO) {
-        val saved = app.library.get(track.id)?.takeIf(Track::isLocal) ?: track
+        val saved = app.library.get(track.id)?.takeIf(Track::onDevice) ?: track
         val local = saved.localUri ?: throw IOException("Download this track before exporting it.")
         if (Uri.parse(local) == destination) throw IOException("Choose a different destination from the original file.")
         val output = app.contentResolver.openOutputStream(destination, "wt") ?: throw IOException("The export destination could not be opened.")

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import io.github.yyan115.opentune.OpenTuneApp
+import io.github.yyan115.opentune.core.DocumentKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,25 +58,54 @@ class LocalFolders(private val app: OpenTuneApp) {
         }
     }
 
-    /** Scans every folder that was not scanned during the last [maxAgeMs]. */
+    /** Scans every folder that was not scanned during the last [maxAgeMs], and every folder when files were read by an older importer. */
     fun rescanStale(maxAgeMs: Long = 24 * 3600_000L) {
         val now = System.currentTimeMillis()
-        app.library.folders().filter { now - it.scannedAt > maxAgeMs }.forEach(::rescan)
+        val outdated = app.library.outdatedFiles(LocalImporter.VERSION).isNotEmpty()
+        app.library.folders().filter { outdated || now - it.scannedAt > maxAgeMs }.forEach(::rescan)
+        if (outdated) scope.launch { refreshFiles() }
+    }
+
+    /** Reads again the files that the listener added by hand and that an older importer read, which no scan reaches. */
+    suspend fun refreshFiles() {
+        val inFolders = app.library.folderFileIds()
+        for (track in app.library.outdatedFiles(LocalImporter.VERSION)) {
+            if (track.id in inFolders) continue
+            val uri = track.localUri?.let(Uri::parse) ?: continue
+            runCatching { app.importer.import(uri, direct = true) }.onFailure {
+                if (it is CancellationException) throw it
+                app.library.sourceFor(DocumentKey.of(uri.toString()))?.let { source -> app.library.recordSource(source.copy(version = LocalImporter.VERSION)) }
+            }
+        }
     }
 
     private suspend fun scan(folder: LocalFolder) {
         val tree = Uri.parse(folder.uri)
         val scanner = FolderScanner(DocumentTreeReader(app, tree))
         val seen = linkedSetOf<String>()
-        for (entry in scanner.audioFiles(DocumentsContract.getTreeDocumentId(tree))) {
+        for (file in scanner.audioFiles(DocumentsContract.getTreeDocumentId(tree))) {
             kotlin.coroutines.coroutineContext.ensureActive()
+            val entry = file.entry
             val uri = DocumentsContract.buildDocumentUriUsingTree(tree, entry.documentId)
-            val id = LocalImporter.idFor(uri)
-            if (app.library.get(id) == null) runCatching { app.importer.import(uri) }.onFailure { if (it is CancellationException) throw it else continue }
-            seen += id
+            val key = DocumentKey.of(uri.toString())
+            val known = app.library.sourceFor(key)
+            val current = known != null && app.library.get(known.trackId) != null && known.version >= LocalImporter.VERSION &&
+                known.modified == entry.modified && known.size == entry.size
+            val id = if (current) known!!.trackId else runCatching {
+                val cover = file.cover?.let { DocumentsContract.buildDocumentUriUsingTree(tree, it.documentId) }
+                app.importer.import(uri, entry.modified, entry.size, cover).id
+            }.getOrElse {
+                if (it is CancellationException) throw it
+                // A file that cannot be read is not tried again until it changes.
+                known?.let { source -> app.library.recordSource(source.copy(modified = entry.modified, size = entry.size, version = LocalImporter.VERSION)) }
+                null
+            }
+            if (id != null) seen += id else if (known != null && app.library.get(known.trackId) != null) seen += known.trackId
             if (seen.size % 10 == 0) mutable.update { it + (folder.id to ScanState(found = seen.size)) }
         }
-        app.library.recordScan(folder.id, seen)
+        // A folder that answers with nothing while it held music before is not trusted. The card may be missing, and the listener may not have emptied it.
+        if (seen.isEmpty() && app.library.folderTrackIds(folder.id).isNotEmpty()) throw java.io.IOException("The folder is empty. Its files were kept.")
+        app.library.recordScan(folder.id, seen, complete = scanner.failed.isEmpty())
     }
 
     private fun displayName(tree: Uri): String = runCatching {

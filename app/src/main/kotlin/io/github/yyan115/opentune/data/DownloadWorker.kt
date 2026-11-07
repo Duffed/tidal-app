@@ -30,11 +30,14 @@ import java.io.InterruptedIOException
 class DownloadWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
     private val app get() = applicationContext as OpenTuneApp
     private var lastProgress = -1
+    private var title = ""
+    private var lastNotified = 0L
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val encoded = inputData.getString("track") ?: return@withContext Result.failure()
         val track = JsonCodec.decodeTrack(JSONObject(encoded))
-        if (track.isLocal || app.library.get(track.id)?.isLocal == true) return@withContext Result.success()
+        title = track.title
+        if (track.onDevice || app.library.get(track.id)?.onDevice == true) return@withContext Result.success()
         if (app.settings.state.value.offline) return@withContext Result.retry()
         var temporary: File? = null
         var completedFile: File? = null
@@ -103,6 +106,9 @@ class DownloadWorker(context: Context, parameters: WorkerParameters) : Coroutine
         if (percent > lastProgress) {
             lastProgress = percent
             setProgressAsync(workDataOf("progress" to percent))
+            // The notification follows the download. Android drops updates that come too fast, so it changes about once a second.
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (percent == 100 || now - lastNotified >= 900) { lastNotified = now; setForegroundAsync(notification(title.ifBlank { applicationContext.getString(R.string.download_preparing) }, percent)) }
         }
     }
 
@@ -110,9 +116,11 @@ class DownloadWorker(context: Context, parameters: WorkerParameters) : Coroutine
     private fun notification(title: String, percent: Int): ForegroundInfo {
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("downloads", applicationContext.getString(R.string.download_channel), NotificationManager.IMPORTANCE_LOW))
+        val cancel = androidx.work.WorkManager.getInstance(applicationContext).createCancelPendingIntent(id)
         val notification = Notification.Builder(applicationContext, "downloads").setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(title).setContentText(applicationContext.getString(R.string.download_notification_text))
-            .setProgress(100, percent, percent == 0).setOngoing(true).build()
+            .setContentTitle(title).setContentText(if (percent > 0) applicationContext.getString(R.string.download_notification_progress, percent) else applicationContext.getString(R.string.download_notification_text))
+            .setProgress(100, percent, percent == 0).setOngoing(true).setOnlyAlertOnce(true).setCategory(Notification.CATEGORY_PROGRESS)
+            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(applicationContext, R.drawable.ic_notification), applicationContext.getString(R.string.download_cancel), cancel).build()).build()
         val notificationId = 2100 + (id.hashCode() and 1023)
         return if (android.os.Build.VERSION.SDK_INT >= 29) ForegroundInfo(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         else ForegroundInfo(notificationId, notification)

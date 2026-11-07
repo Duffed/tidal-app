@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -194,7 +195,6 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNew
     val pages: PagesViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val entries by pages.state.collectAsStateWithLifecycle()
     val libraryTabs = listOf(R.string.library_saved_tracks, R.string.label_albums, R.string.label_artists, R.string.label_playlists, R.string.library_mixes).map { stringResource(it) }
-    val onThisDevice = stringResource(R.string.library_on_this_device)
     val mixes = remember { PageRoute.path("pages/my_collection_my_mixes") }
     val scope = rememberCoroutineScope()
     val context = PageContext(state, vm, pages, scope, onMenu, libraryTabs[4])
@@ -244,7 +244,7 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNew
         }
         when (filter) {
             0 -> {
-                val all = if (state.settings.offline) state.favorites.filter(Track::isLocal) else state.favorites
+                val all = if (state.settings.offline) state.favorites.filter(Track::onDevice) else state.favorites
                 val tracks = all.filter { matches(it.title, it.artist, it.album) }.ordered({ it.title }, { it.artist })
                 item { SectionTitle(pluralStringResource(R.plurals.track_count, tracks.size, tracks.size), if (tracks.size > 1) stringResource(R.string.action_shuffle) else null) { vm.playTracks(tracks, shuffle = true) } }
                 items(tracks, key = Track::id) { track -> TrackRow(track, state.playback.track?.id == track.id, { vm.play(tracks, tracks.indexOf(track), libraryTabs[0]) }, { onMenu(track) }) }
@@ -265,32 +265,36 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNew
                     if (text.isBlank()) stringResource(R.string.library_no_artists_text) else stringResource(R.string.library_try_filter), if (!state.signedIn && text.isBlank()) stringResource(R.string.action_connect_tidal) else null, onLogin) }
             }
             3 -> {
-                item { SectionTitle(onThisDevice, stringResource(R.string.playlist_new), onNewPlaylist) }
-                items(state.localPlaylists, key = LocalPlaylist::id) { playlist ->
-                    ReleaseRow(Release(playlist.id, playlist.title, pluralStringResource(R.plurals.track_count, playlist.trackIds.size, playlist.trackIds.size), type = ReleaseType.PLAYLIST)) {
-                        vm.open(Release(playlist.id, playlist.title, onThisDevice, type = ReleaseType.PLAYLIST))
-                    }
-                }
-                if (state.localPlaylists.isEmpty()) item { Text(stringResource(R.string.library_playlists_hint), Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 val folderId = openFolder?.first ?: TidalClient.ROOT_FOLDER
-                val entries = state.folders[folderId] ?: if (openFolder == null) state.playlists else emptyList()
-                if (state.playlists.isNotEmpty() || state.folders.isNotEmpty()) {
-                    item(key = "tidal-title") {
-                        SectionTitle(openFolder?.second ?: stringResource(R.string.library_tidal_playlists), if (openFolder == null && online) stringResource(R.string.folder_new) else null) { newFolder = true }
-                    }
-                    if (openFolder != null) item(key = "folder-back") {
-                        TextButton(onClick = { folderStack = folderStack.dropLast(1) }, modifier = Modifier.padding(horizontal = 16.dp)) {
-                            Icon(OpenTuneIcons.ArrowBack, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.library_all_playlists))
+                val listing = state.folders[folderId] ?: if (openFolder == null) state.playlists else emptyList()
+                // Playlists made on the device sit among the playlists of the account, in one list. They carry the Local mark.
+                val listed = (listing + if (openFolder == null) state.localPlaylists.map(::deviceRelease) else emptyList())
+                    .sortedWith(compareBy({ it.type != ReleaseType.FOLDER }, { it.title.lowercase() }))
+                item(key = "playlist-actions") {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        TuneOutlinedButton(onClick = onNewPlaylist, modifier = Modifier.weight(1f)) {
+                            Icon(OpenTuneIcons.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.playlist_new), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        }
+                        if (online && openFolder == null) TuneOutlinedButton(onClick = { newFolder = true }, modifier = Modifier.weight(1f)) {
+                            Icon(OpenTuneIcons.Folder, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.folder_new), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         }
                     }
-                    items(entries, key = { "${it.type}:${it.id}" }) { entry ->
-                        if (entry.type == ReleaseType.FOLDER) FolderRow(entry, onOpen = { folderStack = folderStack + (entry.id to entry.title) },
-                            onRename = { renaming = entry }, onDelete = { deleting = entry })
-                        else PlaylistRow(entry, canMove = online, onMove = { moving = entry }) { vm.open(entry) }
+                }
+                if (openFolder != null) item(key = "folder-back") {
+                    TextButton(onClick = { folderStack = folderStack.dropLast(1) }, modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Icon(OpenTuneIcons.ArrowBack, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(openFolder.second, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
-                    if (entries.isEmpty() && openFolder != null) item { Text(stringResource(R.string.folder_empty), Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+                items(listed, key = { "${it.type}:${it.id}" }) { entry ->
+                    when {
+                        entry.type == ReleaseType.FOLDER -> FolderRow(entry, onOpen = { folderStack = folderStack + (entry.id to entry.title) }, onRename = { renaming = entry }, onDelete = { deleting = entry })
+                        entry.isDevicePlaylist -> PlaylistListRow(entry) { vm.open(entry) }
+                        else -> PlaylistRow(entry, canMove = online, onMove = { moving = entry }) { vm.open(entry) }
+                    }
+                }
+                if (listed.isEmpty()) item(key = "playlists-empty") {
+                    if (openFolder != null) Text(stringResource(R.string.folder_empty), Modifier.padding(horizontal = 24.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else EmptyState(OpenTuneIcons.PlaylistPlay, stringResource(R.string.playlist_none), stringResource(R.string.playlist_empty_text), stringResource(R.string.playlist_new), onNewPlaylist)
                 }
             }
             4 -> {
@@ -313,22 +317,32 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNew
 
 @UnstableApi
 @Composable
-fun DetailScreen(state: AppState, vm: MainViewModel, onMenu: (Track, Int) -> Unit) {
+fun DetailScreen(state: AppState, vm: MainViewModel, onMenu: (Track, Int) -> Unit, onAddSongs: () -> Unit = {}) {
     val release = state.detail ?: return
     val largeText = LocalDensity.current.fontScale > 1.3f
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+    val editable = vm.canEdit(release)
+    LazyColumn(Modifier.fillMaxSize().testTag("detail-list"), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Artwork(release.artwork, null, Modifier.size(if (largeText) 120.dp else 248.dp))
+            val size = if (largeText) 120.dp else 248.dp
+            if (release.isDevicePlaylist && release.artwork == null) Surface(Modifier.size(size), shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                Box(contentAlignment = Alignment.Center) { Icon(OpenTuneIcons.PlaylistPlay, null, Modifier.size(size / 4), tint = MaterialTheme.colorScheme.primary) }
+            } else Artwork(release.artwork, null, Modifier.size(size))
             Text(release.title, Modifier.padding(top = 22.dp).fillMaxWidth(), style = MaterialTheme.typography.headlineLarge)
-            Text(release.artist, Modifier.padding(top = 6.dp).fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (release.isDevicePlaylist) Row(Modifier.padding(top = 8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                LocalBadge(Modifier.padding(end = 8.dp))
+                Text(pluralStringResource(R.plurals.track_count, state.detailTracks.size, state.detailTracks.size), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else Text(release.artist, Modifier.padding(top = 6.dp).fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TuneButton(onClick = { vm.play(state.detailTracks) }, enabled = state.detailTracks.isNotEmpty(), modifier = Modifier.weight(1f)) {
+                TuneButton(onClick = { vm.play(state.detailTracks, 0, release.title) }, enabled = state.detailTracks.isNotEmpty(), modifier = Modifier.weight(1f)) {
                     Icon(OpenTuneIcons.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.action_play))
                 }
-                TuneTonalButton(onClick = { vm.play(state.detailTracks); if (!state.playback.shuffle) vm.toggleShuffle() }, enabled = state.detailTracks.isNotEmpty()) {
+                TuneTonalButton(onClick = { vm.playTracks(state.detailTracks, shuffle = true, source = release.title) }, enabled = state.detailTracks.isNotEmpty()) {
                     Icon(OpenTuneIcons.Shuffle, stringResource(R.string.album_shuffle))
                 }
-                if (state.detailTracks.any { !it.isLocal }) TuneOutlinedButton(onClick = { state.detailTracks.forEach { vm.download(it) } }) { Icon(OpenTuneIcons.Download, stringResource(R.string.album_download_all)) }
+                if (state.detailTracks.any { !it.onDevice }) TuneOutlinedButton(onClick = { state.detailTracks.forEach { vm.download(it) } }) { Icon(OpenTuneIcons.Download, stringResource(R.string.album_download_all)) }
+            }
+            if (editable) TuneOutlinedButton(onClick = onAddSongs, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).testTag("add-songs")) {
+                Icon(OpenTuneIcons.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.playlist_add_songs))
             }
         } }
         if (state.detailLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(24.dp)) }
@@ -367,6 +381,9 @@ fun LoginSheet(state: AppState, vm: MainViewModel, onClose: () -> Unit) {
     }
 }
 
+/** How long a track stays out of shuffle, radio and autoplay after it played, in hours. */
+private val RepeatWindows = listOf(0, 1, 6, 24, 168)
+
 @UnstableApi
 @Composable
 fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
@@ -381,63 +398,77 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
     var scrobbling by remember { mutableStateOf(false) }
     var stats by remember { mutableStateOf(false) }
     var clearHistory by remember { mutableStateOf(false) }
+    var mobileDataWarning by remember { mutableStateOf(false) }
+    var repeats by remember { mutableStateOf(false) }
+    var experimental by rememberSaveable { mutableStateOf(false) }
     val backup = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { uri -> uri?.let(vm::exportBackup) }
     val restore = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::importBackup) }
     var licenses by remember { mutableStateOf(false) }
+    val settings = state.settings
     LazyColumn(Modifier.fillMaxSize().testTag("settings-list"), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { SectionTitle(stringResource(R.string.settings_account)) }
         item { SettingRow(OpenTuneIcons.AccountCircle, if (state.signedIn) stringResource(R.string.settings_connected) else stringResource(R.string.action_connect_tidal),
-            if (state.signedIn) stringResource(R.string.settings_connected_text) else stringResource(R.string.settings_connect_text),
+            if (state.signedIn) null else stringResource(R.string.settings_connect_text),
             onClick = if (state.signedIn) ({ signOut = true }) else onLogin,
             trailing = { Icon(if (state.signedIn) OpenTuneIcons.CheckCircle else OpenTuneIcons.ChevronRight, null) }) }
         item { SectionTitle(stringResource(R.string.settings_playback)) }
-        item { SettingRow(OpenTuneIcons.Wifi, stringResource(R.string.settings_quality_wifi), stringResource(state.settings.quality.labelRes()), { quality = true }) }
-        item { SettingRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_quality_mobile), stringResource(state.settings.mobileQuality.labelRes()), { mobile = true }) }
-        item { SettingRow(OpenTuneIcons.Radio, stringResource(R.string.settings_autoplay), stringResource(R.string.settings_autoplay_text), trailing = {
-            Switch(state.settings.autoplay, { value -> vm.settings { it.copy(autoplay = value) } })
-        }) }
-        item { SettingRow(OpenTuneIcons.GraphicEq, stringResource(R.string.normalization_title), stringResource(when (state.settings.normalization) { "track" -> R.string.normalization_track; "album" -> R.string.normalization_album; else -> R.string.settings_off }), { normalization = true }) }
-        item { SettingRow(OpenTuneIcons.Equalizer, stringResource(R.string.eq_title), stringResource(if (state.settings.equalizer) R.string.settings_on else R.string.settings_off), { equalizer = true }) }
-        item { SettingRow(OpenTuneIcons.Headphones, stringResource(R.string.output_title), stringResource(R.string.settings_output_text), { output = true }) }
+        item { SettingRow(OpenTuneIcons.Wifi, stringResource(R.string.settings_quality_wifi), stringResource(settings.quality.labelRes()), { quality = true }) }
+        item { SettingRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_quality_mobile), stringResource(settings.mobileQuality.labelRes()), { mobile = true }) }
+        item { SwitchRow(OpenTuneIcons.Radio, stringResource(R.string.settings_autoplay), settings.autoplay, { value -> vm.settings { it.copy(autoplay = value) } }, stringResource(R.string.settings_autoplay_text)) }
+        item { SettingRow(OpenTuneIcons.Shuffle, stringResource(R.string.settings_repeats), if (settings.avoidRepeatHours == 0) stringResource(R.string.settings_off) else repeatWindowText(settings.avoidRepeatHours), { repeats = true }) }
+        item { SettingRow(OpenTuneIcons.GraphicEq, stringResource(R.string.normalization_title), stringResource(when (settings.normalization) { "track" -> R.string.normalization_track; "album" -> R.string.normalization_album; else -> R.string.settings_off }), { normalization = true }) }
+        item { SettingRow(OpenTuneIcons.Headphones, stringResource(R.string.output_title), onClick = { output = true }) }
         item { SectionTitle(stringResource(R.string.settings_downloads)) }
-        item { SettingRow(OpenTuneIcons.CloudOff, stringResource(R.string.status_offline), stringResource(R.string.settings_offline_text), trailing = {
-            Switch(state.settings.offline, { value -> vm.settings { it.copy(offline = value) } })
+        item { SwitchRow(OpenTuneIcons.CloudOff, stringResource(R.string.status_offline), settings.offline, { value -> vm.settings { it.copy(offline = value) } }) }
+        item { SwitchRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_mobile_downloads), !settings.downloadOnWifi, { value ->
+            if (value) mobileDataWarning = true else vm.settings { it.copy(downloadOnWifi = true) }
         }) }
-        item { SettingRow(OpenTuneIcons.Download, stringResource(R.string.settings_wifi_only), stringResource(R.string.settings_wifi_only_text), trailing = {
-            Switch(state.settings.downloadOnWifi, { value -> vm.settings { it.copy(downloadOnWifi = value) } })
-        }) }
-        item { SettingRow(OpenTuneIcons.DownloadDone, stringResource(R.string.settings_keep_offline), stringResource(R.string.settings_keep_offline_text), trailing = {
-            Switch(state.settings.keepFavoritesOffline, { value -> vm.settings { it.copy(keepFavoritesOffline = value) } })
-        }) }
+        item { SwitchRow(OpenTuneIcons.DownloadDone, stringResource(R.string.settings_keep_offline), settings.keepFavoritesOffline, { value -> vm.settings { it.copy(keepFavoritesOffline = value) } }, stringResource(R.string.settings_keep_offline_text)) }
         item { SectionTitle(stringResource(R.string.settings_appearance)) }
-        item { SettingRow(OpenTuneIcons.Contrast, stringResource(R.string.settings_theme), stringResource(if (state.settings.theme == SYSTEM_THEME) R.string.theme_system else themeFor(state.settings.theme, false).nameRes), { theme = true }) }
+        item { SettingRow(OpenTuneIcons.Contrast, stringResource(R.string.settings_theme), stringResource(if (settings.theme == SYSTEM_THEME) R.string.theme_system else themeFor(settings.theme, false).nameRes), { theme = true }) }
         item { SectionTitle(stringResource(R.string.settings_listening)) }
-        item { SettingRow(OpenTuneIcons.LibraryMusic, stringResource(R.string.stats_title), stringResource(R.string.settings_stats_text), { stats = true }) }
-        item { SettingRow(OpenTuneIcons.Lyrics, stringResource(R.string.scrobble_title), if (state.settings.scrobble) stringResource(R.string.settings_scrobble_on, state.settings.scrobbleServer.removePrefix("https://")) else stringResource(R.string.settings_off), { scrobbling = true }) }
+        item { SettingRow(OpenTuneIcons.LibraryMusic, stringResource(R.string.stats_title), onClick = { stats = true }) }
         item { SectionTitle(stringResource(R.string.settings_data)) }
         item { SettingRow(OpenTuneIcons.SaveAlt, stringResource(R.string.settings_backup), stringResource(R.string.settings_backup_text), { backup.launch("opentune-backup.json") }) }
-        item { SettingRow(OpenTuneIcons.Refresh, stringResource(R.string.settings_restore), stringResource(R.string.settings_restore_text), { restore.launch(arrayOf("application/json", "*/*")) }) }
+        item { SettingRow(OpenTuneIcons.Refresh, stringResource(R.string.settings_restore), onClick = { restore.launch(arrayOf("application/json", "*/*")) }) }
         item { SettingRow(OpenTuneIcons.RemoveCircleOutline, stringResource(R.string.settings_clear_history), stringResource(R.string.settings_clear_history_text), { clearHistory = true }) }
-        if (android.os.Build.VERSION.SDK_INT >= 34) {
-            item { SectionTitle(stringResource(R.string.settings_advanced)) }
-            item { SettingRow(OpenTuneIcons.Waves, stringResource(R.string.settings_bitperfect), stringResource(R.string.settings_bitperfect_text), trailing = {
-                Switch(state.settings.bitPerfect, { value -> vm.settings { it.copy(bitPerfect = value) } })
-            }) }
+        item { SectionTitle(stringResource(R.string.settings_experimental)) }
+        item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_experimental_features),
+            if (experimental) null else stringResource(R.string.settings_experimental_summary), { experimental = !experimental },
+            trailing = { Icon(OpenTuneIcons.KeyboardArrowDown, null, Modifier.graphicsLayer { rotationZ = if (experimental) 180f else 0f }) }) }
+        if (experimental) {
+            item { SettingRow(OpenTuneIcons.Equalizer, stringResource(R.string.eq_title), stringResource(if (settings.equalizer) R.string.settings_on else R.string.settings_off), { equalizer = true }) }
+            item { SettingRow(OpenTuneIcons.Lyrics, stringResource(R.string.scrobble_title), if (settings.scrobble) stringResource(R.string.settings_scrobble_on, settings.scrobbleServer.removePrefix("https://")) else stringResource(R.string.settings_off), { scrobbling = true }) }
+            item { SwitchRow(OpenTuneIcons.GraphicEq, stringResource(R.string.settings_visualizer), settings.visualizer, { value -> vm.settings { it.copy(visualizer = value) } }, stringResource(R.string.settings_visualizer_text)) }
+            if (android.os.Build.VERSION.SDK_INT >= 34) item { SwitchRow(OpenTuneIcons.Waves, stringResource(R.string.settings_bitperfect), settings.bitPerfect, { value -> vm.settings { it.copy(bitPerfect = value) } }, stringResource(R.string.settings_bitperfect_text)) }
         }
         item { SectionTitle(stringResource(R.string.settings_about)) }
-        item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), stringResource(R.string.settings_tagline)) }
+        item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), stringResource(if (BuildConfig.VERSION_NAME.startsWith("0.")) R.string.settings_tagline_prerelease else R.string.settings_tagline)) }
         item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_source), "github.com/yyan115/tidal-app", {
             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/yyan115/tidal-app"))) }
         }) }
         item { SettingRow(OpenTuneIcons.PrivacyTip, stringResource(R.string.settings_privacy), stringResource(R.string.settings_privacy_text)) }
-        item { SettingRow(OpenTuneIcons.Description, stringResource(R.string.settings_licenses), stringResource(R.string.settings_licenses_text), { licenses = true }) }
+        item { SettingRow(OpenTuneIcons.Description, stringResource(R.string.settings_licenses), onClick = { licenses = true }) }
     }
     if (licenses) LicensesDialog { licenses = false }
-    if (normalization) NormalizationDialog(state.settings.normalization, { value -> vm.settings { it.copy(normalization = value) } }) { normalization = false }
-    if (equalizer) EqualizerSheet(state.settings, { next -> vm.settings { next } }) { equalizer = false }
+    if (normalization) NormalizationDialog(settings.normalization, { value -> vm.settings { it.copy(normalization = value) } }) { normalization = false }
+    if (equalizer) EqualizerSheet(settings, { next -> vm.settings { next } }) { equalizer = false }
     if (output) AudioOutputDialog { output = false }
-    if (scrobbling) ScrobbleDialog(state.settings, vm) { scrobbling = false }
+    if (scrobbling) ScrobbleDialog(settings, vm) { scrobbling = false }
     if (stats) StatsSheet(vm) { stats = false }
+    if (repeats) AlertDialog(onDismissRequest = { repeats = false }, title = { Text(stringResource(R.string.settings_repeats)) }, text = {
+        Column {
+            Text(stringResource(R.string.settings_repeats_text), Modifier.padding(bottom = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            RepeatWindows.forEach { hours -> Row(Modifier.fillMaxWidth().clickable { vm.settings { it.copy(avoidRepeatHours = hours) }; repeats = false }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(settings.avoidRepeatHours == hours, onClick = null)
+                Text(if (hours == 0) stringResource(R.string.settings_off) else repeatWindowText(hours), Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyMedium)
+            } }
+        }
+    }, confirmButton = { TextButton(onClick = { repeats = false }) { Text(stringResource(R.string.action_close)) } })
+    if (mobileDataWarning) AlertDialog(onDismissRequest = { mobileDataWarning = false }, title = { Text(stringResource(R.string.mobile_downloads_title)) },
+        text = { Text(stringResource(R.string.mobile_downloads_text)) },
+        confirmButton = { TextButton(onClick = { vm.settings { it.copy(downloadOnWifi = false) }; mobileDataWarning = false }) { Text(stringResource(R.string.mobile_downloads_allow)) } },
+        dismissButton = { TextButton(onClick = { mobileDataWarning = false }) { Text(stringResource(R.string.action_cancel)) } })
     if (clearHistory) AlertDialog(onDismissRequest = { clearHistory = false }, title = { Text(stringResource(R.string.history_clear_title)) },
         text = { Text(stringResource(R.string.history_clear_text)) },
         confirmButton = { TextButton(onClick = { vm.clearListeningHistory(); clearHistory = false }) { Text(stringResource(R.string.action_clear)) } },
@@ -446,11 +477,17 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
         text = { Column { AudioQuality.entries.forEach { value -> Row(Modifier.fillMaxWidth().clickable {
             if (mobile) vm.settings { it.copy(mobileQuality = value) } else vm.settings { it.copy(quality = value) }
             quality = false; mobile = false
-        }, verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(if (mobile) state.settings.mobileQuality == value else state.settings.quality == value, onClick = null)
+        }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(if (mobile) settings.mobileQuality == value else settings.quality == value, onClick = null)
             Text(stringResource(value.labelRes()), Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyMedium)
         } } } }, confirmButton = {})
-    if (theme) AppearanceSheet(state.settings, { next -> vm.settings { next } }) { theme = false }
+    if (theme) AppearanceSheet(settings, { next -> vm.settings { next } }) { theme = false }
     if (signOut) AlertDialog(onDismissRequest = { signOut = false }, title = { Text(stringResource(R.string.signout_title)) }, text = { Text(stringResource(R.string.signout_text)) },
         confirmButton = { TextButton(onClick = { vm.signOut(); signOut = false }) { Text(stringResource(R.string.signout_confirm)) } }, dismissButton = { TextButton(onClick = { signOut = false }) { Text(stringResource(R.string.action_cancel)) } })
+}
+
+@Composable
+private fun repeatWindowText(hours: Int): String = when {
+    hours % 24 == 0 -> pluralStringResource(R.plurals.window_days, hours / 24, hours / 24)
+    else -> pluralStringResource(R.plurals.window_hours, hours, hours)
 }

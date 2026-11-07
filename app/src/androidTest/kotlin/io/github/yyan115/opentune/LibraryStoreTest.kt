@@ -3,9 +3,11 @@ package io.github.yyan115.opentune
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.yyan115.opentune.core.DocumentKey
 import io.github.yyan115.opentune.core.JsonCodec
 import io.github.yyan115.opentune.core.Track
 import io.github.yyan115.opentune.data.LibraryStore
+import io.github.yyan115.opentune.data.LocalSource
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -127,6 +129,80 @@ class LibraryStoreTest {
             val folder = store.addFolder("content://tree/upgraded", "Upgraded")
             assertEquals("Upgraded", store.folders().single().name)
             store.removeFolder(folder.id)
+        } } finally { context.deleteDatabase(name) }
+    }
+
+    private fun file(id: String) = Track("local:$id", "Track $id", "Artist", localUri = "content://com.android.externalstorage.documents/document/primary%3AMusic%2F$id.flac")
+
+    @Test fun anIncompleteScanOnlyAddsAndNeverRemoves() {
+        val name = "incomplete-scan-test.db"
+        context.deleteDatabase(name)
+        try { withStore(name) { store ->
+            listOf("a", "b").forEach { store.save(file(it)) }
+            val folder = store.addFolder("content://tree/music", "Music")
+            store.recordScan(folder.id, setOf("local:a", "local:b"))
+            store.save(file("c"))
+            // A scan that could not read every folder finds only a and c. The files of the unreadable folder are not gone.
+            store.recordScan(folder.id, setOf("local:a", "local:c"), complete = false)
+            assertEquals(setOf("local:a", "local:b", "local:c"), store.folderTrackIds(folder.id))
+            assertNotNull(store.get("local:b"))
+            assertEquals(3, store.folders().single().trackCount)
+        } } finally { context.deleteDatabase(name) }
+    }
+
+    @Test fun aFileAddedByHandSurvivesTheRemovalOfItsFolder() {
+        val name = "direct-file-test.db"
+        context.deleteDatabase(name)
+        try { withStore(name) { store ->
+            listOf("kept", "scanned").forEach { store.save(file(it)) }
+            store.recordSource(LocalSource(DocumentKey.of(file("kept").localUri!!), "local:kept", 0, 0, 1, direct = true))
+            val folder = store.addFolder("content://tree/music", "Music")
+            store.recordScan(folder.id, setOf("local:kept", "local:scanned"))
+            assertNull(store.folderOf("local:missing"))
+            assertEquals(folder.id, store.folderOf("local:kept")?.id)
+            store.removeFolder(folder.id)
+            assertNotNull("The listener added this file by hand", store.get("local:kept"))
+            assertNull(store.get("local:scanned"))
+        } } finally { context.deleteDatabase(name) }
+    }
+
+    @Test fun theSameDocumentIsKnownByOneKeyWhateverTheRoute() {
+        val name = "sources-test.db"
+        context.deleteDatabase(name)
+        try { withStore(name) { store ->
+            val direct = "content://com.android.externalstorage.documents/document/primary%3AMusic%2Fa.flac"
+            val viaTree = "content://com.android.externalstorage.documents/tree/primary%3AMusic/document/primary%3AMusic%2Fa.flac"
+            store.recordSource(LocalSource(DocumentKey.of(direct), "local:a", 5, 10, 1, direct = true))
+            assertEquals("local:a", store.sourceFor(DocumentKey.of(viaTree))?.trackId)
+            store.save(file("a"))
+            store.removeLocal("local:a")
+            assertNull("A removed file is read again when it comes back", store.sourceFor(DocumentKey.of(viaTree)))
+        } } finally { context.deleteDatabase(name) }
+    }
+
+    @Test fun filesFromAnOlderVersionAreMarkedForReading() {
+        val name = "migration-sources.db"
+        context.deleteDatabase(name)
+        val old = file("old")
+        val file = context.getDatabasePath(name).also { it.parentFile!!.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
+            db.execSQL("CREATE TABLE tracks (id TEXT PRIMARY KEY, payload TEXT NOT NULL, favorite INTEGER NOT NULL DEFAULT 0, played INTEGER NOT NULL DEFAULT 0)")
+            db.execSQL("CREATE TABLE playlists (id TEXT PRIMARY KEY, title TEXT NOT NULL)")
+            db.execSQL("CREATE TABLE playlist_tracks (playlist_id TEXT NOT NULL, track_id TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(playlist_id,track_id))")
+            db.execSQL("CREATE TABLE cloud_cache (account TEXT NOT NULL, kind TEXT NOT NULL, payload TEXT NOT NULL, updated INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(account,kind))")
+            db.execSQL("CREATE TABLE pending_favorites (account TEXT NOT NULL, track_id TEXT NOT NULL, favorite INTEGER NOT NULL, PRIMARY KEY(account,track_id))")
+            db.execSQL("CREATE TABLE plays (id INTEGER PRIMARY KEY AUTOINCREMENT, track_id TEXT NOT NULL, played_at INTEGER NOT NULL, listened_ms INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE pending_scrobbles (id INTEGER PRIMARY KEY AUTOINCREMENT, listened_at INTEGER NOT NULL, payload TEXT NOT NULL)")
+            db.execSQL("CREATE TABLE local_folders (id TEXT PRIMARY KEY, uri TEXT NOT NULL UNIQUE, name TEXT NOT NULL, scanned_at INTEGER NOT NULL DEFAULT 0, track_count INTEGER NOT NULL DEFAULT 0)")
+            db.execSQL("CREATE TABLE folder_tracks (folder_id TEXT NOT NULL, track_id TEXT NOT NULL, PRIMARY KEY(folder_id, track_id))")
+            db.execSQL("INSERT INTO tracks VALUES (?,?,0,0)", arrayOf(old.id, JsonCodec.encodeTrack(old).toString()))
+            db.version = 4
+        }
+        try { withStore(name) { store ->
+            val source = store.sourceFor(DocumentKey.of(old.localUri!!))
+            assertEquals(old.id, source?.trackId)
+            assertEquals("Files added before the upgrade were added by hand", true, source?.direct)
+            assertEquals(listOf(old.id), store.outdatedFiles(1).map { it.id })
         } } finally { context.deleteDatabase(name) }
     }
 }

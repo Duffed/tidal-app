@@ -39,7 +39,7 @@ class OfflineExportTest {
 
     @Test fun downloadedFlacExportsAndPlaysWithoutNetworkOrAccountAccess() = runBlocking {
         assumeTrue("Requires an existing clear FLAC download", InstrumentationRegistry.getArguments().getString("existingDownload") == "true")
-        val track = app.library.localTracks().first { !it.id.startsWith("local:") && it.quality.orEmpty().startsWith("FLAC") }
+        val track = app.library.localTracks().first { !it.isFile && it.quality.orEmpty().startsWith("FLAC") }
         val file = File(app.filesDir, "export-validation.flac")
         app.tidal.signOut()
         val progress = mutableListOf<Int>()

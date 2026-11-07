@@ -47,8 +47,8 @@ object OpenTuneIcons {
     val QueueMusic get() = PlaylistPlay
     val PlaylistAdd by lazy { glyph("AddToPlaylist", "M3 5.5H20 M3 10.5H13 M3 15.5H10 M17.5 13V21 M13.5 17H21.5", mirror = true) }
     val PlaylistRemove by lazy { glyph("RemoveFromPlaylist", "M3 5.5H20 M3 10.5H13 M3 15.5H10 M14 17H22") }
-    val Settings by lazy { glyph("Settings", "M3 6H8 M12 6H21 M3 12H14 M18 12H21 M3 18H5 M9 18H21 M10 3V9 M16 9V15 M7 15V21") }
-    val Tune get() = Settings
+    val Settings by lazy { glyph("Settings", "M10.23 4.92 L10.48 2.42 L13.52 2.42 L13.77 4.92 A7.3 7.3 0 0 1 15.76 5.74 L17.70 4.15 L19.85 6.30 L18.26 8.24 A7.3 7.3 0 0 1 19.08 10.23 L21.58 10.48 L21.58 13.52 L19.08 13.77 A7.3 7.3 0 0 1 18.26 15.76 L19.85 17.70 L17.70 19.85 L15.76 18.26 A7.3 7.3 0 0 1 13.77 19.08 L13.52 21.58 L10.48 21.58 L10.23 19.08 A7.3 7.3 0 0 1 8.24 18.26 L6.30 19.85 L4.15 17.70 L5.74 15.76 A7.3 7.3 0 0 1 4.92 13.77 L2.42 13.52 L2.42 10.48 L4.92 10.23 A7.3 7.3 0 0 1 5.74 8.24 L4.15 6.30 L6.30 4.15 L8.24 5.74 A7.3 7.3 0 0 1 10.23 4.92 Z M15 12A3 3 0 1 1 9 12A3 3 0 0 1 15 12Z") }
+    val DragHandle by lazy { glyph("Reorder", "M5 8H19 M5 12H19 M5 16H19") }
     val MoreHoriz by lazy { glyph("More", "M5 12H5.01 M12 12H12.01 M19 12H19.01") }
     val MoreVert by lazy { glyph("Options", "M12 5H12.01 M12 12H12.01 M12 19H12.01") }
     val ArrowBack by lazy { glyph("Back", "M20 12H4 M10 6L4 12L10 18", mirror = true) }

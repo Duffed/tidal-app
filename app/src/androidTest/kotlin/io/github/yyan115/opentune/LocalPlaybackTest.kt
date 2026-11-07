@@ -1,6 +1,7 @@
 package io.github.yyan115.opentune
 
 import android.net.Uri
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
@@ -60,7 +61,8 @@ class LocalPlaybackTest {
         compose.onNodeWithTag("mini-player").performClick()
         screenshot("now-playing")
         compose.onNodeWithText("Queue · 3").performClick()
-        compose.onNodeWithContentDescription("Remove Second Track from queue").performClick()
+        // A row leaves the queue with a swipe.
+        compose.onNode(hasContentDescription("Reorder Second Track")).performTouchInput { swipeLeft() }
         compose.waitUntil(5_000) { model.state.value.playback.queue.size == 2 }
         assertEquals(listOf(track.id, track.id), model.state.value.playback.queue.map(Track::id))
         screenshot("queue")
@@ -104,6 +106,7 @@ class LocalPlaybackTest {
         compose.waitUntil(5_000) { model.state.value.localPlaylists.any { it.id == playlist.id && it.trackIds.size == 1 } }
         compose.onNodeWithTag("device-list").performScrollToNode(hasText("Evening"))
         compose.onNodeWithText("Evening").performClick()
+        compose.onNodeWithTag("detail-list").performScrollToNode(hasText("Night Walk"))
         compose.onNodeWithText("Night Walk").assertIsDisplayed()
         assertEquals(track.id, app.library.playlistTracks(playlist.id).single().id)
         screenshot("local-playlist")
@@ -169,5 +172,43 @@ class LocalPlaybackTest {
         val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         File(directory, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
+    }
+
+    @Test fun queueRowsCanBeDraggedToANewPosition() {
+        val first = track.copy(id = "local:drag-1", title = "First Track"); val second = track.copy(id = "local:drag-2", title = "Second Track"); val third = track.copy(id = "local:drag-3", title = "Third Track")
+        compose.runOnIdle { model.play(listOf(first, second, third)) }
+        compose.waitUntil(10_000) { model.state.value.playback.queue.size == 3 }
+        compose.onNodeWithTag("mini-player").performClick()
+        compose.onNodeWithText("Queue · 3").performClick()
+        // A row is dragged by its handle past the row below it, then past the next one.
+        fun dragFirstRowDown() = compose.onNodeWithContentDescription("Reorder First Track", useUnmergedTree = true).performTouchInput {
+            down(center)
+            repeat(10) { moveBy(Offset(0f, 12f)); advanceEventTime(16) }
+            up()
+        }
+        dragFirstRowDown()
+        compose.waitUntil(5_000) { model.state.value.playback.queue.map(Track::title) == listOf("Second Track", "First Track", "Third Track") }
+        compose.waitForIdle()
+        dragFirstRowDown()
+        compose.waitUntil(5_000) { model.state.value.playback.queue.map(Track::title) == listOf("Second Track", "Third Track", "First Track") }
+    }
+
+    @Test fun shuffleReordersTheQueueAndTurningItOffRestoresTheOrder() {
+        val tracks = (1..12).map { track.copy(id = "local:shuffle-$it", title = "Track $it") }
+        compose.runOnIdle { model.play(tracks) }
+        compose.waitUntil(10_000) { model.state.value.playback.queue.size == 12 }
+        compose.runOnIdle { model.toggleShuffle() }
+        compose.waitUntil(5_000) { model.state.value.playback.shuffle && model.state.value.playback.queue.map(Track::id) != tracks.map(Track::id) }
+        val shuffled = model.state.value.playback.queue
+        assertEquals("The current track stays first", tracks.first().id, shuffled.first().id)
+        assertEquals("No track is lost or doubled", tracks.map(Track::id).toSet(), shuffled.map(Track::id).toSet())
+        assertEquals(12, shuffled.size)
+        // A track queued to play next plays next, also while shuffle is on.
+        compose.runOnIdle { model.queue(track.copy(id = "local:next-up", title = "Next Up"), next = true) }
+        compose.waitUntil(5_000) { model.state.value.playback.queue.size == 13 }
+        assertEquals("Next Up", model.state.value.playback.queue[model.state.value.playback.index + 1].title)
+        compose.runOnIdle { model.toggleShuffle() }
+        compose.waitUntil(5_000) { !model.state.value.playback.shuffle && model.state.value.playback.queue.take(12).map(Track::id) == tracks.map(Track::id) }
+        assertEquals("Next Up", model.state.value.playback.queue.last().title)
     }
 }

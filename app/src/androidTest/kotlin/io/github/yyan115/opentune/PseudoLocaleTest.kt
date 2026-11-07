@@ -115,7 +115,12 @@ class PseudoLocaleTest {
             compose.onNodeWithTag("device-list").performScrollToNode(hasContentDescription(s(R.string.track_options, "Night Walk")))
             compose.onAllNodesWithContentDescription(s(R.string.track_options, "Night Walk")).onFirst().performClick()
         }
-        for (filter in listOf(R.string.device_filter_tidal, R.string.device_filter_files, R.string.device_filter_all)) {
+        for ((row, name) in listOf(R.string.track_details to "Track details", R.string.playlist_add to "Add to playlist")) inWindow(name) {
+            compose.onNodeWithTag("device-list").performScrollToNode(hasContentDescription(s(R.string.track_options, "Night Walk")))
+            compose.onAllNodesWithContentDescription(s(R.string.track_options, "Night Walk")).onFirst().performClick()
+            compose.onNode(hasText(s(row)) and hasClickAction()).performClick()
+        }
+        for (filter in listOf(R.string.device_filter_downloads, R.string.device_filter_files, R.string.device_filter_all)) {
             compose.onNodeWithTag("device-list").performScrollToNode(hasText(s(filter)))
             compose.onAllNodes(hasText(s(filter)) and hasClickAction()).onFirst().performClick()
             sweep("On device ${s(filter)}")
@@ -146,14 +151,17 @@ class PseudoLocaleTest {
         inWindow("Sign-in") { compose.onAllNodes(hasText(s(R.string.action_connect_tidal)) and hasClickAction()).onFirst().performClick() }
         list.performScrollToNode(hasText(s(R.string.settings_data)))
         sweep("Settings middle")
-        list.performScrollToNode(hasText(s(R.string.settings_licenses_text)))
+        list.performScrollToNode(hasText(s(R.string.settings_experimental_features)))
+        compose.onNode(hasText(s(R.string.settings_experimental_features)) and hasClickAction()).performClick()
+        sweep("Settings experimental")
+        list.performScrollToNode(hasText(s(R.string.settings_licenses)))
         sweep("Settings bottom")
         for ((row, name) in settingsDialogs()) {
             list.performScrollToNode(hasText(s(row)))
             // The licence texts are legal documents that stay in English, so only the title and the tabs of that dialog are checked.
             val check = if (row != R.string.settings_licenses) ({ sweep(name) }) else ({
                 listOf(R.string.licenses_title, R.string.licenses_notices, R.string.licenses_gpl, R.string.licenses_apache, R.string.licenses_inter, R.string.licenses_serif, R.string.licenses_space, R.string.licenses_mono)
-                    .forEach { tab -> await("the licence tab ${s(tab)}") { compose.onAllNodes(hasText(s(tab))).fetchSemanticsNodes().isNotEmpty() } }
+                    .forEach { tab -> await("the licence tab ${s(tab)}") { runCatching { compose.onNodeWithTag("licence-tabs").performScrollToNode(hasText(s(tab))) }; compose.onAllNodes(hasText(s(tab))).fetchSemanticsNodes().isNotEmpty() } }
             })
             inWindow(name, check) { compose.onAllNodes(hasText(s(row)) and hasClickAction()).onFirst().performClick() }
         }
@@ -188,6 +196,7 @@ class PseudoLocaleTest {
         R.string.settings_quality_wifi to "Wi-Fi quality", R.string.settings_quality_mobile to "Mobile quality", R.string.normalization_title to "Normalization",
         R.string.eq_title to "Equalizer", R.string.output_title to "Audio output", R.string.settings_theme to "Theme", R.string.scrobble_title to "Scrobbling",
         R.string.stats_title to "Statistics", R.string.settings_clear_history to "Clear history", R.string.settings_licenses to "Licenses",
+        R.string.settings_repeats to "Avoid repeats",
     )
 
     private fun finish() {

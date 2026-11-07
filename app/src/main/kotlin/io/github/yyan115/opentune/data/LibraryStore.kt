@@ -6,14 +6,16 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import io.github.yyan115.opentune.core.JsonCodec
 import io.github.yyan115.opentune.core.LocalPlaylist
+import io.github.yyan115.opentune.core.DocumentKey
 import io.github.yyan115.opentune.core.Track
+import io.github.yyan115.opentune.core.isDeviceId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class LibraryStore(context: Context, databaseName: String = "library.db") : SQLiteOpenHelper(context, databaseName, null, 4) {
+class LibraryStore(context: Context, databaseName: String = "library.db") : SQLiteOpenHelper(context, databaseName, null, 5) {
     private val revision = MutableStateFlow(0L)
     val changes = revision.asStateFlow()
     override fun onCreate(db: SQLiteDatabase) {
@@ -24,6 +26,7 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
         createCollectionTables(db)
         createHistoryTables(db)
         createFolderTables(db)
+        createSourceTables(db)
     }
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true); db.enableWriteAheadLogging() }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -34,6 +37,26 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
             createHistoryTables(db)
         }
         if (oldVersion < 4) createFolderTables(db)
+        if (oldVersion < 5) {
+            createSourceTables(db)
+            // Files that exist already were found by a scan or added by hand. The next scan reads them again, because their version is zero.
+            db.rawQuery("SELECT id, payload FROM tracks WHERE id LIKE 'local:%'", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val track = runCatching { JsonCodec.decodeTrack(JSONObject(cursor.getString(1))) }.getOrNull() ?: continue
+                    val uri = track.localUri ?: continue
+                    val inFolder = db.rawQuery("SELECT 1 FROM folder_tracks WHERE track_id=?", arrayOf(track.id)).use { it.moveToFirst() }
+                    db.insertWithOnConflict("local_sources", null, ContentValues().apply {
+                        put("key", DocumentKey.of(uri)); put("track_id", track.id); put("direct", if (inFolder) 0 else 1)
+                    }, SQLiteDatabase.CONFLICT_IGNORE)
+                }
+            }
+        }
+    }
+
+    /** A file on the device is known by the document it came from. [version] says how it was read, [direct] says that the listener added it by hand. */
+    private fun createSourceTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE local_sources (key TEXT PRIMARY KEY, track_id TEXT NOT NULL, modified INTEGER NOT NULL DEFAULT 0, size INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 0, direct INTEGER NOT NULL DEFAULT 0)")
+        db.execSQL("CREATE INDEX local_sources_track ON local_sources(track_id)")
     }
 
     private fun createFolderTables(db: SQLiteDatabase) {
@@ -114,7 +137,7 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
         if (it.moveToFirst()) JsonCodec.decodeTrack(JSONObject(it.getString(0))) else null
     }
 
-    @Synchronized fun localTracks(): List<Track> = queryTracks("SELECT payload FROM tracks ORDER BY rowid DESC").filter(Track::isLocal).sortedByDescending(Track::addedAt)
+    @Synchronized fun localTracks(): List<Track> = queryTracks("SELECT payload FROM tracks WHERE payload LIKE '%\"localUri\"%' ORDER BY rowid DESC").filter(Track::onDevice).sortedByDescending(Track::addedAt)
     @Synchronized fun favorites(): List<Track> = queryTracks("SELECT payload FROM tracks WHERE favorite=1 ORDER BY rowid DESC")
     @Synchronized fun recent(): List<Track> = queryTracks("SELECT payload FROM tracks WHERE played>0 ORDER BY played DESC LIMIT 30")
     @Synchronized fun isFavorite(id: String): Boolean = readableDatabase.rawQuery("SELECT favorite FROM tracks WHERE id=?", arrayOf(id)).use { it.moveToFirst() && it.getInt(0) == 1 }
@@ -180,6 +203,11 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
         revision.value++
     }
 
+    /** The ids of the tracks that played since [sinceMs], in epoch milliseconds. */
+    @Synchronized fun playedSince(sinceMs: Long): Set<String> = readableDatabase.rawQuery("SELECT DISTINCT track_id FROM plays WHERE played_at>=?", arrayOf(sinceMs.toString())).use { cursor ->
+        buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+    }
+
     @Synchronized fun clearHistory() { writableDatabase.delete("plays", null, null); writableDatabase.update("tracks", ContentValues().apply { put("played", 0) }, null, null); revision.value++ }
 
     @Synchronized fun queueScrobble(listenedAt: Long, payload: String) {
@@ -190,10 +218,12 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
     @Synchronized fun scrobblesSent(ids: List<Long>) { ids.forEach { writableDatabase.delete("pending_scrobbles", "id=?", arrayOf(it.toString())) } }
 
     @Synchronized fun removeLocal(id: String) {
-        if (id.startsWith("local:")) {
+        if (isDeviceId(id)) {
             writableDatabase.beginTransaction()
             try {
                 writableDatabase.delete("playlist_tracks", "track_id=?", arrayOf(id))
+                writableDatabase.delete("local_sources", "track_id=?", arrayOf(id))
+                writableDatabase.delete("folder_tracks", "track_id=?", arrayOf(id))
                 writableDatabase.delete("tracks", "id=?", arrayOf(id))
                 writableDatabase.setTransactionSuccessful()
             } finally { writableDatabase.endTransaction() }
@@ -219,7 +249,8 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
                 val ids = readableDatabase.rawQuery("SELECT track_id FROM playlist_tracks WHERE playlist_id=? ORDER BY position", arrayOf(id)).use {
                     buildList { while (it.moveToNext()) add(it.getString(0)) }
                 }
-                add(LocalPlaylist(id, cursor.getString(1), ids))
+                val cover = ids.asSequence().take(12).mapNotNull { get(it)?.artwork }.firstOrNull()
+                add(LocalPlaylist(id, cursor.getString(1), ids, cover))
             }
         }
     }
@@ -277,9 +308,9 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
         return folders().first { it.id == id }
     }
 
-    /** Removes a folder and the tracks that no other folder holds. */
+    /** Removes a folder and the files that no other folder holds and that the listener did not add by hand. */
     @Synchronized fun removeFolder(id: String) {
-        val orphans = folderTrackIds(id) - otherFolderTrackIds(id)
+        val orphans = folderTrackIds(id) - otherFolderTrackIds(id) - directTrackIds()
         orphans.forEach(::removeLocal)
         writableDatabase.delete("local_folders", "id=?", arrayOf(id))
         revision.value++
@@ -293,22 +324,69 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
         buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
     }
 
-    /** Stores the result of a scan. Tracks that the folder held before and no longer holds are removed from the library. */
-    @Synchronized fun recordScan(id: String, found: Set<String>, at: Long = System.currentTimeMillis()) {
+    /** The ids of every file that a folder holds. */
+    @Synchronized fun folderFileIds(): Set<String> = readableDatabase.rawQuery("SELECT DISTINCT track_id FROM folder_tracks", null).use { cursor ->
+        buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+    }
+
+    /** The folder that holds a file, or null for a file that the listener added by hand. */
+    @Synchronized fun folderOf(trackId: String): LocalFolder? = readableDatabase.rawQuery(
+        "SELECT f.id, f.uri, f.name, f.scanned_at, f.track_count FROM local_folders f JOIN folder_tracks t ON t.folder_id=f.id WHERE t.track_id=? LIMIT 1", arrayOf(trackId)).use {
+        if (it.moveToFirst()) LocalFolder(it.getString(0), it.getString(1), it.getString(2), it.getLong(3), it.getInt(4)) else null
+    }
+
+    /**
+     * Stores the result of a scan. With [complete] set, files that the folder held before and no longer holds are removed from the library.
+     * An incomplete scan, one that could not read every folder, only adds files.
+     */
+    @Synchronized fun recordScan(id: String, found: Set<String>, complete: Boolean = true, at: Long = System.currentTimeMillis()) {
         val previous = folderTrackIds(id)
-        val keep = found + otherFolderTrackIds(id)
-        (previous - keep).forEach(::removeLocal)
+        if (complete) {
+            val keep = found + otherFolderTrackIds(id) + directTrackIds()
+            (previous - keep).forEach(::removeLocal)
+        }
         val db = writableDatabase
         db.beginTransaction()
         try {
-            db.delete("folder_tracks", "folder_id=?", arrayOf(id))
+            if (complete) db.delete("folder_tracks", "folder_id=?", arrayOf(id))
             found.forEach { db.insertWithOnConflict("folder_tracks", null, ContentValues().apply { put("folder_id", id); put("track_id", it) }, SQLiteDatabase.CONFLICT_IGNORE) }
-            db.update("local_folders", ContentValues().apply { put("scanned_at", at); put("track_count", found.size) }, "id=?", arrayOf(id))
+            val count = if (complete) found.size else folderTrackIds(id).size
+            db.update("local_folders", ContentValues().apply { put("scanned_at", at); put("track_count", count) }, "id=?", arrayOf(id))
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }
         revision.value++
     }
+
+    // The documents that files came from. A file that was found twice, by hand and by a scan, is still one track.
+
+    @Synchronized fun sourceFor(key: String): LocalSource? = readableDatabase.rawQuery(
+        "SELECT track_id, modified, size, version, direct FROM local_sources WHERE key=?", arrayOf(key)).use {
+        if (it.moveToFirst()) LocalSource(key, it.getString(0), it.getLong(1), it.getLong(2), it.getInt(3), it.getInt(4) == 1) else null
+    }
+
+    @Synchronized fun recordSource(source: LocalSource) {
+        writableDatabase.insertWithOnConflict("local_sources", null, ContentValues().apply {
+            put("key", source.key); put("track_id", source.trackId); put("modified", source.modified); put("size", source.size)
+            put("version", source.version); put("direct", if (source.direct) 1 else 0)
+        }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    private fun directTrackIds(): Set<String> = readableDatabase.rawQuery("SELECT track_id FROM local_sources WHERE direct=1", null).use { cursor ->
+        buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+    }
+
+    /** The files that were read by an older version of the importer, or not read at all. */
+    @Synchronized fun outdatedFiles(version: Int): List<Track> = readableDatabase.rawQuery(
+        "SELECT DISTINCT s.track_id FROM local_sources s JOIN tracks t ON t.id=s.track_id WHERE s.version<?", arrayOf(version.toString())).use { cursor ->
+        buildList { while (cursor.moveToNext()) get(cursor.getString(0))?.let(::add) }
+    }
+
+    /** Whether a file was added by hand. */
+    @Synchronized fun isDirect(trackId: String): Boolean = trackId in directTrackIds()
 }
+
+/** How a file entered the library. [modified] and [size] come from the document provider and tell whether the file changed. */
+data class LocalSource(val key: String, val trackId: String, val modified: Long, val size: Long, val version: Int, val direct: Boolean)
 
 /** A folder on the device that holds music. [scannedAt] is zero until the first scan finishes. */
 data class LocalFolder(val id: String, val uri: String, val name: String, val scannedAt: Long, val trackCount: Int)

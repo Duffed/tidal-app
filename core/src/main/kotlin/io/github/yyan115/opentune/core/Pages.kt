@@ -51,7 +51,7 @@ object PageCodec {
         if (markup.isNullOrBlank() || markup == "null") return ""
         return markup
             .replace(Regex("""\[wimpLink [^\]]*](.*?)\[/wimpLink]""", RegexOption.DOT_MATCHES_ALL), "$1")
-            .replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), "\n\n")
             .replace(Regex("""</?[a-zA-Z][^>]*>"""), "")
             .replace(Regex("""\n{3,}"""), "\n\n").trim()
     }

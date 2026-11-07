@@ -65,7 +65,7 @@ data class AppState(
     val settings: Settings = Settings(),
     val local: List<Track> = emptyList(), val favorites: List<Track> = emptyList(), val recent: List<Track> = emptyList(),
     val localPlaylists: List<LocalPlaylist> = emptyList(),
-    val deviceFolders: List<io.github.yyan115.opentune.data.LocalFolder> = emptyList(), val scans: Map<String, io.github.yyan115.opentune.data.ScanState> = emptyMap(),
+    val deviceFolders: List<io.github.yyan115.opentune.data.LocalFolder> = emptyList(), val folderFiles: Set<String> = emptySet(), val scans: Map<String, io.github.yyan115.opentune.data.ScanState> = emptyMap(),
     val albums: List<Release> = emptyList(), val playlists: List<Release> = emptyList(),
     val search: SearchResult = SearchResult(), val searchQuery: String = "", val searching: Boolean = false,
     val searchError: String? = null,
@@ -135,8 +135,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     override fun onPlayerError(error: PlaybackException) {
                         val cause = generateSequence<Throwable>(error) { it.cause }.last()
-                        ui.update { it.copy(playback = it.playback.copy(error = when (cause) {
-                            is ServiceException, is ProtectedStreamException -> app.problemText(cause)
+                        val unreadable = ui.value.playback.track?.isFile == true && generateSequence<Throwable>(error) { it.cause }.any { it is java.io.FileNotFoundException || it is SecurityException }
+                        ui.update { it.copy(playback = it.playback.copy(error = when {
+                            unreadable -> app.getString(R.string.error_file_unreadable)
+                            cause is ServiceException || cause is ProtectedStreamException -> app.problemText(cause)
                             else -> app.getString(R.string.error_playback_stopped)
                         })) }
                     }
@@ -158,7 +160,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         viewModelScope.launch { while (true) { delay(10_000); persistQueue() } }
-        viewModelScope.launch { app.library.changes.collect { refreshLocal() } }
+        // A scan stores a file after a file. The lists refresh once the changes pause, not after each one.
+        viewModelScope.launch { app.library.changes.collectLatest { delay(200); refreshLocal() } }
         viewModelScope.launch { app.folders.scans.collect { scans -> ui.update { it.copy(scans = scans) } } }
         viewModelScope.launch(Dispatchers.IO) { app.folders.rescanStale() }
         viewModelScope.launch { app.settings.state.collect { settings ->
@@ -223,10 +226,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val recent = withContext(Dispatchers.IO) { app.library.recent() }
         val playlists = withContext(Dispatchers.IO) { app.library.playlists() }
         val folders = withContext(Dispatchers.IO) { app.library.folders() }
+        val folderFiles = withContext(Dispatchers.IO) { app.library.folderFileIds() }
         val pending = withContext(Dispatchers.IO) { app.library.pendingFavorites(app.tidal.accountId) }
         val localById = local.associateBy(Track::id)
         ui.update { it.copy(local = local, favorites = (favorites + cloudFavorites).filter { track -> pending[track.id] != false }.distinctBy(Track::id)
-            .map { track -> localById[track.id] ?: track }, recent = recent, localPlaylists = playlists, deviceFolders = folders) }
+            .map { track -> localById[track.id] ?: track }, recent = recent, localPlaylists = playlists, deviceFolders = folders, folderFiles = folderFiles) }
     }
 
     fun search(text: String) { query.value = text; ui.update { it.copy(searchQuery = text) } }
@@ -348,7 +352,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val account = app.tidal.accountId
                 val tracks = when {
-                    release.id.startsWith("local:") -> withContext(Dispatchers.IO) { app.library.playlistTracks(release.id) }
+                    release.isDevicePlaylist -> withContext(Dispatchers.IO) { app.library.playlistTracks(release.id) }
                     ui.value.settings.offline -> withContext(Dispatchers.IO) {
                         val cached = app.library.cache(account, "release:${release.type}:${release.id}")?.let { runCatching { JsonCodec.decodeTracks(it) }.getOrNull() }
                         val saved = app.library.localTracks()
@@ -372,13 +376,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun closeAll() { detailJob?.cancel(); ui.update { it.copy(routes = emptyList(), detail = null, detailTracks = emptyList(), error = null) } }
 
-    fun play(tracks: List<Track>, index: Int = 0, source: String = "") {
+    /**
+     * Plays [tracks] from [index]. While shuffle is on, the tracks after the first one play in random order.
+     * [shuffle] turns shuffle on or off first. Without it, shuffle stays as it is.
+     */
+    fun play(tracks: List<Track>, index: Int = 0, source: String = "", shuffle: Boolean? = null) {
         if (tracks.isEmpty()) return
         preferences.edit().putString("source", source).apply()
         ui.update { it.copy(playback = it.playback.copy(source = source)) }
         val player = controller ?: run { notify(app.getString(R.string.notify_service_starting)); return }
         ui.update { it.copy(playback = it.playback.copy(error = null)) }
-        player.setMediaItems(tracks.map(app.sources::unresolved), index.coerceIn(tracks.indices), 0)
+        if (shuffle != null && player.shuffleModeEnabled != shuffle) player.shuffleModeEnabled = shuffle
+        val shuffled = shuffle ?: player.shuffleModeEnabled
+        val start = index.coerceIn(tracks.indices)
+        // With shuffle on, the chosen track plays first and every other track is still to come, so that all of them take part.
+        val queue = if (shuffled) listOf(tracks[start]) + tracks.filterIndexed { position, _ -> position != start } else tracks
+        player.setMediaItems(queue.map(app.sources::unresolved), if (shuffled) 0 else start, 0)
+        if (shuffled) player.sendCustomCommand(PlaybackCommands.Reshuffle, android.os.Bundle.EMPTY)
         player.prepare(); player.play()
     }
     fun togglePlay() {
@@ -417,20 +431,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun moveQueue(from: Int, to: Int) { controller?.let { if (to in 0 until it.mediaItemCount) it.moveMediaItem(from, to) } }
     fun jumpTo(index: Int) { controller?.let { it.seekToDefaultPosition(index); it.play() } }
     fun clearQueue() { controller?.clearMediaItems() }
+    /** Stops playback and empties the queue, which hides the mini player. */
+    fun stopPlayback() { controller?.let { it.stop(); it.clearMediaItems() } }
 
     fun favorite(track: Track) = viewModelScope.launch {
         val previous = ui.value.favorites.any { it.id == track.id }
         val account = app.tidal.accountId
         try { withContext(Dispatchers.IO) {
             app.library.setFavorite(track, !previous)
-            if (!track.id.startsWith("local:")) app.library.queueFavorite(account, track.id, !previous)
+            if (!track.isFile) app.library.queueFavorite(account, track.id, !previous)
         } } catch (error: Exception) {
             if (error is CancellationException) throw error
             notify(app.getString(R.string.notify_track_not_saved)); return@launch
         }
         cloudFavorites = if (previous) cloudFavorites.filterNot { it.id == track.id } else cloudFavorites
         refreshLocal()
-        if (!track.id.startsWith("local:") && app.tidal.signedIn && !ui.value.settings.offline) {
+        if (!track.isFile && app.tidal.signedIn && !ui.value.settings.offline) {
             try { favoriteSyncLock.withLock { drainFavorites(account) } }
             catch (error: Exception) { if (error is CancellationException) throw error; notify(app.getString(R.string.notify_saved_local_failed, userMessage(error))) }
         }
@@ -467,14 +483,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         for (uri in uris) {
             try {
                 app.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                app.importer.import(uri); imported++
+                app.importer.import(uri, direct = true); imported++
             } catch (error: Exception) { if (error is CancellationException) throw error; notify(app.getString(R.string.notify_import_failed)) }
         }
         if (imported > 0) notify(app.resources.getQuantityString(R.plurals.notify_files_added, imported, imported))
     }
 
     fun download(track: Track, quiet: Boolean = false) = viewModelScope.launch {
-        if (track.isLocal || withContext(Dispatchers.IO) { app.library.get(track.id)?.isLocal == true }) { if (!quiet) notify(app.getString(R.string.notify_already_local)); return@launch }
+        if (track.onDevice || withContext(Dispatchers.IO) { app.library.get(track.id)?.onDevice == true }) { if (!quiet) notify(app.getString(R.string.notify_already_local)); return@launch }
         if (!app.tidal.signedIn) { if (!quiet) notify(app.getString(R.string.notify_download_sign_in)); return@launch }
         if (ui.value.settings.offline) { if (!quiet) notify(app.getString(R.string.notify_download_offline)); return@launch }
         withContext(Dispatchers.IO) { app.library.save(track) }
@@ -502,7 +518,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun removeLocal(track: Track) = viewModelScope.launch {
         try {
             controller?.let { player ->
-                if (track.id.startsWith("local:")) {
+                if (track.isFile) {
                     (player.mediaItemCount - 1 downTo 0).filter { player.getMediaItemAt(it).mediaId == track.id }.forEach(player::removeMediaItem)
                 } else if (player.currentMediaItem?.mediaId == track.id) player.stop()
             }
@@ -514,11 +530,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (file.canonicalPath.startsWith(app.filesDir.canonicalPath + "/downloads/") && file.exists()) check(file.delete())
                 }
                 app.library.removeLocal(track.id)
-                if (track.id.startsWith("local:") && track.localUri?.startsWith("content:") == true) runCatching {
+                if (track.isFile && track.localUri?.startsWith("content:") == true) runCatching {
                     app.contentResolver.releasePersistableUriPermission(Uri.parse(track.localUri), android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
             }
-            ui.value.detail?.takeIf { it.id.startsWith("local:") }?.let(::open)
+            ui.value.detail?.takeIf { it.isDevicePlaylist }?.let(::open)
         } catch (error: Exception) {
             if (error is CancellationException) throw error
             notify(app.getString(R.string.notify_remove_failed))
@@ -549,7 +565,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         lyricsJob?.cancel()
         lyricsJob = viewModelScope.launch {
             ui.update { it.copy(lyrics = null, lyricsStatus = LyricsStatus.Loading, lyricsTrackId = track.id) }
-            if (track.id.startsWith("local:") || track.isLocal && !track.id.all(Char::isDigit)) {
+            if (track.isFile || track.onDevice && !track.id.all(Char::isDigit)) {
                 ui.update { it.copy(lyricsStatus = LyricsStatus.None) }; return@launch
             }
             val cached = withContext(Dispatchers.IO) { app.library.cache("shared", "lyrics:${track.id}") }
@@ -649,10 +665,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun continueWithSimilarMusic(player: Player) {
         val state = ui.value
         val last = state.playback.queue.lastOrNull() ?: return
-        if (!state.settings.autoplay || !state.signedIn || state.settings.offline || last.id.startsWith("local:")) return
+        if (!state.settings.autoplay || !state.signedIn || state.settings.offline || last.isFile) return
         viewModelScope.launch {
             val known = state.playback.queue.map(Track::id).toSet()
-            val similar = try { app.tidal.trackRadio(last.id).filterNot { it.id in known } }
+            val similar = try { RepeatPolicy.dropRecent(app.tidal.trackRadio(last.id).filterNot { it.id in known }, Track::id, recentlyPlayed()) }
             catch (error: Exception) { if (error is CancellationException) throw error; return@launch }
             if (similar.isEmpty()) return@launch
             val first = player.mediaItemCount
@@ -662,26 +678,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** The ids of the tracks that played within the window of the avoid repeats setting. Empty when the setting is off. */
+    private suspend fun recentlyPlayed(): Set<String> {
+        val hours = ui.value.settings.avoidRepeatHours
+        return if (hours <= 0) emptySet() else withContext(Dispatchers.IO) { app.library.playedSince(System.currentTimeMillis() - hours * 3_600_000L) }
+    }
+
     fun playTrackRadio(track: Track) = accountAction {
-        val radio = app.tidal.trackRadio(track.id).filterNot { it.id == track.id }
+        val radio = RepeatPolicy.dropRecent(app.tidal.trackRadio(track.id).filterNot { it.id == track.id }, Track::id, recentlyPlayed())
         if (radio.isEmpty()) notify(app.getString(R.string.notify_no_radio_track)) else play(listOf(track) + radio)
     }
     fun playArtistRadio(artistId: String) = accountAction {
-        val radio = app.tidal.artistRadio(artistId)
+        val radio = RepeatPolicy.dropRecent(app.tidal.artistRadio(artistId), Track::id, recentlyPlayed())
         if (radio.isEmpty()) notify(app.getString(R.string.notify_no_radio_artist)) else play(radio)
     }
     fun playArtistTopTracks(artistId: String, shuffle: Boolean = false) = accountAction {
         val tracks = app.tidal.artistTopTracks(artistId)
-        if (tracks.isEmpty()) notify(app.getString(R.string.notify_artist_empty)) else { play(tracks); if (shuffle && !ui.value.playback.shuffle) toggleShuffle() }
+        if (tracks.isEmpty()) notify(app.getString(R.string.notify_artist_empty)) else playTracks(tracks, shuffle)
     }
     fun playMix(mixId: String, shuffle: Boolean = false) = accountAction {
         val tracks = app.tidal.mixTracks(mixId)
-        if (tracks.isEmpty()) notify(app.getString(R.string.notify_mix_empty)) else { play(tracks); if (shuffle && !ui.value.playback.shuffle) toggleShuffle() }
+        if (tracks.isEmpty()) notify(app.getString(R.string.notify_mix_empty)) else playTracks(tracks, shuffle)
     }
+    /** Plays [tracks] from the first one, or shuffled from a random one. Playing in order leaves shuffle as it is. */
     fun playTracks(tracks: List<Track>, shuffle: Boolean, source: String = "") {
         if (tracks.isEmpty()) return
-        play(tracks, if (shuffle) tracks.indices.random() else 0, source)
-        controller?.let { if (it.shuffleModeEnabled != shuffle) it.shuffleModeEnabled = shuffle }
+        play(tracks, if (shuffle) tracks.indices.random() else 0, source, if (shuffle) true else null)
     }
 
     /** Loads the playlists and folders inside a folder. The last result stays on screen until a new one arrives. */
@@ -786,15 +808,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val shuffle = preferences.getBoolean("shuffle", false)
         val repeat = preferences.getInt("repeat", Player.REPEAT_MODE_OFF)
         controller?.let {
-            it.setMediaItems(tracks.map(app.sources::unresolved), index, position)
+            // The saved queue is in the order it was shuffled to, so shuffle is set before the tracks and does not shuffle them again.
             it.shuffleModeEnabled = shuffle
+            it.setMediaItems(tracks.map(app.sources::unresolved), index, position)
             it.repeatMode = repeat
             ui.update { state -> state.copy(playback = state.playback.copy(source = preferences.getString("source", "").orEmpty())) }
         }
     }
 
     fun canEdit(release: Release): Boolean = release.type == ReleaseType.PLAYLIST &&
-        (release.id.startsWith("local:") || (app.tidal.signedIn && release.ownerId.isNotBlank() && release.ownerId == app.tidal.accountId))
+        (release.isDevicePlaylist || (app.tidal.signedIn && release.ownerId.isNotBlank() && release.ownerId == app.tidal.accountId))
+
+    /** Searches TIDAL for tracks, for the sheet that adds songs to a playlist. A failed search finds nothing. */
+    suspend fun searchTracks(text: String): List<Track> = try { app.tidal.search(text).tracks }
+        catch (error: Exception) { if (error is CancellationException) throw error; emptyList() }
+
+    private val playlistLock = kotlinx.coroutines.sync.Mutex()
+
+    /** Adds a track to a playlist of the account or to a playlist made on the device. A page of the playlist that is open shows the new track. */
+    fun addToPlaylist(playlist: Release, track: Track, quiet: Boolean = false) = viewModelScope.launch {
+        if (!canEdit(playlist)) return@launch
+        try {
+            playlistLock.withLock {
+                if (playlist.isDevicePlaylist) withContext(Dispatchers.IO) { app.library.addToPlaylist(playlist.id, track) }
+                else {
+                    if (!app.tidal.signedIn || ui.value.settings.offline) { notify(app.getString(R.string.notify_account_change)); return@withLock }
+                    app.tidal.addToPlaylist(playlist.id, track.id)
+                }
+            }
+            if (ui.value.detail?.id == playlist.id) openDetail(playlist)
+            if (!quiet) notify(app.getString(R.string.notify_added_to, playlist.title))
+        } catch (error: Exception) { if (error is CancellationException) throw error; notify(userMessage(error)) }
+    }
+
+    /** Creates a playlist on the account or on the device and puts [initialTrack] in it. */
+    fun createPlaylist(title: String, home: PlaylistHome, initialTrack: Track? = null) {
+        if (home == PlaylistHome.Account && app.tidal.signedIn && initialTrack?.isFile != true) createCloudPlaylist(title, initialTrack) else createPlaylist(title, initialTrack)
+    }
 
     fun createCloudPlaylist(title: String, initialTrack: Track? = null) = accountAction {
         val playlist = app.tidal.createPlaylist(title.trim())
@@ -811,7 +861,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun renamePlaylist(release: Release, title: String) = viewModelScope.launch {
         if (!canEdit(release) || title.isBlank()) return@launch
         try {
-            if (release.id.startsWith("local:")) withContext(Dispatchers.IO) { app.library.renamePlaylist(release.id, title) }
+            if (release.isDevicePlaylist) withContext(Dispatchers.IO) { app.library.renamePlaylist(release.id, title) }
             else app.tidal.renamePlaylist(release.id, title.trim())
             val renamed = release.copy(title = title.trim())
             ui.update { it.copy(detail = renamed, playlists = it.playlists.map { playlist -> if (playlist.id == release.id) renamed else playlist }) }
@@ -821,7 +871,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun removeFromPlaylist(release: Release, track: Track, index: Int) = viewModelScope.launch {
         if (!canEdit(release)) return@launch
         try {
-            if (release.id.startsWith("local:")) withContext(Dispatchers.IO) { app.library.removeFromPlaylist(release.id, track.id) }
+            if (release.isDevicePlaylist) withContext(Dispatchers.IO) { app.library.removeFromPlaylist(release.id, track.id) }
             else app.tidal.removeFromPlaylist(release.id, index, track.id)
             open(release)
         } catch (error: Exception) { if (error is CancellationException) throw error; notify(userMessage(error)) }
@@ -832,7 +882,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val target = position + delta
         if (!canEdit(release) || position !in tracks.indices || target !in tracks.indices) return@launch
         try {
-            if (release.id.startsWith("local:")) withContext(Dispatchers.IO) { app.library.moveInPlaylist(release.id, position, target) }
+            if (release.isDevicePlaylist) withContext(Dispatchers.IO) { app.library.moveInPlaylist(release.id, position, target) }
             else app.tidal.moveInPlaylist(release.id, position, target, tracks[position].id)
             openDetail(release)
         } catch (error: Exception) { if (error is CancellationException) throw error; notify(userMessage(error)) }
@@ -841,7 +891,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deletePlaylist(release: Release) = viewModelScope.launch {
         if (!canEdit(release)) return@launch
         try {
-            if (release.id.startsWith("local:")) withContext(Dispatchers.IO) { app.library.deletePlaylist(release.id) }
+            if (release.isDevicePlaylist) withContext(Dispatchers.IO) { app.library.deletePlaylist(release.id) }
             else app.tidal.deletePlaylist(release.id)
             ui.update { it.copy(playlists = it.playlists.filterNot { playlist -> playlist.id == release.id }) }
             closeDetail()

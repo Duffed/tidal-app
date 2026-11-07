@@ -5,6 +5,8 @@ import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -43,11 +46,13 @@ fun LicensesDialog(onClose: () -> Unit) {
     }
     AlertDialog(onDismissRequest = onClose, title = { Text(stringResource(R.string.licenses_title)) }, text = {
         Column {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Tabs.forEachIndexed { index, title -> FilterChip(selected == index, { selected = index }, label = { Text(stringResource(title)) }) }
+            // The tabs stay on one line and scroll sideways, so that they keep their size whatever the language.
+            LazyRow(Modifier.testTag("licence-tabs"), horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 4.dp)) {
+                itemsIndexed(Tabs) { index, title -> FilterChip(selected == index, { selected = index }, label = { Text(stringResource(title)) }) }
             }
+            HorizontalDivider(Modifier.padding(top = 8.dp, bottom = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
             key(selected) {
-                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     val text = document?.takeIf { it.first == selected }?.second
                     if (text == null) CircularProgressIndicator(Modifier.padding(top = 16.dp))
                     else if (selected != 0) SelectionContainer { Text(text, style = MaterialTheme.typography.bodySmall) }

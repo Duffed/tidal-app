@@ -32,7 +32,7 @@ import io.github.yyan115.opentune.core.Track
 @Composable
 fun ListenScreen(state: AppState, vm: MainViewModel, onImport: () -> Unit, onLogin: () -> Unit,
     onLibrary: (Int) -> Unit, onDevice: () -> Unit, onMenu: (Track) -> Unit, onPlayer: () -> Unit) {
-    fun available(track: Track) = track.isLocal || state.local.any { it.id == track.id }
+    fun available(track: Track) = track.onDevice || state.local.any { it.id == track.id }
     val recent = if (state.settings.offline) state.recent.filter(::available) else state.recent
     val current = state.playback.track?.takeIf { !state.settings.offline || available(it) }
     val hero = current ?: recent.firstOrNull()
@@ -136,7 +136,7 @@ private fun PageData.tidied(mixesTitle: String): PageData {
 @Composable
 private fun ListeningArtwork(track: Track, quality: String, modifier: Modifier, ratio: Float, onClick: () -> Unit) {
     Box(modifier.clickable(onClick = onClick)) {
-        Artwork(track.artwork, stringResource(R.string.player_artwork, track.album.ifBlank { track.title }), Modifier.fillMaxWidth().aspectRatio(ratio))
+        TrackArtwork(track, stringResource(R.string.player_artwork, track.album.ifBlank { track.title }), Modifier.fillMaxWidth().aspectRatio(ratio))
         if (quality.isNotBlank()) Surface(Modifier.align(Alignment.TopStart).padding(12.dp),
             color = androidx.compose.ui.graphics.Color(0xE0121213), shape = RoundedCornerShape(3.dp)) {
             val readout = SourceReadout.from(quality)

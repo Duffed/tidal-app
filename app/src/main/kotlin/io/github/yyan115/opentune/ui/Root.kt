@@ -49,13 +49,14 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     var trackMenu by remember { mutableStateOf<Track?>(null) }
     var addToPlaylist by remember { mutableStateOf<Track?>(null) }
     var newPlaylist by remember { mutableStateOf(false) }
+    var addSongs by remember { mutableStateOf(false) }
     var newPlaylistTrack by remember { mutableStateOf<Track?>(null) }
     var playlistTitle by remember { mutableStateOf("") }
-    var cloudPlaylist by remember { mutableStateOf(false) }
     var playlistPosition by remember { mutableStateOf<Int?>(null) }
     var editPlaylist by remember { mutableStateOf(false) }
     var deletePlaylist by remember { mutableStateOf(false) }
     var removeTrack by remember { mutableStateOf<Track?>(null) }
+    var detailsTrack by remember { mutableStateOf<Track?>(null) }
     var exportTarget by rememberSaveable { mutableStateOf<String?>(null) }
     var navigationMenu by rememberSaveable { mutableStateOf(false) }
     val configuration = LocalConfiguration.current
@@ -81,6 +82,8 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     val addFolder = { folderPicker.launch(null) }
     val openLogin = { login = true }
     val openTrackMenu: (Track) -> Unit = { trackMenu = it; playlistPosition = null }
+    // A page opens over everything else, so the player, the settings and the lists behind it make way.
+    val openRelease: (Release) -> Unit = { release -> settings = false; nowPlaying = false; queue = false; vm.open(release) }
     LaunchedEffect(state.message) { state.message?.let { snackbar.showSnackbar(it); vm.messageShown() } }
     LaunchedEffect(state.signedIn) { if (state.signedIn) { login = false; vm.finishWelcome() } }
     BackHandler(enabled = state.detail != null || settings || state.routes.isNotEmpty()) { if (settings) settings = false else vm.closeDetail() }
@@ -107,7 +110,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                         if (destination == Destination.Library && !inDetail && state.signedIn && !state.settings.offline) IconButton(onClick = vm::sync, enabled = !state.syncing) { Icon(OpenTuneIcons.Refresh, stringResource(R.string.library_refresh)) }
                         state.detail?.takeIf { state.routes.isEmpty() }?.let { release ->
                             if (vm.canEdit(release)) IconButton(onClick = { playlistTitle = release.title; editPlaylist = true }) { Icon(OpenTuneIcons.Edit, stringResource(R.string.playlist_edit)) }
-                            if (release.type == ReleaseType.PLAYLIST && state.signedIn && !release.id.startsWith("local:") && !vm.canEdit(release)) IconButton(onClick = { vm.favoritePlaylist(release) }) {
+                            if (release.type == ReleaseType.PLAYLIST && state.signedIn && !release.isDevicePlaylist && !vm.canEdit(release)) IconButton(onClick = { vm.favoritePlaylist(release) }) {
                                 val saved = state.playlists.any { it.id == release.id }
                                 Icon(if (saved) OpenTuneIcons.Favorite else OpenTuneIcons.FavoriteBorder, if (saved) stringResource(R.string.playlist_unsave) else stringResource(R.string.playlist_save))
                             }
@@ -127,7 +130,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
         },
         bottomBar = {
             Column {
-                if (state.playback.track != null) MiniPlayer(state.playback, position, onOpen = { nowPlaying = true }, onPlay = vm::togglePlay, onNext = vm::next)
+                if (state.playback.track != null) MiniPlayer(state.playback, position, onOpen = { nowPlaying = true }, onPlay = vm::togglePlay, onNext = vm::next, onDismiss = vm::stopPlayback)
                 if (!settings && !landscape && !largeText) OpenTuneNavigation(destinations, destination, select)
                 else if (state.playback.track != null) Spacer(Modifier.navigationBarsPadding())
             }
@@ -138,7 +141,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
             when {
                 settings -> SettingsScreen(state, vm, openLogin)
                 state.routes.isNotEmpty() -> PageScreen(state.routes.last(), state, vm, pagesVm, openTrackMenu)
-                state.detail != null -> DetailScreen(state, vm, { track, index -> trackMenu = track; playlistPosition = index })
+                state.detail != null -> DetailScreen(state, vm, { track, index -> trackMenu = track; playlistPosition = index }, onAddSongs = { addSongs = true })
                 destination == Destination.Home -> ListenScreen(state, vm, importAudio, openLogin, { filter -> libraryFilter = filter; destinationName = Destination.Library.name },
                     { destinationName = Destination.Device.name }, openTrackMenu, { nowPlaying = true })
                 destination == Destination.Search -> SearchScreen(state, vm, openLogin, openTrackMenu)
@@ -168,14 +171,14 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     if (nowPlaying && state.playback.track != null) NowPlayingScreen(state, vm, onClose = { nowPlaying = false }, onQueue = { queue = true }, onMenu = openTrackMenu, onDownload = { track ->
         if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         vm.download(track)
-    }, onAlbum = { track -> vm.open(Release(track.albumId, track.album, track.artist, track.artwork)); nowPlaying = false },
-        onArtist = { track -> vm.open(Release(track.artistId, track.artist.substringBefore(","), "", type = ReleaseType.ARTIST)); nowPlaying = false }, initialLyrics = initialLyrics)
+    }, onAlbum = { track -> openRelease(Release(track.albumId, track.album, track.artist, track.artwork)) },
+        onArtist = { track -> openRelease(Release(track.artistId, track.artist.substringBefore(","), "", type = ReleaseType.ARTIST)) }, initialLyrics = initialLyrics)
     if (queue) QueueSheet(state, vm) { queue = false }
     trackMenu?.let { track ->
         ModalBottomSheet(onDismissRequest = { trackMenu = null; playlistPosition = null }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
                 Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Artwork(track.artwork, null, Modifier.size(52.dp))
+                    TrackArtwork(track, null, Modifier.size(52.dp))
                     Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                         Text(track.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         Text(track.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
@@ -197,63 +200,52 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                         })
                     }
                 }
-                if (!track.isLocal) SettingRow(OpenTuneIcons.Download, stringResource(R.string.action_download), onClick = {
+                if (!track.onDevice) SettingRow(OpenTuneIcons.Download, stringResource(R.string.action_download), onClick = {
                     if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
                     vm.download(track); trackMenu = null
                 })
-                if (track.albumId.isNotBlank()) SettingRow(OpenTuneIcons.Album, stringResource(R.string.track_go_album), onClick = {
-                    vm.open(Release(track.albumId, track.album, track.artist, track.artwork)); nowPlaying = false; trackMenu = null
+                if (track.albumId.isNotBlank() && !track.isFile) SettingRow(OpenTuneIcons.Album, stringResource(R.string.track_go_album), onClick = {
+                    openRelease(Release(track.albumId, track.album, track.artist, track.artwork)); trackMenu = null
                 })
-                if (track.artistId.isNotBlank() && !track.id.startsWith("local:")) SettingRow(OpenTuneIcons.Person, stringResource(R.string.track_go_artist), onClick = {
-                    vm.open(Release(track.artistId, track.artist.substringBefore(","), "", type = ReleaseType.ARTIST)); nowPlaying = false; trackMenu = null
+                if (track.artistId.isNotBlank() && !track.isFile) SettingRow(OpenTuneIcons.Person, stringResource(R.string.track_go_artist), onClick = {
+                    openRelease(Release(track.artistId, track.artist.substringBefore(","), "", type = ReleaseType.ARTIST)); trackMenu = null
                 })
-                if (!track.id.startsWith("local:") && state.signedIn && !state.settings.offline) {
+                if (!track.isFile && state.signedIn && !state.settings.offline) {
                     SettingRow(OpenTuneIcons.Radio, stringResource(R.string.track_radio), onClick = { vm.playTrackRadio(track); trackMenu = null })
                     SettingRow(OpenTuneIcons.Info, stringResource(R.string.album_credits), onClick = { vm.showCredits("track", track.id, "${track.title} · ${track.artist}"); trackMenu = null })
                 }
-                if (!track.id.startsWith("local:")) SettingRow(OpenTuneIcons.Share, stringResource(R.string.track_share), onClick = {
+                if (!track.isFile) SettingRow(OpenTuneIcons.Share, stringResource(R.string.track_share), onClick = {
                     context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain")
                         .putExtra(Intent.EXTRA_TEXT, "https://tidal.com/browse/track/${track.id}"), resources.getString(R.string.track_share_title))); trackMenu = null
                 })
-                if (track.isLocal) SettingRow(OpenTuneIcons.RemoveCircleOutline, stringResource(R.string.track_remove_local), onClick = { removeTrack = track; trackMenu = null })
-                val localCopy = state.local.firstOrNull { it.id == track.id } ?: track.takeIf(Track::isLocal)
-                if (localCopy != null) SettingRow(OpenTuneIcons.SaveAlt, stringResource(R.string.track_export), onClick = {
+                val stored = state.local.firstOrNull { it.id == track.id } ?: track.takeIf(Track::onDevice)
+                if (stored != null) SettingRow(OpenTuneIcons.Info, stringResource(R.string.track_details), onClick = { detailsTrack = stored; trackMenu = null })
+                // A file that came with a folder returns at the next scan, so it leaves with its folder. A download or a file that was added by hand can be removed.
+                if (stored != null && (!stored.isFile || stored.id !in state.folderFiles)) SettingRow(OpenTuneIcons.RemoveCircleOutline,
+                    stringResource(if (stored.isFile) R.string.track_remove_file else R.string.track_remove_local), onClick = { removeTrack = stored; trackMenu = null })
+                // A downloaded track is exported to get a file that other apps can read. A file on the device is that already.
+                if (stored != null && stored.isDownload) SettingRow(OpenTuneIcons.SaveAlt, stringResource(R.string.track_export), onClick = {
                     try {
-                        exportTarget = JsonCodec.encodeTrack(localCopy).toString()
-                        exporter.launch(vm.app.exporter.describe(localCopy)); trackMenu = null; nowPlaying = false
+                        exportTarget = JsonCodec.encodeTrack(stored).toString()
+                        exporter.launch(vm.app.exporter.describe(stored)); trackMenu = null; nowPlaying = false
                     } catch (_: Exception) { vm.notify(resources.getString(R.string.track_unreadable)) }
                 })
             }
         }
     }
+    detailsTrack?.let { track -> SourceDetailsSheet(track.quality.orEmpty(), track, vm) { detailsTrack = null } }
     state.video?.let { video -> VideoPlayerOverlay(video, state.settings.offline, vm::closeVideo) }
     state.credits?.let { credits -> CreditsSheet(credits, onClose = vm::dismissCredits, onPerson = { person ->
-        vm.dismissCredits(); nowPlaying = false
-        vm.open(Release(person.id, person.name, "", type = ReleaseType.ARTIST))
+        vm.dismissCredits()
+        openRelease(Release(person.id, person.name, "", type = ReleaseType.ARTIST))
     }) }
     addToPlaylist?.let { track ->
-        AlertDialog(onDismissRequest = { addToPlaylist = null }, title = { Text(stringResource(R.string.playlist_add)) }, text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                if (state.localPlaylists.isEmpty()) Text(stringResource(R.string.playlist_none))
-                state.localPlaylists.forEach { playlist -> TextButton(onClick = { vm.addToPlaylist(playlist, track); addToPlaylist = null }) { Text(playlist.title) } }
-                if (!track.id.startsWith("local:")) state.playlists.filter(vm::canEdit).forEach { playlist ->
-                    TextButton(onClick = { vm.addToCloudPlaylist(playlist, track); addToPlaylist = null }) { Text(stringResource(R.string.playlist_on_tidal, playlist.title)) }
-                }
-            }
-        }, confirmButton = { TextButton(onClick = { newPlaylistTrack = track; playlistTitle = ""; addToPlaylist = null; newPlaylist = true }) { Text(stringResource(R.string.playlist_new)) } }, dismissButton = { TextButton(onClick = { addToPlaylist = null }) { Text(stringResource(R.string.action_cancel)) } })
+        AddToPlaylistSheet(track, state, vm, onNew = { newPlaylistTrack = track; addToPlaylist = null; newPlaylist = true }) { addToPlaylist = null }
     }
-    if (newPlaylist) AlertDialog(onDismissRequest = { newPlaylist = false }, title = { Text(stringResource(R.string.playlist_new)) }, text = {
-        Column {
-            OutlinedTextField(playlistTitle, { playlistTitle = it }, label = { Text(stringResource(R.string.field_name)) }, singleLine = true)
-            if (state.signedIn && !state.settings.offline && newPlaylistTrack?.id?.startsWith("local:") != true) Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Checkbox(cloudPlaylist, { cloudPlaylist = it }); Text(stringResource(R.string.playlist_create_tidal))
-            }
-        }
-    }, confirmButton = { TextButton(enabled = playlistTitle.isNotBlank(), onClick = {
-        if (cloudPlaylist && state.signedIn && newPlaylistTrack?.id?.startsWith("local:") != true) vm.createCloudPlaylist(playlistTitle, newPlaylistTrack) else vm.createPlaylist(playlistTitle, newPlaylistTrack)
-        playlistTitle = ""; cloudPlaylist = false; newPlaylist = false; newPlaylistTrack = null
-    }) { Text(stringResource(R.string.action_create)) } },
-        dismissButton = { TextButton(onClick = { newPlaylist = false }) { Text(stringResource(R.string.action_cancel)) } })
+    if (newPlaylist) NewPlaylistDialog(accountAvailable = state.signedIn && !state.settings.offline && newPlaylistTrack?.isFile != true,
+        onCreate = { name, home -> vm.createPlaylist(name, home, newPlaylistTrack); newPlaylist = false; newPlaylistTrack = null },
+        onClose = { newPlaylist = false; newPlaylistTrack = null })
+    if (addSongs) state.detail?.let { release -> AddSongsSheet(release, state, vm) { addSongs = false } }
     if (editPlaylist) state.detail?.let { release -> AlertDialog(onDismissRequest = { editPlaylist = false }, title = { Text(stringResource(R.string.playlist_edit)) }, text = {
         Column {
             OutlinedTextField(playlistTitle, { playlistTitle = it }, label = { Text(stringResource(R.string.field_name)) }, singleLine = true)
@@ -266,7 +258,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
         confirmButton = { TextButton(onClick = { vm.deletePlaylist(release); deletePlaylist = false }) { Text(stringResource(R.string.action_delete)) } },
         dismissButton = { TextButton(onClick = { deletePlaylist = false }) { Text(stringResource(R.string.action_cancel)) } }) }
     removeTrack?.let { track -> AlertDialog(onDismissRequest = { removeTrack = null }, title = { Text(stringResource(R.string.track_remove_title)) },
-        text = { Text(if (track.id.startsWith("local:")) stringResource(R.string.track_remove_local_text) else stringResource(R.string.track_remove_download_text)) },
+        text = { Text(if (track.isFile) stringResource(R.string.track_remove_local_text) else stringResource(R.string.track_remove_download_text)) },
         confirmButton = { TextButton(onClick = { vm.removeLocal(track); removeTrack = null }) { Text(stringResource(R.string.action_remove)) } },
         dismissButton = { TextButton(onClick = { removeTrack = null }) { Text(stringResource(R.string.action_cancel)) } }) }
 }

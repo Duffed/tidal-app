@@ -25,22 +25,35 @@ import io.github.yyan115.opentune.core.Track
 import io.github.yyan115.opentune.data.LocalFolder
 import io.github.yyan115.opentune.downloadErrorText
 
+private enum class DeviceSort(@androidx.annotation.StringRes val label: Int) {
+    Recent(R.string.sort_recent), Title(R.string.sort_title), Artist(R.string.sort_artist), Album(R.string.sort_album)
+}
+
 /**
- * Everything that is stored on the device: tracks downloaded from TIDAL, audio files that the listener added,
- * the folders that OpenTune keeps scanning, and playlists made on the device.
+ * Everything that is stored on the device: downloaded tracks, audio files that the listener added,
+ * and the folders that OpenTune keeps scanning. Without an account the playlists made on the device are listed here too.
  */
 @UnstableApi
 @Composable
 fun OnDeviceScreen(state: AppState, vm: MainViewModel, onAddFiles: () -> Unit, onAddFolder: () -> Unit, onLogin: () -> Unit, onNewPlaylist: () -> Unit, onMenu: (Track) -> Unit) {
     var filter by rememberSaveable { mutableIntStateOf(0) }
+    var sort by rememberSaveable { mutableStateOf(DeviceSort.Recent) }
+    var text by rememberSaveable { mutableStateOf("") }
+    var sortMenu by remember { mutableStateOf(false) }
     var removing by remember { mutableStateOf<LocalFolder?>(null) }
     val active = state.downloads.filter { !it.state.isFinished || it.state == WorkInfo.State.FAILED }
-    val fromTidal = state.local.filterNot { it.id.startsWith("local:") }
-    val files = state.local.filter { it.id.startsWith("local:") }
-    val shown = when (filter) { 1 -> fromTidal; 2 -> files; else -> state.local }
+    val shown = remember(state.local, filter, sort, text) {
+        val source = when (filter) { 1 -> state.local.filter { it.isDownload }; 2 -> state.local.filter { it.isFile }; else -> state.local }
+        val matching = source.filter { text.isBlank() || it.title.contains(text.trim(), true) || it.artist.contains(text.trim(), true) || it.album.contains(text.trim(), true) }
+        when (sort) {
+            DeviceSort.Recent -> matching
+            DeviceSort.Title -> matching.sortedBy { it.title.lowercase() }
+            DeviceSort.Artist -> matching.sortedWith(compareBy({ it.artist.lowercase() }, { it.album.lowercase() }, { it.trackNumber }, { it.title.lowercase() }))
+            DeviceSort.Album -> matching.sortedWith(compareBy({ it.album.lowercase() }, { it.trackNumber }, { it.title.lowercase() }))
+        }
+    }
     val sourceLabel = stringResource(R.string.nav_device)
-    val onThisDevice = stringResource(R.string.library_on_this_device)
-    val filters = listOf(R.string.device_filter_all, R.string.device_filter_tidal, R.string.device_filter_files).map { stringResource(it) }
+    val filters = listOf(R.string.device_filter_all, R.string.device_filter_downloads, R.string.device_filter_files).map { stringResource(it) }
     val context = LocalContext.current
     LazyColumn(Modifier.fillMaxSize().testTag("device-list"), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
@@ -94,12 +107,11 @@ fun OnDeviceScreen(state: AppState, vm: MainViewModel, onAddFiles: () -> Unit, o
             }
         }
 
-        if (state.localPlaylists.isNotEmpty() || state.local.isNotEmpty()) {
+        if (!state.signedIn && (state.localPlaylists.isNotEmpty() || state.local.isNotEmpty())) {
             item { SectionTitle(stringResource(R.string.label_playlists), stringResource(R.string.playlist_new), onNewPlaylist) }
-            if (state.localPlaylists.isEmpty()) item { Text(stringResource(R.string.device_playlists_hint), Modifier.padding(horizontal = 24.dp, vertical = 4.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             items(state.localPlaylists, key = { "playlist:${it.id}" }) { playlist ->
                 ReleaseRow(Release(playlist.id, playlist.title, pluralStringResource(R.plurals.track_count, playlist.trackIds.size, playlist.trackIds.size), type = ReleaseType.PLAYLIST)) {
-                    vm.open(Release(playlist.id, playlist.title, onThisDevice, type = ReleaseType.PLAYLIST))
+                    vm.open(Release(playlist.id, playlist.title, "", type = ReleaseType.PLAYLIST))
                 }
             }
         }
@@ -110,6 +122,20 @@ fun OnDeviceScreen(state: AppState, vm: MainViewModel, onAddFiles: () -> Unit, o
             item { LazyRow(contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(filters.size) { index -> FilterTab(filter == index, { filter = index }, filters[index]) }
             } }
+            item(key = "tools") {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(text, { text = it }, Modifier.weight(1f), singleLine = true, placeholder = { Text(stringResource(R.string.library_filter)) },
+                        leadingIcon = { Icon(OpenTuneIcons.Search, null, Modifier.size(18.dp)) }, shape = MaterialTheme.shapes.large,
+                        trailingIcon = { if (text.isNotEmpty()) IconButton(onClick = { text = "" }) { Icon(OpenTuneIcons.Close, stringResource(R.string.library_filter_clear), Modifier.size(18.dp)) } })
+                    Box {
+                        IconButton(onClick = { sortMenu = true }) { Icon(OpenTuneIcons.Sort, stringResource(R.string.library_sort_by, stringResource(sort.label))) }
+                        DropdownMenu(sortMenu, { sortMenu = false }) {
+                            DeviceSort.entries.forEach { option -> DropdownMenuItem(text = { Text(stringResource(option.label)) }, onClick = { sort = option; sortMenu = false },
+                                trailingIcon = { if (sort == option) Icon(OpenTuneIcons.Check, null, Modifier.size(18.dp)) }) }
+                        }
+                    }
+                }
+            }
             item { SectionTitle(pluralStringResource(R.plurals.track_count, shown.size, shown.size), if (shown.size > 1) stringResource(R.string.action_shuffle) else null) { vm.playTracks(shown, shuffle = true, source = sourceLabel) } }
             items(shown, key = Track::id) { track -> TrackRow(track, state.playback.track?.id == track.id, { vm.play(shown, shown.indexOf(track), sourceLabel) }, { onMenu(track) }) }
             if (shown.isEmpty()) item { Text(stringResource(R.string.device_filter_empty), Modifier.padding(horizontal = 24.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }

@@ -18,8 +18,17 @@ data class Track(
     val peak: Double? = null,
     val tags: List<String> = emptyList(),
 ) {
-    val isLocal get() = localUri != null
+    /** A file that the listener added from the device. It has no TIDAL page, lyrics or radio. */
+    val isFile get() = isDeviceId(id)
+    /** Whether the audio is stored on the device, as a download or as a file. */
+    val onDevice get() = localUri != null
+    /** A track that was downloaded from TIDAL. */
+    val isDownload get() = onDevice && !isFile
 }
+
+/** Files and playlists made on the device have ids that start with this prefix. TIDAL ids are numbers or UUIDs. */
+const val DEVICE_ID_PREFIX = "local:"
+fun isDeviceId(id: String) = id.startsWith(DEVICE_ID_PREFIX)
 
 data class Release(
     val id: String,
@@ -35,6 +44,9 @@ data class Release(
 )
 
 enum class ReleaseType { ALBUM, PLAYLIST, ARTIST, MIX, VIDEO, FOLDER }
+
+/** A playlist made on the device. It can hold TIDAL tracks and files. */
+val Release.isDevicePlaylist get() = isDeviceId(id)
 data class SearchResult(
     val tracks: List<Track> = emptyList(),
     val albums: List<Release> = emptyList(),
@@ -86,7 +98,7 @@ data class StreamInfo(
     override fun toString() = "StreamInfo(codec=$codec, quality=$quality, bitDepth=$bitDepth, sampleRate=$sampleRate)"
 }
 
-data class LocalPlaylist(val id: String, val title: String, val trackIds: List<String> = emptyList())
+data class LocalPlaylist(val id: String, val title: String, val trackIds: List<String> = emptyList(), val artwork: String? = null)
 
 /**
  * Stable identifiers for the problems that the user can be told about. The app turns each one into a translated sentence,

@@ -154,9 +154,9 @@ class LiveServiceTest {
         assertTrue(model.state.value.playback.duration > 30_000)
         compose.runOnIdle { model.download(track) }
         compose.waitUntil(120_000) {
-            app.library.get(track.id)?.isLocal == true || WorkManager.getInstance(app).getWorkInfosForUniqueWork("download:${track.id}").get().any { it.state == androidx.work.WorkInfo.State.FAILED }
+            app.library.get(track.id)?.onDevice == true || WorkManager.getInstance(app).getWorkInfosForUniqueWork("download:${track.id}").get().any { it.state == androidx.work.WorkInfo.State.FAILED }
         }
-        assertTrue("The live audio download did not complete", app.library.get(track.id)?.isLocal == true)
+        assertTrue("The live audio download did not complete", app.library.get(track.id)?.onDevice == true)
         compose.runOnIdle { model.clearQueue(); model.signOut(); model.settings { it.copy(offline = true) } }
         compose.waitUntil(5_000) { model.state.value.playback.queue.isEmpty() }
         app.sources.clearStreamingCache()

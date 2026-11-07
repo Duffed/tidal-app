@@ -260,7 +260,7 @@ private fun AlbumHeaderRow(header: AlbumHeader, ctx: PageContext, routeKey: Stri
             TuneButton(onClick = { playFromPage(ctx, routeKey, page, false) }, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.action_play)) }
             TuneTonalButton(onClick = { playFromPage(ctx, routeKey, page, true) }) { Icon(OpenTuneIcons.Shuffle, stringResource(R.string.album_shuffle)) }
             TuneOutlinedButton(onClick = {
-                firstTracks(page)?.let { module -> ctx.scope.launch { ctx.pages.allTracks(routeKey, module).filterNot(Track::isLocal).forEach { ctx.vm.download(it) } } }
+                firstTracks(page)?.let { module -> ctx.scope.launch { ctx.pages.allTracks(routeKey, module).filterNot(Track::onDevice).forEach { ctx.vm.download(it) } } }
             }) { Icon(OpenTuneIcons.Download, stringResource(R.string.album_download_all)) }
         }
         Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {

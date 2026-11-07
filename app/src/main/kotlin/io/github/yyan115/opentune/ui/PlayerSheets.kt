@@ -101,7 +101,6 @@ fun AudioOutputDialog(onClose: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Text(stringResource(R.string.output_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }, confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.action_close)) } })
 }

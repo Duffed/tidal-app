@@ -32,12 +32,12 @@ class BackupManager(private val app: OpenTuneApp) {
             put("playlists", JSONArray().apply {
                 app.library.playlists().forEach { playlist ->
                     // Imported files cannot be restored on another install, so only TIDAL tracks are kept.
-                    val tracks = app.library.playlistTracks(playlist.id).filterNot { it.id.startsWith("local:") }
+                    val tracks = app.library.playlistTracks(playlist.id).filterNot { it.isFile }
                     put(JSONObject().put("title", playlist.title).put("tracks", JSONArray(tracks.map(JsonCodec::encodeTrack))))
                 }
             })
             put("plays", JSONArray().apply {
-                app.library.exportPlays().filterNot { it.track.id.startsWith("local:") }.forEach {
+                app.library.exportPlays().filterNot { it.track.isFile }.forEach {
                     put(JSONObject().put("track", JsonCodec.encodeTrack(it.track)).put("playedAt", it.playedAt).put("listenedMs", it.listenedMs))
                 }
             })

@@ -4,7 +4,10 @@ import io.github.yyan115.opentune.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -12,6 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -40,7 +46,7 @@ private val ArtworkRetryDelays = listOf(2_000L, 5_000L, 12_000L)
  * When the device regains a network, the schedule starts again at once, because a request made while it was away fails.
  */
 @Composable
-fun Artwork(uri: String?, description: String?, modifier: Modifier = Modifier) {
+fun Artwork(uri: String?, description: String?, modifier: Modifier = Modifier, placeholderSeed: String? = null) {
     val context = LocalContext.current
     val offline = LocalOfflineMode.current
     val epoch = LocalNetworkEpoch.current
@@ -54,11 +60,35 @@ fun Artwork(uri: String?, description: String?, modifier: Modifier = Modifier) {
     LaunchedEffect(failures) {
         if (failures in 1..ArtworkRetryDelays.size && !offline) { delay(ArtworkRetryDelays[failures - 1]); attempt++ }
     }
-    Box(modifier.clip(MaterialTheme.shapes.small).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-        Icon(OpenTuneIcons.Album, null, Modifier.fillMaxSize(.32f), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f))
+    Box(modifier.clip(MaterialTheme.shapes.small).background(placeholderBrush(placeholderSeed)), contentAlignment = Alignment.Center) {
+        if (placeholderSeed != null) Icon(OpenTuneIcons.MusicNote, null, Modifier.fillMaxSize(.34f), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = .55f))
+        else Icon(OpenTuneIcons.Album, null, Modifier.fillMaxSize(.32f), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f))
         // A new key makes a new image painter, which loads again. A changed request alone does not always restart a load.
         if (uri != null) key(attempt) { AsyncImage(request, description, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
     }
+}
+
+/** A plain tile, or a tile whose colours follow [seed], so that the files of one album share a colour when they carry no picture. */
+@Composable
+private fun placeholderBrush(seed: String?): Brush {
+    val base = MaterialTheme.colorScheme.surfaceVariant
+    if (seed == null) return androidx.compose.ui.graphics.SolidColor(base)
+    val dark = MaterialTheme.colorScheme.background.luminance() < .5f
+    val hue = ((seed.lowercase().hashCode() % 360) + 360) % 360
+    val value = if (dark) .34f else .88f
+    return Brush.linearGradient(listOf(Color.hsv(hue.toFloat(), if (dark) .38f else .22f, value), Color.hsv(((hue + 48) % 360).toFloat(), if (dark) .5f else .3f, if (dark) .22f else .78f)))
+}
+
+/** The cover of a track. A file without a picture gets a coloured tile with a note, which tells it from a TIDAL track whose cover is still loading. */
+@Composable
+fun TrackArtwork(track: Track, description: String?, modifier: Modifier = Modifier) =
+    Artwork(track.artwork, description, modifier, if (track.isFile && track.artwork == null) track.album.ifBlank { track.artist.ifBlank { track.title } } else null)
+
+/** Marks a file that the listener added from the device. A TIDAL track carries no mark, because TIDAL is what the app is for. */
+@Composable
+fun LocalBadge(modifier: Modifier = Modifier) {
+    Text(stringResource(R.string.label_local).uppercase(), modifier.border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(3.dp)).padding(horizontal = 4.dp, vertical = 1.dp),
+        fontFamily = AppFonts.body, fontSize = 9.sp, lineHeight = 12.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -103,7 +133,7 @@ fun TrackRow(track: Track, playing: Boolean = false, onPlay: () -> Unit, onMenu:
         verticalAlignment = Alignment.CenterVertically) {
         if (index != null) Text("%02d".format(index + 1), Modifier.width(32.dp), fontFamily = AppFonts.mono, fontSize = 10.sp,
             color = if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-        else Artwork(track.artwork, null, Modifier.size(48.dp))
+        else TrackArtwork(track, null, Modifier.size(48.dp))
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
             Text(track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (playing) FontWeight.SemiBold else FontWeight.Normal,
@@ -113,7 +143,8 @@ fun TrackRow(track: Track, playing: Boolean = false, onPlay: () -> Unit, onMenu:
                     Text("E", Modifier.padding(end = 6.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(2.dp)).padding(horizontal = 3.dp),
                         style = MaterialTheme.typography.labelSmall)
                 }
-                if (track.isLocal) Icon(OpenTuneIcons.DownloadDone, stringResource(R.string.track_available_offline), Modifier.padding(end = 4.dp).size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (track.isFile) LocalBadge(Modifier.padding(end = 6.dp))
+                else if (track.onDevice) Icon(OpenTuneIcons.DownloadDone, stringResource(R.string.track_available_offline), Modifier.padding(end = 4.dp).size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(track.artist, fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -142,6 +173,19 @@ fun SettingRow(icon: ImageVector, title: String, subtitle: String? = null, onCli
             if (subtitle != null) Text(subtitle, Modifier.padding(top = 3.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         trailing?.invoke()
+    }
+}
+
+/** A setting that is switched on or off. The whole row responds to a tap, not only the switch. */
+@Composable
+fun SwitchRow(icon: ImageVector, title: String, checked: Boolean, onChange: (Boolean) -> Unit, subtitle: String? = null) {
+    Row(Modifier.fillMaxWidth().toggleable(checked, role = Role.Switch, onValueChange = onChange).padding(horizontal = 24.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = .8f))
+        Column(Modifier.weight(1f).padding(horizontal = 18.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            if (subtitle != null) Text(subtitle, Modifier.padding(top = 3.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked, null)
     }
 }
 
