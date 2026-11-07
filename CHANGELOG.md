@@ -4,6 +4,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-07
+
 ### Added
 
 - Avoid repeats has its own page. It lists the excluded tracks with the time of their last play and the time that remains, and Include lets a track play again at once.

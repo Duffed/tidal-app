@@ -1,0 +1,2 @@
+- Avoid repeats has its own page. It lists the excluded tracks with the time of their last play and the time that remains, and Include lets a track play again at once.
+- Experimental has two download options. Download saved tracks downloads a track when it is saved with the heart button. Download played tracks downloads each track that counts as played and asks for confirmation. Turning one on turns the other off.
