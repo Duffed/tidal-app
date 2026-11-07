@@ -1,0 +1,5 @@
+- Check for updates, under About, looks for a newer release when the app opens and shows a dialog when there is one. A switch turns it off.
+- The theme picker shows the swiped theme in the whole app at once. Use keeps it, and closing the picker brings back the saved theme.
+- Listening statistics has an information button that explains when a track counts as played.
+
+- Licenses lists OpenTune and each component with its licence, and a row opens the licence text. The notices carry no other text.

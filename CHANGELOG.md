@@ -4,6 +4,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-07
+
 ### Added
 
 - Check for updates, under About, looks for a newer release when the app opens and shows a dialog when there is one. A switch turns it off.
