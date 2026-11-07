@@ -12,7 +12,7 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 - The queue shows artwork, reorders by dragging a row and removes a track with a swipe. A swipe on the mini player stops playback.
 - Playlists of the account and playlists made on the device share one list in Library. A playlist page has Add songs, which searches TIDAL and the local files and adds tracks without leaving the page. A new playlist is created on the account or on the device.
 - Avoid repeats puts recently played tracks last in shuffle and leaves them out of radio and autoplay.
-- A visualizer shows the spectrum of the music over the artwork in the player.
+- A visualizer shows the spectrum of the music over the artwork in the player, on Android 11 and later.
 - Download over mobile data, with a confirmation before it turns on.
 - A download notification shows its progress and has a Cancel button.
 

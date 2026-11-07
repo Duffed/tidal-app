@@ -71,7 +71,7 @@ OpenTune keeps up to 90 seconds of the track ahead of the playing position. A sh
 
 **Settings**, **Experimental** holds features that are new or depend on the device. They stay hidden until you open the section.
 
-- **Visualizer** shows the spectrum of the music over the artwork in the player.
+- **Visualizer** shows the spectrum of the music over the artwork in the player. It needs Android 11 or later.
 - **Equalizer** adjusts the bands of Android's built-in equalizer and offers its presets. The equalizer changes the audio, so leave it off for unaltered playback.
 - **ListenBrainz** sends your listens to a ListenBrainz server, see below.
 - **Bit-perfect USB output**, on Android 14 and later, asks Android to send the audio to a USB DAC without mixing or resampling.

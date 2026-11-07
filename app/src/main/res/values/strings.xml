@@ -299,7 +299,7 @@
     <string name="source_codec">Codec</string>
     <string name="source_bit_depth">Bit depth</string>
     <string name="source_sample_rate">Sample rate</string>
-    <string name="source_note">This is the source format. Android and connected audio devices may use a different output format.</string>
+    <string name="source_note">Android and connected audio devices may output a different format.</string>
     <string name="source_label">SOURCE</string>
     <string name="eq_title">Equalizer</string>
     <string name="eq_unavailable">This device has no equalizer that OpenTune can use.</string>

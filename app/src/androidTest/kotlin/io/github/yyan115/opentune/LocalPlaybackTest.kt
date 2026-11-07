@@ -241,6 +241,7 @@ class LocalPlaybackTest {
     }
 
     @Test fun theVisualizerReadsTheSamplesThatTheOutputReceives() {
+        org.junit.Assume.assumeTrue(android.os.Build.VERSION.SDK_INT >= io.github.yyan115.opentune.ui.VISUALIZER_API)
         compose.runOnIdle { model.settings { it.copy(visualizer = true) } }
         try {
             io.github.yyan115.opentune.playback.AudioSpectrum.clear()

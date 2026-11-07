@@ -103,7 +103,7 @@ class PlayerLayoutTest {
             val settleEnd = System.currentTimeMillis() + 10_000
             while (!layout.fits && System.currentTimeMillis() < settleEnd) { Thread.sleep(250); layout = runCatching { measure(queue) }.getOrDefault(layout) }
             screenshot("player-${screen.name}")
-            if (layout.gap !in 0f..24f) failures += "${screen.name}: the bottom row ends ${"%.0f".format(layout.gap)} dp above the navigation bar"
+            if (layout.gap !in 0f..24f) failures += "${screen.name}: the bottom row ends ${"%.0f".format(layout.gap)} dp above the navigation bar (screen ${layout.screenHeight} px, navigation ${layout.navigation} px, row ends at ${layout.bottom} px)"
             if (!layout.titleClear) failures += "${screen.name}: the title overlaps or hides behind the controls (title ${layout.heading}, controls start at ${layout.transportTop}, screen ${layout.screenHeight})"
             InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
             pollUntil("the player to close") { !playerOpen() }
@@ -112,20 +112,22 @@ class PlayerLayoutTest {
     }
 
     /** Where the bottom row and the title sit, as measured at one moment. */
-    private class Layout(val gap: Float, val heading: androidx.compose.ui.geometry.Rect?, val transportTop: Float, val screenHeight: Int) {
+    private class Layout(val gap: Float, val heading: androidx.compose.ui.geometry.Rect?, val transportTop: Float, val screenHeight: Int, val navigation: Int = 0, val bottom: Float = 0f) {
         val titleClear get() = heading != null && heading.top >= 0 && heading.bottom <= screenHeight && heading.bottom <= transportTop
         val fits get() = gap in 0f..24f && titleClear
     }
 
     private fun measure(queue: SemanticsNodeInteraction): Layout {
         compose.waitForIdle()
-        val metrics = compose.activity.resources.displayMetrics
+        // Some system versions leave the navigation bar out of the height that the resources report, so the whole display is measured.
+        val metrics = android.util.DisplayMetrics().also { @Suppress("DEPRECATION") compose.activity.windowManager.defaultDisplay.getRealMetrics(it) }
         val navigation = ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
         val bottom = queue.fetchSemanticsNode().boundsInWindow.bottom
         // The title also appears on the screens behind the player, and all of them lie below the player's own title.
         val heading = compose.onAllNodesWithText("Layout Check").fetchSemanticsNodes().minByOrNull { it.boundsInWindow.top }?.boundsInWindow
-        val transportTop = compose.onAllNodesWithContentDescription(compose.activity.getString(R.string.player_pause)).fetchSemanticsNodes().minOf { it.boundsInWindow.top }
-        return Layout((metrics.heightPixels - navigation - bottom) / metrics.density, heading, transportTop, metrics.heightPixels)
+        // The tracks are short, so the music can have ended by now. The button then says Play and not Pause, and it sits in the same place.
+        val transportTop = compose.onAllNodes(hasContentDescription(compose.activity.getString(R.string.player_pause)) or hasContentDescription(compose.activity.getString(R.string.player_play))).fetchSemanticsNodes().minOf { it.boundsInWindow.top }
+        return Layout((metrics.heightPixels - navigation - bottom) / metrics.density, heading, transportTop, metrics.heightPixels, navigation, bottom)
     }
 
     private fun pollUntil(what: String, timeoutMillis: Long = 20_000, condition: () -> Boolean) {

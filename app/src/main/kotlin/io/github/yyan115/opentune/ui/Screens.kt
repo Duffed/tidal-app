@@ -381,6 +381,9 @@ fun LoginSheet(state: AppState, vm: MainViewModel, onClose: () -> Unit) {
     }
 }
 
+/** The first Android version on which the visualizer was checked to receive the audio of the player. */
+const val VISUALIZER_API = 30
+
 /** How long a track stays out of shuffle, radio and autoplay after it played, in hours. */
 private val RepeatWindows = listOf(0, 1, 6, 24, 168)
 
@@ -438,7 +441,7 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
         if (experimental) {
             item { SettingRow(OpenTuneIcons.Equalizer, stringResource(R.string.eq_title), stringResource(if (settings.equalizer) R.string.settings_on else R.string.settings_off), { equalizer = true }) }
             item { SettingRow(OpenTuneIcons.Lyrics, stringResource(R.string.scrobble_title), if (settings.scrobble) stringResource(R.string.settings_scrobble_on, settings.scrobbleServer.removePrefix("https://")) else stringResource(R.string.settings_off), { scrobbling = true }) }
-            item { SwitchRow(OpenTuneIcons.GraphicEq, stringResource(R.string.settings_visualizer), settings.visualizer, { value -> vm.settings { it.copy(visualizer = value) } }, stringResource(R.string.settings_visualizer_text)) }
+            if (android.os.Build.VERSION.SDK_INT >= VISUALIZER_API) item { SwitchRow(OpenTuneIcons.GraphicEq, stringResource(R.string.settings_visualizer), settings.visualizer, { value -> vm.settings { it.copy(visualizer = value) } }, stringResource(R.string.settings_visualizer_text)) }
             if (android.os.Build.VERSION.SDK_INT >= 34) item { SwitchRow(OpenTuneIcons.Waves, stringResource(R.string.settings_bitperfect), settings.bitPerfect, { value -> vm.settings { it.copy(bitPerfect = value) } }, stringResource(R.string.settings_bitperfect_text)) }
         }
         item { SectionTitle(stringResource(R.string.settings_about)) }

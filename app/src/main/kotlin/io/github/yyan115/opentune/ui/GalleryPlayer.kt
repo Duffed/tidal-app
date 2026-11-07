@@ -144,7 +144,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                     if (landscape) {
                         Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                             if (lyrics) LyricsPanel(state, vm, Modifier.width(landscapeArtworkSize * 1.3f).height(landscapeArtworkSize))
-                            else PlayerArtwork(track, stringResource(R.string.player_artwork, track.album), Modifier.size(landscapeArtworkSize), state.settings.visualizer, state.playback.playing)
+                            else PlayerArtwork(track, stringResource(R.string.player_artwork, track.album), Modifier.size(landscapeArtworkSize), state.settings.visualizer && android.os.Build.VERSION.SDK_INT >= VISUALIZER_API, state.playback.playing)
                             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                                 PlayerHeading(track, true, onAlbum, onArtist)
                                 GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, true)
@@ -154,7 +154,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
                             PlayerHeading(track, true, onAlbum, onArtist)
                             if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxWidth().height(if (large) 220.dp else 260.dp))
-                            else PlayerArtwork(track, stringResource(R.string.player_artwork, track.album), Modifier.size(if (large) 104.dp else 180.dp).align(Alignment.CenterHorizontally).padding(vertical = 8.dp), state.settings.visualizer, state.playback.playing)
+                            else PlayerArtwork(track, stringResource(R.string.player_artwork, track.album), Modifier.size(if (large) 104.dp else 180.dp).align(Alignment.CenterHorizontally).padding(vertical = 8.dp), state.settings.visualizer && android.os.Build.VERSION.SDK_INT >= VISUALIZER_API, state.playback.playing)
                             GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, true)
                         }
                     } else {
@@ -162,7 +162,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                             PlayerHeading(track, dense, onAlbum, onArtist)
                             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                 if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxSize())
-                                else PlayerArtwork(track, stringResource(R.string.player_artwork, track.album), Modifier.size(minOf(maxWidth - 20.dp, maxHeight - 8.dp).coerceAtLeast(0.dp)), state.settings.visualizer, state.playback.playing)
+                                else PlayerArtwork(track, stringResource(R.string.player_artwork, track.album), Modifier.size(minOf(maxWidth - 20.dp, maxHeight - 8.dp).coerceAtLeast(0.dp)), state.settings.visualizer && android.os.Build.VERSION.SDK_INT >= VISUALIZER_API, state.playback.playing)
                             }
                             GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, dense)
                         }
