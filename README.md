@@ -101,4 +101,4 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request. Report s
 
 ## License
 
-[GPL-3.0-or-later](LICENSE). Dependency licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[Apache-2.0](LICENSE). Dependency licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

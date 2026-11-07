@@ -4,6 +4,16 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Changed
+
+- OpenTune is licensed under Apache-2.0 and no longer under GPL-3.0-or-later. Releases up to 0.6.3 stay under the GPL for those who have them.
+- Signing in opens the browser at once, without a sheet in between. A bar shows while the app completes the sign-in, and a failure appears as a message.
+- The first screen reads "Unofficial open source music player for TIDAL with local playback", and its note puts each sentence on its own line.
+- The card and the account row read "Sign in to stream, download and manage your TIDAL library". Privacy reads "No ads, analytics or tracking. Streaming is provided by TIDAL."
+- The version row has the title Version and the number below it.
+- A line of text that holds one sentence has no full stop. Text with several sentences keeps its full stops.
+- The empty list of On device sits in the middle of the free space.
+
 ## [0.6.3] - 2026-11-07
 
 ### Changed

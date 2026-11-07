@@ -127,4 +127,12 @@ class ScreenTourTest {
             picture("29-equalizer-presets")
         }
     }
+
+    @Test fun emptyDeviceList() {
+        compose.runOnIdle { model.clearQueue(); model.settings { it.copy(theme = "dark", welcomeDone = true) } }
+        app.library.localTracks().forEach { app.library.removeLocal(it.id) }
+        app.library.playlists().forEach { app.library.deletePlaylist(it.id) }
+        compose.waitUntil(10_000) { model.state.value.local.isEmpty() && model.state.value.localPlaylists.isEmpty() }
+        picture("30-empty-device")
+    }
 }

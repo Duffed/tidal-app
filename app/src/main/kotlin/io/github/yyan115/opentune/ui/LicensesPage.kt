@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
 
 /** The pages that hold a licence text, with the asset file of each. */
 val LicenceDocuments: Map<SettingsPage, String> = linkedMapOf(
-    SettingsPage.Gpl to "LICENSE", SettingsPage.Apache to "Apache-2.0.txt",
+    SettingsPage.Apache to "Apache-2.0.txt",
     SettingsPage.Inter to "Inter-OFL.txt", SettingsPage.Serif to "Instrument-Serif-OFL.txt", SettingsPage.Space to "Space-Grotesk-OFL.txt", SettingsPage.Mono to "JetBrains-Mono-OFL.txt",
 )
 
@@ -49,7 +49,7 @@ fun licenceEntries(notices: String, appName: String): List<LicenceEntry> {
             else -> null
         }
     }
-    return listOf(LicenceEntry(appName, "", R.string.licenses_gpl, SettingsPage.Gpl)) + components
+    return listOf(LicenceEntry(appName, "", R.string.licenses_apache, SettingsPage.Apache)) + components
 }
 
 /** The components that OpenTune ships, each with its licence. A row opens the text of the licence. */

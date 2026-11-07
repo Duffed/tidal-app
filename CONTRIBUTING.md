@@ -55,4 +55,4 @@ All text for the user belongs in `app/src/main/res/values/strings.xml`, not in c
 - Add a line under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) for changes users can see.
 - Describe the change and how you tested it in the pull request.
 
-The project follows the official Kotlin code style, described in `.editorconfig`. Contributions are licensed under GPL-3.0-or-later.
+The project follows the official Kotlin code style, described in `.editorconfig`. Contributions are licensed under Apache-2.0.

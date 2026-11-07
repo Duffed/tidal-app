@@ -103,7 +103,6 @@ class PseudoLocaleTest {
         assertTrue("The resource text must carry the pseudo-language marks", s(R.string.nav_home).startsWith("["))
         await("the welcome screen") { compose.onAllNodesWithTag("welcome").fetchSemanticsNodes().isNotEmpty() }
         sweep("Welcome")
-        inWindow("Sign-in from the welcome screen") { compose.onNodeWithTag("welcome-sign-in").performClick() }
         compose.onNodeWithTag("welcome-local").performClick()
         await("the On device screen") { compose.onAllNodesWithTag("device-list").fetchSemanticsNodes().isNotEmpty() }
         sweep("On device")
@@ -140,7 +139,6 @@ class PseudoLocaleTest {
         compose.onNodeWithContentDescription(s(R.string.nav_settings)).performClick()
         val list = compose.onNodeWithTag("settings-list")
         sweep("Settings top")
-        inWindow("Sign-in") { compose.onAllNodes(hasText(s(R.string.action_connect_tidal)) and hasClickAction()).onFirst().performClick() }
         list.performScrollToNode(hasText(s(R.string.settings_data)))
         sweep("Settings middle")
         list.performScrollToNode(hasText(s(R.string.settings_experimental)))

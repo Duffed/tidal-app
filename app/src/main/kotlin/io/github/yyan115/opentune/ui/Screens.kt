@@ -356,28 +356,13 @@ fun DetailScreen(state: AppState, vm: MainViewModel, onMenu: (Track, Int) -> Uni
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Opens the TIDAL sign-in in the browser. The answer returns to the app through its address, and a failure shows as a message. */
 @UnstableApi
-@Composable
-fun LoginSheet(state: AppState, vm: MainViewModel, onClose: () -> Unit) {
-    val context = LocalContext.current
-    val resources = LocalResources.current
-    val openBrowser = {
-        try {
-            val pending = vm.beginBrowserLogin()
-            CustomTabsIntent.Builder().setShowTitle(true).setShareState(CustomTabsIntent.SHARE_STATE_OFF).build()
-                .launchUrl(context, Uri.parse(pending.authorizationUrl))
-        } catch (_: Exception) { vm.notify(resources.getString(R.string.login_no_browser)) }
-    }
-    ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(stringResource(R.string.action_connect_tidal), style = MaterialTheme.typography.headlineSmall)
-            Text(stringResource(R.string.login_text), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            if (state.signingIn) LinearProgressIndicator(Modifier.fillMaxWidth())
-            TuneButton(onClick = openBrowser, enabled = !state.signingIn, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.login_button)) }
-        }
-    }
+fun startLogin(context: android.content.Context, vm: MainViewModel) {
+    try {
+        val pending = vm.beginBrowserLogin()
+        CustomTabsIntent.Builder().setShowTitle(true).setShareState(CustomTabsIntent.SHARE_STATE_OFF).build().launchUrl(context, Uri.parse(pending.authorizationUrl))
+    } catch (_: Exception) { vm.notify(context.getString(R.string.login_no_browser)) }
 }
 
 /** The first Android version on which the visualizer was checked to receive the audio of the player. */
@@ -443,7 +428,7 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onOp
         }
         item { SectionTitle(stringResource(R.string.settings_about)) }
         item { SwitchRow(OpenTuneIcons.Refresh, stringResource(R.string.settings_updates), settings.checkUpdates, { value -> vm.settings { it.copy(checkUpdates = value) } }, stringResource(R.string.settings_updates_text)) }
-        item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version, BuildConfig.VERSION_NAME)) }
+        item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version), BuildConfig.VERSION_NAME) }
         item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_source), "github.com/yyan115/tidal-app", {
             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/yyan115/tidal-app"))) }
         }) }

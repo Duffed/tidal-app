@@ -44,7 +44,6 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     var libraryFilter by rememberSaveable { mutableIntStateOf(0) }
     var settings by rememberSaveable { mutableStateOf(initialSettings) }
     var settingsPage by rememberSaveable { mutableStateOf<String?>(null) }
-    var login by rememberSaveable { mutableStateOf(false) }
     var nowPlaying by rememberSaveable { mutableStateOf(initialPlayer) }
     var queue by rememberSaveable { mutableStateOf(false) }
     var trackMenu by remember { mutableStateOf<Track?>(null) }
@@ -85,12 +84,12 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     val importAudio = { importer.launch(arrayOf("audio/*")) }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) vm.addDeviceFolder(uri) }
     val addFolder = { folderPicker.launch(null) }
-    val openLogin = { login = true }
+    val openLogin = { startLogin(context, vm) }
     val openTrackMenu: (Track) -> Unit = { trackMenu = it; playlistPosition = null }
     // A page opens over everything else, so the player, the settings and the lists behind it make way.
     val openRelease: (Release) -> Unit = { release -> closeSettings(); nowPlaying = false; queue = false; vm.open(release) }
     LaunchedEffect(state.message) { state.message?.let { snackbar.showSnackbar(it); vm.messageShown() } }
-    LaunchedEffect(state.signedIn) { if (state.signedIn) { login = false; vm.finishWelcome() } }
+    LaunchedEffect(state.signedIn) { if (state.signedIn) vm.finishWelcome() }
     BackHandler(enabled = state.detail != null || settings || state.routes.isNotEmpty()) {
         if (settingsPageOpen != null) settingsPage = settingsPageOpen.parent?.name else if (settings) closeSettings() else vm.closeDetail()
     }
@@ -154,7 +153,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                     SettingsPage.Repeats -> AvoidRepeatsPage(state, vm)
                     SettingsPage.Statistics -> StatisticsPage(vm)
                     SettingsPage.Licenses -> LicencesPage { settingsPage = it.name }
-                    SettingsPage.Gpl, SettingsPage.Apache, SettingsPage.Inter, SettingsPage.Serif, SettingsPage.Space, SettingsPage.Mono -> LicenceDocumentPage(settingsPageOpen)
+                    SettingsPage.Apache, SettingsPage.Inter, SettingsPage.Serif, SettingsPage.Space, SettingsPage.Mono -> LicenceDocumentPage(settingsPageOpen)
                     null -> SettingsScreen(state, vm, openLogin) { settingsPage = it.name }
                 }
                 state.routes.isNotEmpty() -> PageScreen(state.routes.last(), state, vm, pagesVm, openTrackMenu)
@@ -184,7 +183,8 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
         }
     }
 
-    if (login) LoginSheet(state, vm, onClose = { login = false; vm.cancelLogin() })
+    // The sign-in finishes in the browser, so a bar shows while the app exchanges the answer.
+    if (state.signingIn) LinearProgressIndicator(Modifier.fillMaxWidth().statusBarsPadding())
     if (nowPlaying && state.playback.track != null) NowPlayingScreen(state, vm, onClose = { nowPlaying = false }, onQueue = { queue = true }, onMenu = openTrackMenu, onDownload = { track ->
         if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         vm.download(track)

@@ -184,7 +184,7 @@ class LocalPlaybackTest {
         list.performScrollToNode(hasText("ListenBrainz"))
         compose.onNodeWithText("ListenBrainz").assertIsDisplayed()
         list.performScrollToNode(hasText("Licenses"))
-        compose.onNodeWithText("No ads, analytics or tracking.").assertIsDisplayed()
+        compose.onNodeWithText("No ads, analytics or tracking. Streaming is provided by TIDAL.").assertIsDisplayed()
     }
 
     @Test fun theAvoidRepeatsPageListsTheExcludedTracksAndIncludesOneOnRequest() {
@@ -237,14 +237,14 @@ class LocalPlaybackTest {
         compose.onNode(hasText("Licenses") and hasClickAction()).performClick()
         // One row for OpenTune and for each component that it ships, each with its licence.
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("licences-list").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("GNU General Public License 3.0").assertIsDisplayed()
+        compose.onNode(hasText("OpenTune") and hasText("Apache License 2.0")).assertIsDisplayed()
         compose.onNodeWithTag("licences-list").performScrollToNode(hasText("OkHttp and Okio"))
         compose.onNodeWithText("Square · Apache License 2.0").assertIsDisplayed()
         compose.onNodeWithTag("licences-list").performScrollToNode(hasText("JetBrains Mono"))
         compose.onNodeWithText("JetBrains · SIL Open Font License 1.1").assertIsDisplayed()
         compose.onNodeWithTag("licences-list").performScrollToNode(hasText("OpenTune"))
         compose.onNode(hasText("OpenTune") and hasClickAction()).performClick()
-        compose.waitUntil(10_000) { compose.onAllNodes(hasText("GNU GENERAL PUBLIC LICENSE", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodes(hasText("Version 2.0, January 2004", substring = true)).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Back").performClick()
         compose.onNodeWithTag("licences-list").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back").performClick()
