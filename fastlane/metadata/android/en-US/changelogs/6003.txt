@@ -1,0 +1,4 @@
+- The card and the account row read "Connect TIDAL" with "Sign in to use TIDAL features and settings."
+- Light comes before Dark in the theme picker.
+- The equalizer has a Custom entry that keeps the bands that you set. Its preset field is inactive while the equalizer is off, and its list shows four entries at a time and opens below the field.
+- The information button of the listening statistics sits on the line of the title, and a change of period no longer flashes a loading indicator.

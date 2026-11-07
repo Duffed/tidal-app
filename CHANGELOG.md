@@ -4,6 +4,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-11-07
+
 ### Changed
 
 - The card and the account row read "Connect TIDAL" with "Sign in to use TIDAL features and settings."
