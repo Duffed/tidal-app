@@ -768,14 +768,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun clearSearches() { ui.update { it.copy(recentSearches = emptyList()) }; searchPreferences.edit().remove("recent").apply() }
 
-    fun saveQueueAsPlaylist(title: String) = viewModelScope.launch(Dispatchers.IO) {
+    /** Saves the queue as a playlist on the account or on the device. A queue with a local file can only go to the device. */
+    fun saveQueueAsPlaylist(title: String, home: PlaylistHome = PlaylistHome.Device) = viewModelScope.launch(Dispatchers.IO) {
         val queue = ui.value.playback.queue
         if (title.isBlank() || queue.isEmpty()) return@launch
         try {
-            val playlist = app.library.createPlaylist(title)
-            queue.forEach { app.library.addToPlaylist(playlist.id, it) }
-            notify(app.resources.getQuantityString(R.plurals.notify_queue_saved, queue.size, queue.size, playlist.title))
-        } catch (_: Exception) { notify(app.getString(R.string.notify_playlist_not_saved)) }
+            val onAccount = home == PlaylistHome.Account && app.tidal.signedIn && !ui.value.settings.offline && queue.none(Track::isFile)
+            val name = if (onAccount) {
+                val playlist = app.tidal.createPlaylist(title.trim())
+                ui.update { it.copy(playlists = it.playlists + playlist) }
+                queue.map(Track::id).distinct().chunked(50).forEach { app.tidal.addToPlaylist(playlist.id, it) }
+                playlist.title
+            } else {
+                val playlist = app.library.createPlaylist(title)
+                queue.forEach { app.library.addToPlaylist(playlist.id, it) }
+                playlist.title
+            }
+            notify(app.resources.getQuantityString(R.plurals.notify_queue_saved, queue.size, queue.size, name))
+        } catch (error: Exception) { if (error is CancellationException) throw error; notify(app.getString(R.string.notify_playlist_not_saved)) }
     }
 
     private fun updatePlayback() {

@@ -102,7 +102,7 @@ class PagesLiveTest {
         settle(); LiveAccount.screenshot("artist-page")
 
         // This track has timed lyrics. Norah Jones' track above has none, which is covered by the unit tests.
-        val lyricTrack = Track("163793678", "Feather", "Nujabes")
+        val lyricTrack = Track("571481561", "Feather", "Nujabes")
         compose.runOnIdle { model.closeAll(); model.play(listOf(lyricTrack)) }
         compose.waitUntil(30_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
         assertNull(model.state.value.playback.error)

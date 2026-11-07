@@ -60,8 +60,8 @@ enum class PlaylistHome { Account, Device }
 
 /** Asks for the name of a new playlist and, when an account is connected, where to keep it. */
 @Composable
-fun NewPlaylistDialog(accountAvailable: Boolean, onCreate: (String, PlaylistHome) -> Unit, onClose: () -> Unit) {
-    var name by remember { mutableStateOf("") }
+fun NewPlaylistDialog(accountAvailable: Boolean, onCreate: (String, PlaylistHome) -> Unit, onClose: () -> Unit, initialName: String = "") {
+    var name by remember { mutableStateOf(initialName) }
     var home by remember { mutableStateOf(if (accountAvailable) PlaylistHome.Account else PlaylistHome.Device) }
     AlertDialog(onDismissRequest = onClose, title = { Text(stringResource(R.string.playlist_new)) }, text = {
         Column {
@@ -113,7 +113,7 @@ fun AddSongsSheet(playlist: Release, state: AppState, vm: MainViewModel, onClose
         value = vm.searchTracks(text)
     }
     val local = remember(state.local, text) { if (text.isBlank()) emptyList() else state.local.filter { it.title.contains(text, true) || it.artist.contains(text, true) || it.album.contains(text, true) } }
-    val results = (if (text.isBlank()) state.favorites else local + remote).distinctBy(Track::id).filter { playlist.isDevicePlaylist || !it.isFile }
+    val results = (if (text.isBlank()) state.favorites + state.local else local + remote).distinctBy(Track::id).filter { playlist.isDevicePlaylist || !it.isFile }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxSize().navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -124,7 +124,7 @@ fun AddSongsSheet(playlist: Release, state: AppState, vm: MainViewModel, onClose
                 placeholder = { Text(stringResource(R.string.search_hint)) }, leadingIcon = { Icon(OpenTuneIcons.Search, null) },
                 trailingIcon = { if (text.isNotEmpty()) IconButton(onClick = { text = "" }) { Icon(OpenTuneIcons.Close, stringResource(R.string.search_clear)) } },
                 shape = MaterialTheme.shapes.large, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }))
-            if (text.isBlank()) UpperLabel(stringResource(R.string.library_saved_tracks), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            if (text.isBlank()) UpperLabel(stringResource(R.string.nav_library), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 16.dp)) {
                 items(results, key = { it.id }) { track ->
                     val added = track.id in inPlaylist
@@ -143,7 +143,7 @@ fun AddSongsSheet(playlist: Release, state: AppState, vm: MainViewModel, onClose
                         }
                     }
                 }
-                if (results.isEmpty()) item { Text(stringResource(if (text.isBlank()) R.string.library_no_saved else R.string.search_no_tracks), Modifier.padding(horizontal = 24.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                if (results.isEmpty()) item { Text(stringResource(if (text.isBlank()) R.string.playlist_add_empty else R.string.search_no_tracks), Modifier.padding(horizontal = 24.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
     }

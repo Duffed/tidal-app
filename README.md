@@ -50,18 +50,20 @@ gh attestation verify opentune-<version>.apk --repo yyan115/tidal-app
 
 **Your own music**
 
-- Add audio files, or add a folder and OpenTune keeps it in sync. **On device** lists everything stored on the phone, from TIDAL downloads to your own files.
-- Local music plays without an account, and local and TIDAL tracks can share a playlist.
+- Add audio files, or add a folder and OpenTune keeps it in sync. **On device** lists everything stored on the phone, from TIDAL downloads to your own files, which carry a **Local** mark.
+- Local files show their format, bit depth, sample rate, bitrate and location, and take their cover from the file or its folder.
+- Local music plays without an account. Playlists made on the device can hold local files and TIDAL tracks.
 
 **Playback and system**
 
-- Gapless playback with a deep buffer, queue editing, sleep timer, equalizer, volume normalization and audio output information. Bit-perfect USB output is available as a beta on Android 14 and later.
+- Gapless playback with a deep buffer, a queue that you reorder by dragging, shuffle that reorders the queue itself, a sleep timer, volume normalization and audio output information. A setting avoids tracks that played recently.
+- Experimental: a visualizer, an equalizer, ListenBrainz and bit-perfect USB output on Android 14 and later.
 - Controls in the notification, on the lock screen, on Bluetooth devices and in Android Auto. A home screen widget and voice requests such as "play Nujabes".
 
 **Your phone, your way**
 
 - Twelve themes, each with its own colours, shapes and type, and a setting that follows the device. The picker previews every theme before you choose.
-- Listening statistics, backup and restore, and optional listening history in ListenBrainz.
+- Listening statistics, and backup and restore.
 - Every piece of text is in a string resource, so translations can be added without changing code, see [docs/translating.md](docs/translating.md).
 
 The [usage guide](docs/usage.md) explains each part.

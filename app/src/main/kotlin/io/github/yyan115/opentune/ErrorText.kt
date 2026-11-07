@@ -41,6 +41,7 @@ internal fun Problem.textRes(): Int = when (this) {
     Problem.SCROBBLE_ADDRESS_INVALID -> R.string.error_scrobble_address_invalid
     Problem.NOT_AVAILABLE_OFFLINE -> R.string.error_not_available_offline
     Problem.TRACK_MISSING -> R.string.error_track_missing
+    Problem.TRACK_UNAVAILABLE -> R.string.error_track_unavailable
     Problem.BACKUP_INVALID -> R.string.error_backup_invalid
     Problem.BACKUP_TOO_NEW -> R.string.error_backup_too_new
 }

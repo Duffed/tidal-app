@@ -4,6 +4,34 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- Local files are known by their document, so a file that you add by hand and that a folder holds is one track. A file is read again when it changes.
+- Local files show their bit depth, sample rate and bitrate, carry a Local mark and have a details sheet with their location, folder and size. A file without a picture takes the cover of its folder, or a coloured tile with a note.
+- On device sorts by date added, title, artist or album, and filters by text. Downloads and Local files have their own filters.
+- The queue shows artwork, reorders by dragging a row and removes a track with a swipe. A swipe on the mini player stops playback.
+- Playlists of the account and playlists made on the device share one list in Library. A playlist page has Add songs, which searches TIDAL and the local files and adds tracks without leaving the page. A new playlist is created on the account or on the device.
+- Avoid repeats puts recently played tracks last in shuffle and leaves them out of radio and autoplay.
+- A visualizer shows the spectrum of the music over the artwork in the player.
+- Download over mobile data, with a confirmation before it turns on.
+- A download notification shows its progress and has a Cancel button.
+
+### Changed
+
+- Shuffle reorders the queue itself. The queue shows what plays next, and play next and reordering work while shuffle is on. Turning shuffle off restores the earlier order.
+- Settings put the equalizer, ListenBrainz, the visualizer and bit-perfect USB output under Experimental, which is hidden until opened. Switches respond to a tap anywhere on their row. The wording of the settings is shorter.
+- The theme picker fits on one screen, and the licence texts open in a dialog with one row of tabs.
+- Biographies keep their paragraphs.
+- A local file that cannot be read gives a clear message, and a folder scan that fails keeps what it found before.
+- Track radio is named Play similar music.
+- The Settings icon is a gear. Opening an album or an artist from the player works when Settings is open behind it.
+- Downloads use the mobile data setting in place of Wi-Fi only.
+
+### Fixed
+
+- A folder on a memory card that was not available at the time of a scan no longer empties the library of its files.
+- The licence texts open without a delay.
+
 ## [0.5.0] - 2026-11-02
 
 ### Added

@@ -22,26 +22,30 @@ OpenTune receives a one-time authorization code and checks the state value befor
 
 **Search** opens on genres, moods and decades. Typing shows a top result and tabs for each kind of result. Recent searches stay on the device and can be cleared.
 
-**Library** lists your saved tracks, albums, followed artists, playlists and mixes. Filter and sort the lists, and use **Refresh library** to update them. **Playlists** shows your TIDAL playlists with their folders. Tap a folder to open it. **New folder** creates a folder at the top level, and a playlist's folder button moves it into a folder or back to the top level. Deleting a folder moves its playlists to the top level first, because TIDAL hides the playlists of a folder that is removed with them inside.
+**Library** lists your saved tracks, albums, followed artists, playlists and mixes. Filter and sort the lists, and use **Refresh library** to update them. **Playlists** shows your TIDAL playlists and the playlists made on the device in one list. A playlist made on the device carries the **Local** mark. TIDAL playlist folders mirror the folders in your account. Tap a folder to open it. **New folder** creates a folder at the top level, and a playlist's folder button moves it into a folder or back to the top level. Deleting a folder moves its playlists to the top level first, because TIDAL hides the playlists of a folder that is removed with them inside.
 
-Artist, album and mix pages list the music with the biography, review and credits that TIDAL provides. **Follow** adds an artist to your library. **Save album** and **Save playlist** add a release or a playlist from someone else. The track menu has **Start track radio** and **Credits**.
+Artist, album and mix pages list the music with the biography, review and credits that TIDAL provides. **Follow** adds an artist to your library. **Save album** and **Save playlist** add a release or a playlist from someone else. The track menu has **Play similar music**, which plays the track and continues with similar tracks, and **Credits**.
 
 ## On device
 
-**On device** holds everything that is stored on the phone. Use the filters to show everything, the tracks downloaded from TIDAL, or your own files.
+**On device** holds everything that is stored on the phone: downloaded tracks and your own audio files. Use the filters to show **All**, **Downloads** or **Local files**, filter by text, and sort by date added, title, artist or album.
 
 - **Add files** adds audio files. OpenTune plays them from where they are and does not copy them.
-- **Add folder** opens Android's folder picker. OpenTune reads the audio files in that folder and its subfolders, skips hidden folders, and keeps the folder up to date. A folder is scanned again when you open the app a day after its last scan, and whenever you choose **Scan again**. **Remove** takes a folder and its tracks out of the library and leaves your files alone.
-- Playlists made on the device can hold both local and TIDAL tracks.
+- **Add folder** opens Android's folder picker. OpenTune reads the audio files in that folder and its subfolders, skips hidden folders, and keeps the folder up to date. A folder is scanned again when you open the app a day after its last scan, and whenever you choose **Scan again**. A scan that cannot read a folder, for example because a memory card is missing, keeps what it found before. **Remove** takes a folder and its files out of the library and leaves your files alone.
+- A local file carries the **Local** mark. Its cover comes from the file, or from a `cover`, `folder`, `front` or `album` picture in the same folder. The file is known by its document, so the same file added by hand and by a folder is one track.
+- **Details** in the menu of a track shows its format, bit depth, sample rate, bitrate, size and where it is stored.
+- A file that a folder holds leaves with that folder. **Remove from library** applies to files that you added by hand and to downloads.
 
-Android decides which formats play. FLAC, MP3 and AAC work on supported devices.
+Android decides which formats play. FLAC, MP3, AAC and WAV work on supported devices.
 
 ## Playing music
 
-Tap the track title in the player to open its album, or the artist name to open the artist page. The row below the controls opens **Lyrics**, the **Sleep timer**, **Download** and the **Queue**.
+Tap the track title in the player to open its album, or the artist name to open the artist page. The row below the controls opens **Lyrics**, the **Sleep timer**, **Download** and the **Queue**. A swipe sideways on the mini player stops playback.
 
 - **Lyrics** highlight the current line. Drag to read ahead, and the view follows the song again after a few seconds. Tap a line to jump to it. Tracks without timing show the plain text, and some tracks have no lyrics. Lyrics are provided by Musixmatch through TIDAL and stay on the device after the first load.
 - The **sleep timer** pauses playback after 15 to 90 minutes or at the end of the track.
+- The **queue** shows what plays next. Drag a row by its handle to move it, and swipe a row sideways to remove it. **Shuffle** puts the tracks after the current one in random order in the queue itself, so the queue always shows the real order, and turning shuffle off restores the earlier order.
+- **Avoid repeats**, under **Settings**, **Playback**, puts tracks that played within the chosen time last in shuffle and leaves them out of radio and autoplay.
 - **Autoplay** adds similar tracks from TIDAL when the queue ends. Turn it off under **Settings**, **Playback**.
 - Tap the format line in the player to see the codec, bit depth and sample rate of the source. These values describe the file, not the output of your audio device.
 
@@ -60,10 +64,17 @@ Max and Lossless accept FLAC or ALAC and reject lossy responses. A FLAC stream c
 
 OpenTune keeps up to 90 seconds of the track ahead of the playing position. A short loss of connection passes unheard, and after a longer one playback resumes by itself when the network returns.
 
-- **Volume normalization** evens out the level between tracks using the ReplayGain values from TIDAL. Loud tracks are turned down and quiet tracks keep their level. It is off by default so that tracks play unchanged.
-- **Equalizer** adjusts the bands of Android's built-in equalizer and offers its presets. The equalizer changes the audio, so leave it off for unaltered playback.
+- **Volume normalization** evens out the level between tracks using ReplayGain values. Loud tracks are turned down and quiet tracks keep their level. It is off by default so that tracks play unchanged.
 - **Audio output** shows where the music plays and the sample rates that each output accepts.
-- **Bit-perfect USB output**, under **Advanced** on Android 14 and later, asks Android to send the audio to a USB DAC without mixing or resampling. It is a beta feature.
+
+## Experimental features
+
+**Settings**, **Experimental** holds features that are new or depend on the device. They stay hidden until you open the section.
+
+- **Visualizer** shows the spectrum of the music over the artwork in the player.
+- **Equalizer** adjusts the bands of Android's built-in equalizer and offers its presets. The equalizer changes the audio, so leave it off for unaltered playback.
+- **ListenBrainz** sends your listens to a ListenBrainz server, see below.
+- **Bit-perfect USB output**, on Android 14 and later, asks Android to send the audio to a USB DAC without mixing or resampling.
 
 ## Themes
 
@@ -71,11 +82,11 @@ OpenTune keeps up to 90 seconds of the track ahead of the playing position. A sh
 
 ## Offline listening and downloads
 
-Choose **Download** in a track's menu or in the player. Finished downloads appear in **On device** and play without a connection or an account. Downloads wait for Wi-Fi by default. Turn on **Keep saved tracks offline** under **Settings**, **Offline and downloads** to download your saved TIDAL tracks in the background, 50 at a time. Downloads pause when free space is low.
+Choose **Download** in a track's menu or in the player. Finished downloads appear in **On device** and play without a connection or an account. Downloads wait for Wi-Fi by default. **Download over mobile data**, under **Settings**, **Downloads**, lets them use your data plan after a confirmation. The notification of a download shows its progress and a button to cancel it. Turn on **Keep saved tracks offline** in the same section to download your saved TIDAL tracks in the background, 50 at a time. Downloads pause when free space is low.
 
 Turn on **Offline mode** to play only audio stored on the device. OpenTune sends no requests to TIDAL in this mode.
 
-Downloads are stored in OpenTune's private storage. Android removes them when you uninstall the app or clear its storage. Use **Export audio file** in the menu of a downloaded or local track to keep a copy. Lossless downloads become tagged `.flac` files without re-encoding, and local files are copied unchanged.
+Downloads are stored in OpenTune's private storage. Android removes them when you uninstall the app or clear its storage. Use **Export audio file** in the menu of a downloaded track to keep a copy. Lossless downloads become tagged `.flac` files without re-encoding. A local file is a file already, so it has no export.
 
 ## Cars, Bluetooth and the widget
 
@@ -87,9 +98,9 @@ Add the **OpenTune** widget from your launcher's widget list. It shows the curre
 
 **Listening statistics** counts a listen after 30 seconds, or after half of the track when that comes first. The numbers are calculated on the device, and **Clear listening history** removes them.
 
-[ListenBrainz](https://listenbrainz.org) is an open source service that keeps a long-term history of what you listen to. It is not part of TIDAL. It is off by default. Add a ListenBrainz user token, or the address of your own ListenBrainz-compatible server, under **Settings**, **Listening**, and OpenTune sends the artist, title and album of each finished track. Listens that cannot be sent wait on the device until the server answers. The token is stored encrypted.
+[ListenBrainz](https://listenbrainz.org) is an open source service that keeps a long-term history of what you listen to. It is not part of TIDAL. It is off by default. Add a ListenBrainz user token, or the address of your own ListenBrainz-compatible server, under **Settings**, **Experimental**, **ListenBrainz**, and OpenTune sends the artist, title and album of each finished track. Listens that cannot be sent wait on the device until the server answers. The token is stored encrypted.
 
-**Back up data** writes a file with your settings, device playlists and listening history. **Restore data** adds such a file to the current install. TIDAL data stays in your account. The file holds no tokens, downloads or imported audio files.
+**Back up data** writes a file with your settings, device playlists and listening history. **Restore data** adds such a file to the current install. TIDAL data stays in your account. The file holds no tokens, downloads or local audio files. Playlist entries for local files are left out.
 
 ## Language
 

@@ -16,6 +16,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.yyan115.opentune.playback.AudioSpectrum
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
@@ -58,13 +64,24 @@ fun PlayControl(playing: Boolean, buffering: Boolean = false, size: Dp = 72.dp, 
 /** The playback position in milliseconds. The activity provides the position of the player and a preview provides a fixed one. */
 val LocalPlaybackPosition = staticCompositionLocalOf<StateFlow<Long>> { MutableStateFlow(0L) }
 
-/** The mini player. A swipe to either side stops playback and clears the queue. */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+/** The mini player. A swipe to either side that goes far enough stops playback and clears the queue. */
 @Composable
 fun MiniPlayer(state: PlaybackState, position: State<Long>, onOpen: () -> Unit, onPlay: () -> Unit, onNext: () -> Unit, onDismiss: () -> Unit = {}) {
     val track = state.track ?: return
-    val swipe = rememberSwipeToDismissBoxState(confirmValueChange = { value -> if (value != SwipeToDismissBoxValue.Settled) { onDismiss(); true } else false })
-    SwipeToDismissBox(swipe, backgroundContent = {}, modifier = Modifier.testTag("mini-player")) {
+    var width by remember { mutableIntStateOf(1) }
+    var offset by remember { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    val shown by androidx.compose.animation.core.animateFloatAsState(if (dragging) offset else 0f, label = "mini-player-swipe")
+    val stop = stringResource(R.string.player_stop)
+    // Only a drag of the finger moves the bar, so that nothing but a deliberate swipe stops the music.
+    Box(Modifier.testTag("mini-player").onSizeChanged { width = it.width.coerceAtLeast(1) }
+        .graphicsLayer { translationX = shown; alpha = 1f - .7f * (kotlin.math.abs(shown) / width).coerceIn(0f, 1f) }
+        .semantics { customActions = listOf(CustomAccessibilityAction(stop) { onDismiss(); true }) }
+        .pointerInput(Unit) {
+            detectHorizontalDragGestures(onDragStart = { dragging = true; offset = 0f },
+                onDragEnd = { dragging = false; if (kotlin.math.abs(offset) > width * .35f) onDismiss() },
+                onDragCancel = { dragging = false }) { change, amount -> change.consume(); offset += amount }
+        }) {
     Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(7.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f))) {

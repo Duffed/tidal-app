@@ -169,12 +169,16 @@ class TidalClient(
     suspend fun createPlaylist(title: String): Release = JsonCodec.release(
         request("users/${userId()}/playlists", method = "POST", form = mapOf("title" to title, "description" to "")), ReleaseType.PLAYLIST).copy(ownerId = userId())
 
-    suspend fun addToPlaylist(playlistId: String, trackId: String) {
-        require(!isDeviceId(trackId)) { "Local files cannot be uploaded to TIDAL playlists." }
+    suspend fun addToPlaylist(playlistId: String, trackId: String) = addToPlaylist(playlistId, listOf(trackId))
+
+    /** Adds tracks to the end of a playlist. A track that the playlist holds already is skipped, and so is a track that is no longer available. */
+    suspend fun addToPlaylist(playlistId: String, trackIds: List<String>) {
+        require(trackIds.none(::isDeviceId)) { "Local files cannot be uploaded to TIDAL playlists." }
+        if (trackIds.isEmpty()) return
         val metadata = request("playlists/$playlistId")
         val etag = etags["playlists/$playlistId"] ?: throw ServiceException(409, "Refresh this playlist before editing it.", Problem.REFRESH_PLAYLIST)
-        request("playlists/$playlistId/items", method = "POST", form = mapOf("trackIds" to trackId,
-            "toIndex" to metadata.optInt("numberOfTracks").toString(), "onDupes" to "SKIP", "onArtifactNotFound" to "FAIL"),
+        request("playlists/$playlistId/items", method = "POST", form = mapOf("trackIds" to trackIds.joinToString(","),
+            "toIndex" to metadata.optInt("numberOfTracks").toString(), "onDupes" to "SKIP", "onArtifactNotFound" to if (trackIds.size == 1) "FAIL" else "SKIP"),
             match = etag)
     }
 
@@ -340,6 +344,8 @@ class TidalClient(
             }
             currentCoroutineContext().ensureActive()
             if (generation.get() != requestGeneration) throw kotlinx.coroutines.CancellationException("Account changed")
+            // A track that was removed answers with 401 and a sub status that says so. A new sign-in does not bring it back.
+            if (result.first == 401 && unavailableAsset(result.second)) throw ServiceException(404, "This track is not available.", Problem.TRACK_UNAVAILABLE)
             if (result.first == 401 && attempt == 0) continue
             if (result.first !in 200..299) throw ServiceException(result.first, errorMessage(result.first))
             result.third?.let { etags[path] = it }
@@ -366,6 +372,9 @@ class TidalClient(
         refreshToken = response.optString("refresh_token").ifBlank { previous?.refreshToken.orEmpty() },
         expiresAt = System.currentTimeMillis() + response.optLong("expires_in", 3600) * 1000,
         userId = previous?.userId.orEmpty(), country = previous?.country ?: "US")
+
+    /** The sub statuses 4004 and 4005 of TIDAL mean that the asset of a track is missing or not ready. */
+    private fun unavailableAsset(body: String): Boolean = runCatching { JSONObject(body).optInt("subStatus") in setOf(4004, 4005) }.getOrDefault(false)
 
     private class OAuthException(val code: String) : Exception("OAuth authorization failed")
     private fun errorMessage(status: Int) = when (status) {

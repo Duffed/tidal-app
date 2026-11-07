@@ -434,7 +434,7 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
         item { SettingRow(OpenTuneIcons.RemoveCircleOutline, stringResource(R.string.settings_clear_history), stringResource(R.string.settings_clear_history_text), { clearHistory = true }) }
         item { SectionTitle(stringResource(R.string.settings_experimental)) }
         item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_experimental_features),
-            if (experimental) null else stringResource(R.string.settings_experimental_summary), { experimental = !experimental },
+            stringResource(R.string.settings_experimental_summary), { experimental = !experimental },
             trailing = { Icon(OpenTuneIcons.KeyboardArrowDown, null, Modifier.graphicsLayer { rotationZ = if (experimental) 180f else 0f }) }) }
         if (experimental) {
             item { SettingRow(OpenTuneIcons.Equalizer, stringResource(R.string.eq_title), stringResource(if (settings.equalizer) R.string.settings_on else R.string.settings_off), { equalizer = true }) }

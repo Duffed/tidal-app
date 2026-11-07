@@ -33,7 +33,7 @@ Device tests need an emulator or a connected device. They play an original 24-bi
 
 Gradle retrieves the screenshots under `app/build/outputs/connected_android_test_additional_output/`. `PlayerLayoutTest` changes the display size and density of the device while it runs and restores them afterwards. `PseudoLocaleTest` runs the screens in a pseudo-language to find text that is not translatable.
 
-Live account checks are opt-in and do not run in CI. Install the debug app and the instrumentation APK, sign in normally in **OpenTune Debug**, then run:
+`ScreenTourTest` saves a picture of the main screens for review. It runs only with `-e screenTour true`, and the pictures land in the `tour` folder of the app's external files. Live account checks are opt-in and do not run in CI. Install the debug app and the instrumentation APK, sign in normally in **OpenTune Debug**, then run:
 
 ```sh
 adb shell am instrument -w -r -e liveAccount true \
@@ -41,7 +41,7 @@ adb shell am instrument -w -r -e liveAccount true \
   io.github.yyan115.opentune.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-`LiveServiceTest` downloads a track, changes and restores a saved-track entry, and creates and removes a temporary playlist and folder. `PlaybackSoakLiveTest` plays a long track for several minutes and checks the start time, the buffer, outages of the network and autoplay. `LibraryArtworkLiveTest` checks that covers load again after an outage. Add `-e keepSession true` to leave the account signed in on a development device. Add `-e networkToggle true` to `LiveServiceTest` only on a dedicated test device, because it turns Wi-Fi and mobile data off and on. Never put account credentials or tokens in source files or CI secrets.
+`LiveServiceTest` downloads a track, changes and restores a saved-track entry, and creates and removes a temporary playlist and folder. `PlaybackSoakLiveTest` plays a long track for several minutes and checks the start time, the buffer, outages of the network and autoplay. `LibraryArtworkLiveTest` checks that covers load again after an outage. Add `-e keepSession true` to leave the account signed in on a development device. Add `-e networkToggle true` to `LiveServiceTest` only on a dedicated test device, because it turns Wi-Fi and mobile data off and on. Never put account credentials or tokens in source files or CI secrets. `PlaylistsLiveTest` adds songs to a temporary playlist from its page and checks that the queue and the playback order of a shuffled queue agree. `PagesLiveTest` checks that the title and the artist in the player open the album and the artist page.
 
 ## Text and translation
 

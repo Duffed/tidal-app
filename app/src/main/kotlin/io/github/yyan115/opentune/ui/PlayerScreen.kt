@@ -156,10 +156,8 @@ fun QueueSheet(state: AppState, vm: MainViewModel, onClose: () -> Unit) {
             }
         }
     }
-    if (save) AlertDialog(onDismissRequest = { save = false }, title = { Text(stringResource(R.string.queue_save_title)) }, text = {
-        OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.field_name)) }, singleLine = true)
-    }, confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { vm.saveQueueAsPlaylist(name); save = false }) { Text(stringResource(R.string.action_save)) } },
-        dismissButton = { TextButton(onClick = { save = false }) { Text(stringResource(R.string.action_cancel)) } })
+    if (save) NewPlaylistDialog(accountAvailable = state.signedIn && !state.settings.offline && queue.none(Track::isFile), initialName = name,
+        onCreate = { title, home -> vm.saveQueueAsPlaylist(title, home); save = false }, onClose = { save = false })
     if (confirmClear) AlertDialog(onDismissRequest = { confirmClear = false }, title = { Text(stringResource(R.string.queue_clear_title)) }, text = { Text(stringResource(R.string.queue_clear_text)) },
         confirmButton = { TextButton(onClick = { vm.clearQueue(); confirmClear = false }) { Text(stringResource(R.string.action_clear)) } },
         dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.action_cancel)) } })

@@ -239,6 +239,26 @@ class TidalClientTest {
         assertEquals("/v1/users/123/favorites/playlists/abc-123", remove.requestUrl!!.encodedPath)
     }
 
+    @Test fun severalTracksJoinAPlaylistInOneRequest() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"numberOfTracks":4}""").setHeader("ETag", "\"7\""))
+        server.enqueue(MockResponse().setBody("{}"))
+        client.addToPlaylist("playlist", listOf("11", "12", "13"))
+        server.takeRequest()
+        val add = server.takeRequest()
+        assertEquals("POST", add.method)
+        assertEquals("/v1/playlists/playlist/items", add.requestUrl!!.encodedPath)
+        val body = add.body.readUtf8()
+        assertTrue(body, "trackIds=11%2C12%2C13" in body && "toIndex=4" in body && "onArtifactNotFound=SKIP" in body)
+        try { client.addToPlaylist("playlist", listOf("local:file")); fail("A local file was uploaded") } catch (_: IllegalArgumentException) { }
+    }
+
+    @Test fun aRemovedTrackIsNotReportedAsAnExpiredSession() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(401).setBody("""{"status":401,"subStatus":4005,"userMessage":"Asset is not ready for playback"}"""))
+        try { client.stream("1", AudioQuality.LOSSLESS); fail("A removed track played") }
+        catch (error: ServiceException) { assertEquals(Problem.TRACK_UNAVAILABLE, error.problem) }
+        assertEquals("A new sign-in is not tried for a removed track", 1, server.requestCount)
+    }
+
     @Test fun pagesAskForTheLanguageOfTheDevice() = runBlocking {
         var language = "de_DE"
         val translated = TidalClient({ ClientIdentity("test-client", "test-secret") }, store,

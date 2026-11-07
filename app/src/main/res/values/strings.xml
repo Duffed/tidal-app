@@ -124,13 +124,12 @@
     <string name="device_downloading">Downloading</string>
     <string name="device_folders">Folders</string>
     <string name="device_folder_scanning">Scanning · %1$d found</string>
-    <string name="device_folder_unavailable">Unavailable. Add the folder again.</string>
+    <string name="device_folder_unavailable">Unavailable. Its files are kept.</string>
     <string name="device_folder_rescan">Scan %1$s again</string>
     <string name="device_folder_remove">Remove %1$s</string>
     <string name="device_folder_remove_title">Remove %1$s?</string>
     <string name="device_folder_remove_text">Its tracks leave the library. The files stay on your device.</string>
     <string name="device_filter_all">All</string>
-    <string name="device_filter_tidal">From TIDAL</string>
     <string name="device_filter_files">Local files</string>
     <string name="device_filter_empty">No tracks</string>
     <string name="device_empty_title">Nothing on this device yet</string>
@@ -172,6 +171,7 @@
     <string name="playlist_add_song">Add %1$s</string>
     <string name="playlist_song_added">%1$s is in the playlist</string>
     <string name="playlist_empty_text">Create a playlist, then add songs from its page or from any track menu.</string>
+    <string name="playlist_add_empty">Save tracks or add files to see them here.</string>
 
     <!-- Albums and artists -->
     <string name="credits_title">Credits</string>
@@ -202,7 +202,6 @@
     <string name="queue_empty_text">Play a track or add one from its menu.</string>
     <string name="queue_move_up">Move %1$s up</string>
     <string name="queue_remove">Remove %1$s from queue</string>
-    <string name="queue_save_title">Save queue as playlist</string>
     <string name="queue_clear_title">Clear the queue?</string>
     <string name="queue_clear_text">Playback will stop.</string>
     <string name="track_available_offline">Available offline</string>
@@ -290,6 +289,7 @@
     <string name="player_timer_label">Timer</string>
     <string name="player_label_download">Download</string>
     <string name="player_downloading">Downloading</string>
+    <string name="player_stop">Stop playback</string>
 
     <!-- Audio -->
     <string name="unit_bits">%1$s bit</string>
@@ -404,7 +404,6 @@
     <string name="settings_privacy">Privacy</string>
     <string name="settings_privacy_text">No ads, analytics or tracking. Streaming connects directly to TIDAL.</string>
     <string name="settings_licenses">Licenses</string>
-    <string name="settings_licenses_text">Open source licenses and notices</string>
     <string name="history_clear_title">Clear listening history?</string>
     <string name="history_clear_text">Statistics and the recently played list are removed. Saved tracks and playlists stay.</string>
     <string name="signout_title">Disconnect TIDAL?</string>
@@ -580,4 +579,5 @@
     <string name="error_generic">The request could not be completed. Try again.</string>
     <string name="error_playback_stopped">Playback stopped. Check the connection or choose another track.</string>
     <string name="error_file_unreadable">This file cannot be read. It may have been moved, renamed or deleted.</string>
+    <string name="error_track_unavailable">This track is not available.</string>
 </resources>
