@@ -34,13 +34,13 @@ class AppearanceSheetTest {
 
     @Test fun everyThemeCanBePreviewedAndApplied() {
         val model = ViewModelProvider(compose.activity)[MainViewModel::class.java]
-        compose.runOnIdle { model.settings { it.copy(theme = "dark", welcomeDone = true) } }
+        compose.runOnIdle { model.settings { it.copy(theme = appThemes.first().id, welcomeDone = true) } }
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.nav_settings)).performClick()
         compose.onNodeWithTag("settings-list").performScrollToNode(hasText(compose.activity.getString(R.string.settings_theme)))
         compose.onNodeWithText(compose.activity.getString(R.string.settings_theme)).performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("theme-pager").fetchSemanticsNodes().isNotEmpty() }
         screenshot("appearance-system")
-        // The pager opens on the current theme, Dark. The system choice comes before it and the rest follow the list.
+        // The pager opens on the current theme, the first of the list, Light. The system choice comes before it and the rest follow the list.
         val names = appThemes.map { compose.activity.getString(it.nameRes) }
         compose.onAllNodesWithText(names[0]).onFirst().assertExists()
         for (index in 1..appThemes.lastIndex) {
