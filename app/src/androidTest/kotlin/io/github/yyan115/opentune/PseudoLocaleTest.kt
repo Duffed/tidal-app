@@ -199,6 +199,7 @@ class PseudoLocaleTest {
             signedInList.performScrollToNode(hasText(s(row)))
             inWindow(name) { compose.onAllNodes(hasText(s(row)) and hasClickAction()).onFirst().performClick() }
         }
+        signedInList.performScrollToNode(hasText(s(R.string.settings_connected)))
         inWindow("Disconnect") { compose.onAllNodes(hasText(s(R.string.settings_connected)) and hasClickAction()).onFirst().performClick() }
         finish()
     }
