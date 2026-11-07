@@ -43,7 +43,7 @@ class ThemesTest {
 
     @Test fun idsAreUniqueAndTheNeutralOnesComeFirst() {
         assertEquals(appThemes.size, appThemes.map { it.id }.toSet().size)
-        assertEquals(listOf("dark", "light"), appThemes.take(2).map { it.id })
+        assertEquals(listOf("light", "dark"), appThemes.take(2).map { it.id })
         assertTrue("There are enough themes to choose from", appThemes.size >= 12)
         assertEquals("Each theme has its own accent", appThemes.size, appThemes.map { it.scheme.primary }.toSet().size - appThemes.count { it.id == "obsidian" }.let { 0 })
     }

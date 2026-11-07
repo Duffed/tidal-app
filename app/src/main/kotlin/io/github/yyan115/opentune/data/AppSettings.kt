@@ -17,6 +17,10 @@ data class Settings(
     val equalizer: Boolean = false,
     /** Band levels in millibels, in band order. Empty until the listener changes a band. */
     val equalizerLevels: List<Int> = emptyList(),
+    /** The band levels that the listener set by hand, which stay while a preset is chosen. */
+    val equalizerCustom: List<Int> = emptyList(),
+    /** Whether the Custom entry is the chosen preset. Moving a band chooses it. */
+    val equalizerUsesCustom: Boolean = false,
     val bitPerfect: Boolean = false,
     /** Downloads a track when it is saved with the heart button. At most one of [downloadSaved] and [downloadPlayed] is on. */
     val downloadSaved: Boolean = false,
@@ -53,6 +57,8 @@ class AppSettings(context: Context) {
         theme = io.github.yyan115.opentune.ui.migrateTheme(preferences.getString("theme", io.github.yyan115.opentune.ui.SYSTEM_THEME) ?: io.github.yyan115.opentune.ui.SYSTEM_THEME, preferences.getString("colorTheme", null)),
         normalization = preferences.getString("normalization", "off") ?: "off", equalizer = preferences.getBoolean("equalizer", false),
         equalizerLevels = preferences.getString("equalizerLevels", "").orEmpty().split(',').mapNotNull { it.trim().toIntOrNull() },
+        equalizerCustom = preferences.getString("equalizerCustom", "").orEmpty().split(',').mapNotNull { it.trim().toIntOrNull() },
+        equalizerUsesCustom = preferences.getBoolean("equalizerUsesCustom", false),
         bitPerfect = preferences.getBoolean("bitPerfect", false),
         // The option that kept saved tracks offline became the download of saved tracks.
         downloadSaved = preferences.getBoolean("downloadSaved", preferences.getBoolean("keepFavoritesOffline", false)),
@@ -68,7 +74,8 @@ class AppSettings(context: Context) {
             .putBoolean("downloadOnWifi", next.downloadOnWifi).putBoolean("offline", next.offline)
             .putString("theme", next.theme).remove("colorTheme")
             .putString("normalization", next.normalization).putBoolean("equalizer", next.equalizer)
-            .putString("equalizerLevels", next.equalizerLevels.joinToString(",")).putBoolean("bitPerfect", next.bitPerfect)
+            .putString("equalizerLevels", next.equalizerLevels.joinToString(",")).putString("equalizerCustom", next.equalizerCustom.joinToString(","))
+            .putBoolean("equalizerUsesCustom", next.equalizerUsesCustom).putBoolean("bitPerfect", next.bitPerfect)
             .putBoolean("downloadSaved", next.downloadSaved).putBoolean("downloadPlayed", next.downloadPlayed).remove("keepFavoritesOffline").putBoolean("scrobble", next.scrobble)
             .putString("scrobbleServer", next.scrobbleServer).putBoolean("welcomeDone", next.welcomeDone).putBoolean("autoplay", next.autoplay)
             .putInt("avoidRepeatHours", next.avoidRepeatHours).putBoolean("visualizer", next.visualizer).putBoolean("checkUpdates", next.checkUpdates).apply()

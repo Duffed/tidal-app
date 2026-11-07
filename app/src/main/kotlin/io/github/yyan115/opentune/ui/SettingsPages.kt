@@ -107,15 +107,13 @@ fun AvoidRepeatsPage(state: AppState, vm: MainViewModel) {
 @Composable
 fun StatisticsPage(vm: MainViewModel) {
     var days by rememberSaveable { mutableIntStateOf(30) }
-    val stats by produceState<ListeningStats?>(null, days) { value = null; value = vm.listeningStats(days) }
-    var info by remember { mutableStateOf(false) }
+    var stats by remember { mutableStateOf<ListeningStats?>(null) }
+    // The numbers of the earlier period stay on the screen while the next period loads, so a change of period does not flash.
+    LaunchedEffect(days) { stats = vm.listeningStats(days) }
     val ranges = listOf(7 to pluralStringResource(R.plurals.stats_days, 7, 7), 30 to pluralStringResource(R.plurals.stats_days, 30, 30), 365 to stringResource(R.string.stats_year), 0 to stringResource(R.string.stats_all))
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         // A period is one choice of several, so the control is a single-choice segmented button, which fills the selected segment.
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            IconButton(onClick = { info = true }) { Icon(OpenTuneIcons.Info, stringResource(R.string.stats_info_label)) }
-        }
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(bottom = 12.dp).testTag("stats-range")) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(vertical = 12.dp).testTag("stats-range")) {
             ranges.forEachIndexed { index, (value, label) ->
                 SegmentedButton(days == value, { days = value }, SegmentedButtonDefaults.itemShape(index, ranges.size), icon = {},
                     colors = SegmentedButtonDefaults.colors(activeContainerColor = MaterialTheme.colorScheme.primary, activeContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -123,32 +121,32 @@ fun StatisticsPage(vm: MainViewModel) {
                     contentPadding = PaddingValues(horizontal = 4.dp)) { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
         }
-        val current = stats
-        if (current == null) CircularProgressIndicator(Modifier.padding(16.dp))
-        else if (current.plays == 0) Box(Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.stats_empty), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        else {
-            Text(stringResource(R.string.stats_summary, pluralStringResource(R.plurals.stats_listens, current.plays, current.plays), stringResource(R.string.stats_duration, current.hours.toInt(), current.minutes.toInt())), style = MaterialTheme.typography.titleMedium)
-            UpperLabel(stringResource(R.string.stats_top_tracks), Modifier.padding(top = 18.dp, bottom = 4.dp))
-            current.tracks.take(10).forEach { entry ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(entry.track.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(entry.track.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            val current = stats
+            when {
+                current == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                current.plays == 0 -> Text(stringResource(R.string.stats_empty), Modifier.align(Alignment.Center), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+                    Text(stringResource(R.string.stats_summary, pluralStringResource(R.plurals.stats_listens, current.plays, current.plays), stringResource(R.string.stats_duration, current.hours.toInt(), current.minutes.toInt())), style = MaterialTheme.typography.titleMedium)
+                    UpperLabel(stringResource(R.string.stats_top_tracks), Modifier.padding(top = 18.dp, bottom = 4.dp))
+                    current.tracks.take(10).forEach { entry ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(entry.track.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(entry.track.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            Text(stringResource(R.string.stats_times, entry.plays), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
-                    Text(stringResource(R.string.stats_times, entry.plays), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            UpperLabel(stringResource(R.string.stats_top_artists), Modifier.padding(top = 18.dp, bottom = 4.dp))
-            current.artists.take(10).forEach { (name, plays) ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                    Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(stringResource(R.string.stats_times, plays), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    UpperLabel(stringResource(R.string.stats_top_artists), Modifier.padding(top = 18.dp, bottom = 4.dp))
+                    current.artists.take(10).forEach { (name, plays) ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                            Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(stringResource(R.string.stats_times, plays), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
             }
         }
     }
-    if (info) AlertDialog(onDismissRequest = { info = false }, text = { Text(stringResource(R.string.stats_info)) },
-        confirmButton = { TextButton(onClick = { info = false }) { Text(stringResource(R.string.action_close)) } })
 }

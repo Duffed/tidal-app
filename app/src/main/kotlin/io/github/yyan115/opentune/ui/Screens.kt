@@ -442,8 +442,8 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onOp
             }, stringResource(R.string.settings_download_played_text)) }
         }
         item { SectionTitle(stringResource(R.string.settings_about)) }
-        item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), stringResource(R.string.settings_tagline)) }
         item { SwitchRow(OpenTuneIcons.Refresh, stringResource(R.string.settings_updates), settings.checkUpdates, { value -> vm.settings { it.copy(checkUpdates = value) } }, stringResource(R.string.settings_updates_text)) }
+        item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version, BuildConfig.VERSION_NAME)) }
         item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_source), "github.com/yyan115/tidal-app", {
             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/yyan115/tidal-app"))) }
         }) }

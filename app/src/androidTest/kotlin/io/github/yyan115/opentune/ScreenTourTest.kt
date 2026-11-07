@@ -117,5 +117,14 @@ class ScreenTourTest {
         compose.onNodeWithTag("theme-pager").performTouchInput { swipeLeft() }
         compose.waitForIdle()
         picture("27-theme-preview")
+        compose.onNodeWithText("Done").performClick()
+        compose.runOnIdle { model.settings { it.copy(equalizer = true) } }
+        compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Equalizer"))
+        compose.onNode(hasText("Equalizer") and hasClickAction()).performClick()
+        if (compose.onAllNodesWithText("Preset").fetchSemanticsNodes().isNotEmpty()) {
+            picture("28-equalizer")
+            compose.onNodeWithText("Preset").performClick()
+            picture("29-equalizer-presets")
+        }
     }
 }

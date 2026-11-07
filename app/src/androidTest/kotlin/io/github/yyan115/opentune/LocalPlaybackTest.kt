@@ -183,9 +183,7 @@ class LocalPlaybackTest {
         compose.onNodeWithText("Equalizer").assertIsDisplayed()
         list.performScrollToNode(hasText("ListenBrainz"))
         compose.onNodeWithText("ListenBrainz").assertIsDisplayed()
-        // The About rows are the last of the list, so they are on the screen together.
         list.performScrollToNode(hasText("Licenses"))
-        compose.onNodeWithText("Unofficial open source music player for TIDAL, with local playback.").assertIsDisplayed()
         compose.onNodeWithText("No ads, analytics or tracking.").assertIsDisplayed()
     }
 

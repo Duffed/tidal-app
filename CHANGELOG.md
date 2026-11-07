@@ -19,6 +19,11 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 - Avoid repeats names its list Avoided tracks, and the action on a track is Allow.
 - The text of the statistics states the real rule: a track counts after half its length or 4 minutes, whichever comes first, and never before 30 seconds. The selected period is a filled segment.
 - Add files and Add folder fit narrow screens.
+- The card and the account row read "Connect TIDAL" with "Sign in to use TIDAL features and settings."
+- Light comes before Dark in the theme picker.
+- The equalizer has a Custom entry that keeps the bands that you set. Its preset field is inactive while the equalizer is off, and its list shows four entries at a time and opens below the field.
+- The information button of the listening statistics sits on the line of the title, and a change of period no longer flashes a loading indicator.
+- About starts with Check for updates, and the version has no description. The title of an empty list is centred.
 
 ## [0.6.1] - 2026-11-07
 

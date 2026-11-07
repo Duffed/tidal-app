@@ -109,7 +109,7 @@ fun EmptyState(icon: ImageVector, title: String, description: String, action: St
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
             Icon(icon, null, Modifier.padding(24.dp).size(34.dp), tint = MaterialTheme.colorScheme.primary)
         }
-        Text(title, Modifier.padding(top = 24.dp), style = MaterialTheme.typography.headlineSmall)
+        Text(title, Modifier.padding(top = 24.dp), style = MaterialTheme.typography.headlineSmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Text(description, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         if (action != null) TuneTonalButton(onClick = onAction, modifier = Modifier.padding(top = 24.dp)) { Text(action) }

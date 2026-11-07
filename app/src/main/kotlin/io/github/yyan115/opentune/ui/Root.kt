@@ -60,6 +60,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     var detailsTrack by remember { mutableStateOf<Track?>(null) }
     var exportTarget by rememberSaveable { mutableStateOf<String?>(null) }
     var navigationMenu by rememberSaveable { mutableStateOf(false) }
+    var statsInfo by remember { mutableStateOf(false) }
     val configuration = LocalConfiguration.current
     val landscape = configuration.screenWidthDp > configuration.screenHeightDp
     val largeText = LocalDensity.current.fontScale > 1.3f
@@ -129,9 +130,13 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                         IconButton(onClick = { settings = true }) { Icon(OpenTuneIcons.Settings, stringResource(R.string.nav_settings), Modifier.size(22.dp)) }
                     }
                 }
-                if (!inDetail || settings) Text(title,
-                    Modifier.padding(start = 24.dp, end = 24.dp, top = if (largeText) 2.dp else 6.dp, bottom = 14.dp),
-                    style = if (largeText || settingsPageOpen != null) AppFonts.title(30, 38) else if (destination == Destination.Home && !settings) AppFonts.title(52, 58) else AppFonts.title(44, 50))
+                if (!inDetail || settings) Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = if (settingsPageOpen == SettingsPage.Statistics) 8.dp else 24.dp, top = if (largeText) 2.dp else 6.dp, bottom = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, Modifier.weight(1f),
+                        style = if (largeText || settingsPageOpen != null) AppFonts.title(30, 38) else if (destination == Destination.Home && !settings) AppFonts.title(52, 58) else AppFonts.title(44, 50))
+                    // The explanation of the statistics sits on the line of the title.
+                    if (settingsPageOpen == SettingsPage.Statistics) IconButton(onClick = { statsInfo = true }) { Icon(OpenTuneIcons.Info, stringResource(R.string.stats_info_label)) }
+                }
             }
         },
         bottomBar = {
@@ -245,6 +250,8 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
             }
         }
     }
+    if (statsInfo) AlertDialog(onDismissRequest = { statsInfo = false }, text = { Text(stringResource(R.string.stats_info)) },
+        confirmButton = { TextButton(onClick = { statsInfo = false }) { Text(stringResource(R.string.action_close)) } })
     state.update?.let { found -> AlertDialog(onDismissRequest = vm::dismissUpdate, title = { Text(stringResource(R.string.update_title)) },
         text = { Text(stringResource(R.string.update_text, found.version)) },
         confirmButton = { TextButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(found.url))) }; vm.dismissUpdate() }) { Text(stringResource(R.string.update_download)) } },

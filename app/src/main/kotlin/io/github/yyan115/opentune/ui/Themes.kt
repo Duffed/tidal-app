@@ -98,10 +98,10 @@ private fun scheme(dark: Boolean, background: Long, text: Long, secondary: Long,
 
 /** The themes in the order of the picker. Each one has its own colours, shape and type. */
 val appThemes: List<AppTheme> = listOf(
-    AppTheme("dark", R.string.theme_dark, true,
-        scheme(true, 0x0F1012, 0xEEF0F3, 0xA3A8B0, 0x8AB4FF, 0x0A1A3A, tint = 0x8AB4FF, tintAmount = .04f), 10, SansFonts),
     AppTheme("light", R.string.theme_light, false,
         scheme(false, 0xFAFAF9, 0x16181B, 0x5C6168, 0x2554F0, 0xFFFFFF), 10, SansFonts),
+    AppTheme("dark", R.string.theme_dark, true,
+        scheme(true, 0x0F1012, 0xEEF0F3, 0xA3A8B0, 0x8AB4FF, 0x0A1A3A, tint = 0x8AB4FF, tintAmount = .04f), 10, SansFonts),
     AppTheme("obsidian", R.string.theme_obsidian, true,
         scheme(true, 0x000000, 0xF4F4F5, 0x9C9CA3, 0xFFFFFF, 0x000000, outline = 0x8C8C96), 4, SansFonts),
     AppTheme("gold", R.string.theme_gold, true,
@@ -130,7 +130,7 @@ const val SYSTEM_THEME = "system"
 /** The theme for an id. The id [SYSTEM_THEME] picks Light or Dark according to [systemDark]. An unknown id gives Dark. */
 fun themeFor(id: String, systemDark: Boolean): AppTheme = when (id) {
     SYSTEM_THEME -> appThemes.first { it.id == if (systemDark) "dark" else "light" }
-    else -> appThemes.firstOrNull { it.id == id } ?: appThemes.first()
+    else -> appThemes.firstOrNull { it.id == id } ?: appThemes.first { it.id == "dark" }
 }
 
 /**
