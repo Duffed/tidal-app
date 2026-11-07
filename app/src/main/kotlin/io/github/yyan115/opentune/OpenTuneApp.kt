@@ -17,6 +17,7 @@ class OpenTuneApp : Application() {
     val sessions by lazy { SecureSessionStore(this) }
     val settings by lazy { AppSettings(this) }
     val library by lazy { LibraryStore(this) }
+    val updates by lazy { io.github.yyan115.opentune.data.UpdateChecker(http) }
     val http by lazy { OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS)
         .addInterceptor { chain ->
             if (settings.state.value.offline) throw java.io.IOException("Offline mode is enabled")

@@ -152,8 +152,12 @@ class LocalPlaybackTest {
         compose.onNodeWithText("Theme").performClick()
         // The sheet opens on the current theme. A swipe moves to the next one, and its button applies it to the whole app.
         compose.onNodeWithTag("theme-pager").performTouchInput { swipeLeft() }
+        // The app shows the swiped theme at once, and the saved theme stays until Use.
+        compose.waitUntil(5_000) { model.previewTheme.value != null }
+        assertEquals("light", model.state.value.settings.theme)
         compose.onNodeWithTag("theme-apply").performClick()
         compose.waitUntil(5_000) { model.state.value.settings.theme != "light" }
+        compose.waitUntil(5_000) { model.previewTheme.value == null }
         val chosen = model.state.value.settings.theme
         compose.onNodeWithText("Done").performClick()
         compose.activityRule.scenario.recreate()
@@ -167,6 +171,12 @@ class LocalPlaybackTest {
         // Rows that change how TIDAL is streamed and downloaded need an account.
         for (hidden in listOf("Wi-Fi audio quality", "Mobile audio quality", "Autoplay", "Volume normalization", "Offline mode", "Download over mobile data", "Download saved tracks", "Download played tracks", "Audio output", "Keep saved tracks offline"))
             compose.onAllNodesWithText(hidden).assertCountEquals(0)
+        // The update check can be turned off.
+        list.performScrollToNode(hasText("Check for updates"))
+        compose.onNode(hasText("Check for updates") and hasClickAction()).performClick()
+        compose.waitUntil(5_000) { !model.state.value.settings.checkUpdates }
+        compose.onNode(hasText("Check for updates") and hasClickAction()).performClick()
+        compose.waitUntil(5_000) { model.state.value.settings.checkUpdates }
         // Experimental is a section of the list and not a page, so its rows show without a tap.
         list.performScrollToNode(hasText("Experimental"))
         list.performScrollToNode(hasText("Equalizer"))
@@ -175,7 +185,7 @@ class LocalPlaybackTest {
         compose.onNodeWithText("ListenBrainz").assertIsDisplayed()
         // The About rows are the last of the list, so they are on the screen together.
         list.performScrollToNode(hasText("Licenses"))
-        compose.onNodeWithText("Unofficial open source Android music player for TIDAL").assertIsDisplayed()
+        compose.onNodeWithText("Unofficial open source music player for TIDAL, with local playback.").assertIsDisplayed()
         compose.onNodeWithText("No ads, analytics or tracking.").assertIsDisplayed()
     }
 
@@ -188,16 +198,16 @@ class LocalPlaybackTest {
             compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Avoid repeats"))
             compose.onNode(hasText("Avoid repeats") and hasClickAction()).performClick()
             // Section labels are drawn in capitals.
-            compose.onNodeWithText("EXCLUDED TRACKS").assertIsDisplayed()
+            compose.onNodeWithText("AVOIDED TRACKS").assertIsDisplayed()
             compose.onNodeWithTag("repeats-list").performScrollToNode(hasText("Night Walk"))
             compose.onNodeWithText("Night Walk").assertIsDisplayed()
-            compose.onNodeWithText("Include").performClick()
-            compose.waitUntil(5_000) { compose.onAllNodesWithText("No excluded tracks").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Allow").performClick()
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("No avoided tracks").fetchSemanticsNodes().isNotEmpty() }
             assertTrue(app.library.playedSince(0).isEmpty())
             // Every time window is one choice of several.
             compose.onNode(hasText("Off") and hasClickAction()).performClick()
             compose.waitUntil(5_000) { model.state.value.settings.avoidRepeatHours == 0 }
-            compose.onAllNodesWithText("EXCLUDED TRACKS").assertCountEquals(0)
+            compose.onAllNodesWithText("AVOIDED TRACKS").assertCountEquals(0)
             compose.onNodeWithContentDescription("Back").performClick()
             compose.onNodeWithTag("settings-list").assertIsDisplayed()
         } finally {
@@ -227,13 +237,15 @@ class LocalPlaybackTest {
         compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Licenses"))
         compose.onNode(hasText("Licenses") and hasClickAction()).performClick()
-        compose.onNodeWithTag("licences-list").assertIsDisplayed()
+        // One row for OpenTune and for each component that it ships, each with its licence.
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("licences-list").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("GNU General Public License 3.0").assertIsDisplayed()
-        compose.onNodeWithText("Apache License 2.0").assertIsDisplayed()
+        compose.onNodeWithTag("licences-list").performScrollToNode(hasText("OkHttp and Okio"))
+        compose.onNodeWithText("Square · Apache License 2.0").assertIsDisplayed()
         compose.onNodeWithTag("licences-list").performScrollToNode(hasText("JetBrains Mono"))
-        compose.onAllNodesWithText("SIL Open Font License 1.1").assertCountEquals(4)
-        compose.onNodeWithTag("licences-list").performScrollToNode(hasText("GNU General Public License 3.0"))
-        compose.onNode(hasText("GNU General Public License 3.0") and hasClickAction()).performClick()
+        compose.onNodeWithText("JetBrains · SIL Open Font License 1.1").assertIsDisplayed()
+        compose.onNodeWithTag("licences-list").performScrollToNode(hasText("OpenTune"))
+        compose.onNode(hasText("OpenTune") and hasClickAction()).performClick()
         compose.waitUntil(10_000) { compose.onAllNodes(hasText("GNU GENERAL PUBLIC LICENSE", substring = true)).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Back").performClick()
         compose.onNodeWithTag("licences-list").assertIsDisplayed()

@@ -8,16 +8,22 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ### Added
 
-- Avoid repeats has its own page. It lists the excluded tracks with the time of their last play and the time that remains, and Include lets a track play again at once.
+- Avoid repeats has its own page. It lists the avoided tracks with the time of their last play and the time that remains, and Allow lets a track play again at once.
 - Experimental has two download options. Download saved tracks downloads a track when it is saved with the heart button. Download played tracks downloads each track that counts as played and asks for confirmation. Turning one on turns the other off.
 - Listening statistics has its own page, and the period is chosen with a segmented button.
 - The equalizer chooses its preset from a list that shows the current preset.
+
+- Check for updates, under About, looks for a newer release when the app opens and shows a dialog when there is one. A switch turns it off.
+- The theme picker shows the swiped theme in the whole app at once. Use keeps it, and closing the picker brings back the saved theme.
+- Listening statistics has an information button that explains when a track counts as played.
 
 ### Changed
 
 - Without an account, On device is the only place, with its text filter and no navigation bar. Settings that only apply to TIDAL appear once an account is connected.
 - Experimental is a section of the Settings list and no longer a collapsed row.
-- The licences open as a list with one page for each document, in place of a dialog with seven tabs.
+- Licenses lists OpenTune and each component with its licence, and a row opens the licence text. The notices carry no other text.
+- The first screen, the sign-in sheet, the empty list of On device, the account row, the About text and the explanations of Avoid repeats and Clear listening history have new wording. The sign-in sheet no longer carries the password sentence.
+- The text of the statistics now states the real rule: a track counts after half its length or 4 minutes, whichever comes first, and never before 30 seconds.
 - New installs follow the theme of the device. Audiophile Gold is named Gold, and the themes no longer carry descriptions.
 - The About section names OpenTune as an unofficial open source Android music player for TIDAL, for every version.
 - Offline mode is switched off when the account is disconnected.

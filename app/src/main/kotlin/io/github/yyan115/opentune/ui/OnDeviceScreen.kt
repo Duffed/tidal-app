@@ -58,8 +58,8 @@ fun OnDeviceScreen(state: AppState, vm: MainViewModel, onAddFiles: () -> Unit, o
     LazyColumn(Modifier.fillMaxSize().testTag("device-list"), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TuneOutlinedButton(onClick = onAddFiles, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.AudioFile, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.device_add_files), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                TuneOutlinedButton(onClick = onAddFolder, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.Folder, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.device_add_folder), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                TuneOutlinedButton(onClick = onAddFiles, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 13.dp)) { Icon(OpenTuneIcons.AudioFile, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.device_add_files), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                TuneOutlinedButton(onClick = onAddFolder, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 13.dp)) { Icon(OpenTuneIcons.Folder, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.device_add_folder), maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
         }
         if (!state.signedIn) item { ConnectCard(onLogin) }

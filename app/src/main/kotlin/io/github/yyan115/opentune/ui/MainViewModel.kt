@@ -79,6 +79,8 @@ data class AppState(
     val folders: Map<String, List<Release>> = emptyMap(),
     val hasMoreFavorites: Boolean = false,
     val exportProgress: Int? = null,
+    /** A release that is newer than the installed version, shown in a dialog until it is dismissed. */
+    val update: io.github.yyan115.opentune.core.ReleaseNotice? = null,
 )
 
 @OptIn(FlowPreview::class)
@@ -112,6 +114,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var favoritesOffset = 0
     private val favoriteSyncLock = Mutex()
     private var collectionReady = false
+    private var updateChecked = false
+    private val themePreview = MutableStateFlow<String?>(null)
+    /** The theme that the picker shows while the listener swipes. It replaces the saved theme until the picker closes. */
+    val previewTheme = themePreview.asStateFlow()
+    fun previewTheme(id: String?) { themePreview.value = id }
     private var networkCallbackRegistered = false
     private val connectivity = application.getSystemService(ConnectivityManager::class.java)
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -164,6 +171,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ui.update { it.copy(settings = settings) }
             if (!wasOffline && settings.offline) app.http.dispatcher.cancelAll()
             if (wasOffline && !settings.offline && collectionReady) sync()
+            // The check waits for the first screen to be answered, so a dialog never covers it.
+            if (!updateChecked && settings.checkUpdates && !settings.offline && (settings.welcomeDone || ui.value.signedIn)) {
+                updateChecked = true
+                viewModelScope.launch { app.updates.newer(io.github.yyan115.opentune.BuildConfig.VERSION_NAME)?.let { found -> ui.update { it.copy(update = found) } } }
+            }
         } }
         viewModelScope.launch {
             WorkManager.getInstance(application).getWorkInfosByTagFlow("audio-download").collect { jobs ->
@@ -261,6 +273,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    fun dismissUpdate() { ui.update { it.copy(update = null) } }
 
     fun cancelLogin() { loginJob?.cancel(); app.sessions.clearPkce(); ui.update { it.copy(signingIn = false, pkceLogin = null, error = null) } }
     fun signOut() {

@@ -149,7 +149,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                     SettingsPage.Repeats -> AvoidRepeatsPage(state, vm)
                     SettingsPage.Statistics -> StatisticsPage(vm)
                     SettingsPage.Licenses -> LicencesPage { settingsPage = it.name }
-                    SettingsPage.Notices, SettingsPage.Gpl, SettingsPage.Apache, SettingsPage.Inter, SettingsPage.Serif, SettingsPage.Space, SettingsPage.Mono -> LicenceDocumentPage(settingsPageOpen)
+                    SettingsPage.Gpl, SettingsPage.Apache, SettingsPage.Inter, SettingsPage.Serif, SettingsPage.Space, SettingsPage.Mono -> LicenceDocumentPage(settingsPageOpen)
                     null -> SettingsScreen(state, vm, openLogin) { settingsPage = it.name }
                 }
                 state.routes.isNotEmpty() -> PageScreen(state.routes.last(), state, vm, pagesVm, openTrackMenu)
@@ -245,6 +245,10 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
             }
         }
     }
+    state.update?.let { found -> AlertDialog(onDismissRequest = vm::dismissUpdate, title = { Text(stringResource(R.string.update_title)) },
+        text = { Text(stringResource(R.string.update_text, found.version)) },
+        confirmButton = { TextButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(found.url))) }; vm.dismissUpdate() }) { Text(stringResource(R.string.update_download)) } },
+        dismissButton = { TextButton(onClick = vm::dismissUpdate) { Text(stringResource(R.string.update_later)) } }) }
     detailsTrack?.let { track -> SourceDetailsSheet(track.quality.orEmpty(), track, vm) { detailsTrack = null } }
     state.video?.let { video -> VideoPlayerOverlay(video, state.settings.offline, vm::closeVideo) }
     state.credits?.let { credits -> CreditsSheet(credits, onClose = vm::dismissCredits, onPerson = { person ->

@@ -1,1 +1,1 @@
-Full-featured open source music player for TIDAL
+Unofficial open source music player for TIDAL, with local playback

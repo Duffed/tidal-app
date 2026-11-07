@@ -26,7 +26,7 @@ import java.util.Date
 /** The pages that open from the Settings list. Each one has its own title in the top bar. */
 enum class SettingsPage(@StringRes val title: Int) {
     Repeats(R.string.settings_repeats), Statistics(R.string.stats_title), Licenses(R.string.settings_licenses),
-    Notices(R.string.licenses_notices), Gpl(R.string.licenses_gpl), Apache(R.string.licenses_apache),
+    Gpl(R.string.licenses_gpl), Apache(R.string.licenses_apache),
     Inter(R.string.licenses_inter), Serif(R.string.licenses_serif), Space(R.string.licenses_space), Mono(R.string.licenses_mono);
 
     /** The page that the back button returns to, or null for the Settings list. */
@@ -66,7 +66,7 @@ fun AvoidRepeatsPage(state: AppState, vm: MainViewModel) {
     val excluded by produceState<List<MainViewModel.ExcludedTrack>?>(null, hours, revision, now) { value = vm.excludedTracks(hours) }
     val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
     androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize().testTag("repeats-list"), contentPadding = PaddingValues(bottom = 24.dp)) {
-        item { Text(stringResource(R.string.settings_repeats_text), Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item { Text(stringResource(if (state.signedIn) R.string.settings_repeats_text_tidal else R.string.settings_repeats_text), Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { UpperLabel(stringResource(R.string.repeats_window), Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) }
         items(RepeatWindows.size) { index ->
             val window = RepeatWindows[index]
@@ -108,20 +108,26 @@ fun AvoidRepeatsPage(state: AppState, vm: MainViewModel) {
 fun StatisticsPage(vm: MainViewModel) {
     var days by rememberSaveable { mutableIntStateOf(30) }
     val stats by produceState<ListeningStats?>(null, days) { value = null; value = vm.listeningStats(days) }
+    var info by remember { mutableStateOf(false) }
     val ranges = listOf(7 to pluralStringResource(R.plurals.stats_days, 7, 7), 30 to pluralStringResource(R.plurals.stats_days, 30, 30), 365 to stringResource(R.string.stats_year), 0 to stringResource(R.string.stats_all))
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
         // A period is one choice of several, so the control is a single-choice segmented button, which fills the selected segment.
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(vertical = 12.dp).testTag("stats-range")) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            IconButton(onClick = { info = true }) { Icon(OpenTuneIcons.Info, stringResource(R.string.stats_info_label)) }
+        }
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(bottom = 12.dp).testTag("stats-range")) {
             ranges.forEachIndexed { index, (value, label) ->
                 SegmentedButton(days == value, { days = value }, SegmentedButtonDefaults.itemShape(index, ranges.size), icon = {},
-                    colors = SegmentedButtonDefaults.colors(activeContainerColor = MaterialTheme.colorScheme.primaryContainer, activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    colors = SegmentedButtonDefaults.colors(activeContainerColor = MaterialTheme.colorScheme.primary, activeContentColor = MaterialTheme.colorScheme.onPrimary,
                         activeBorderColor = MaterialTheme.colorScheme.primary),
                     contentPadding = PaddingValues(horizontal = 4.dp)) { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
         }
         val current = stats
         if (current == null) CircularProgressIndicator(Modifier.padding(16.dp))
-        else if (current.plays == 0) Text(stringResource(R.string.stats_empty), style = MaterialTheme.typography.bodyMedium)
+        else if (current.plays == 0) Box(Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.Center) {
+            Text(stringResource(R.string.stats_empty), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         else {
             Text(stringResource(R.string.stats_summary, pluralStringResource(R.plurals.stats_listens, current.plays, current.plays), stringResource(R.string.stats_duration, current.hours.toInt(), current.minutes.toInt())), style = MaterialTheme.typography.titleMedium)
             UpperLabel(stringResource(R.string.stats_top_tracks), Modifier.padding(top = 18.dp, bottom = 4.dp))
@@ -143,4 +149,6 @@ fun StatisticsPage(vm: MainViewModel) {
             }
         }
     }
+    if (info) AlertDialog(onDismissRequest = { info = false }, text = { Text(stringResource(R.string.stats_info)) },
+        confirmButton = { TextButton(onClick = { info = false }) { Text(stringResource(R.string.action_close)) } })
 }

@@ -43,7 +43,9 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(incomingCallback) {
                 incomingCallback?.let { model.completeBrowserLogin(it); incomingCallback = null }
             }
-            val dark = themeFor(state.settings.theme, isSystemInDarkTheme()).dark
+            val preview by model.previewTheme.collectAsStateWithLifecycle()
+            val themeId = preview ?: state.settings.theme
+            val dark = themeFor(themeId, isSystemInDarkTheme()).dark
             LaunchedEffect(dark) {
                 withFrameNanos { }
                 WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -51,7 +53,7 @@ class MainActivity : ComponentActivity() {
                     isAppearanceLightNavigationBars = !dark
                 }
             }
-            OpenTuneTheme(state.settings.theme) { CompositionLocalProvider(LocalOfflineMode provides state.settings.offline, LocalNetworkEpoch provides networkEpoch, LocalPlaybackPosition provides model.position) { OpenTuneRoot(model, state) } }
+            OpenTuneTheme(themeId) { CompositionLocalProvider(LocalOfflineMode provides state.settings.offline, LocalNetworkEpoch provides networkEpoch, LocalPlaybackPosition provides model.position) { OpenTuneRoot(model, state) } }
         }
     }
 

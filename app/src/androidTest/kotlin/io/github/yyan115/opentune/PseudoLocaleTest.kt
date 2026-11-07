@@ -157,10 +157,10 @@ class PseudoLocaleTest {
             list.performScrollToNode(hasText(s(row)))
             compose.onAllNodes(hasText(s(row)) and hasClickAction()).onFirst().performClick()
             await("the $name") { compose.onAllNodesWithTag("settings-list").fetchSemanticsNodes().isEmpty() }
-            sweep(name)
+            // The licence list and the licence texts come from the notices files and stay in English, so they are only checked for opening.
+            if (row != R.string.settings_licenses) sweep(name)
             if (row == R.string.settings_licenses) {
-                // The licence texts are legal documents that stay in English, so a document is only checked for opening.
-                compose.onAllNodes(hasText(s(R.string.licenses_gpl)) and hasClickAction()).onFirst().performClick()
+                compose.onAllNodes(hasText(s(R.string.brand_name)) and hasClickAction()).onFirst().performClick()
                 await("the licence document") { compose.onAllNodesWithTag("licence-document").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithContentDescription(s(R.string.action_back)).performClick()
                 await("the licence list") { compose.onAllNodesWithTag("licences-list").fetchSemanticsNodes().isNotEmpty() }

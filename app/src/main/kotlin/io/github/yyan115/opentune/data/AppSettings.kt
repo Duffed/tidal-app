@@ -32,6 +32,8 @@ data class Settings(
     val avoidRepeatHours: Int = 0,
     /** Shows the spectrum of the music over the artwork in the player. */
     val visualizer: Boolean = false,
+    /** Looks for a newer release when the app opens. */
+    val checkUpdates: Boolean = true,
 ) {
     /** Turns the download of saved tracks on or off. Turning it on turns the download of played tracks off. */
     fun withDownloadSaved(on: Boolean) = copy(downloadSaved = on, downloadPlayed = downloadPlayed && !on)
@@ -57,7 +59,8 @@ class AppSettings(context: Context) {
         downloadPlayed = preferences.getBoolean("downloadPlayed", false),
         scrobble = preferences.getBoolean("scrobble", false), scrobbleServer = preferences.getString("scrobbleServer", "https://api.listenbrainz.org") ?: "https://api.listenbrainz.org",
         welcomeDone = preferences.getBoolean("welcomeDone", false), autoplay = preferences.getBoolean("autoplay", true),
-        avoidRepeatHours = preferences.getInt("avoidRepeatHours", 0), visualizer = preferences.getBoolean("visualizer", false)).exclusive())
+        avoidRepeatHours = preferences.getInt("avoidRepeatHours", 0), visualizer = preferences.getBoolean("visualizer", false),
+        checkUpdates = preferences.getBoolean("checkUpdates", true)).exclusive())
     val state = mutable.asStateFlow()
     fun update(transform: (Settings) -> Settings) {
         val next = transform(mutable.value).exclusive()
@@ -68,7 +71,7 @@ class AppSettings(context: Context) {
             .putString("equalizerLevels", next.equalizerLevels.joinToString(",")).putBoolean("bitPerfect", next.bitPerfect)
             .putBoolean("downloadSaved", next.downloadSaved).putBoolean("downloadPlayed", next.downloadPlayed).remove("keepFavoritesOffline").putBoolean("scrobble", next.scrobble)
             .putString("scrobbleServer", next.scrobbleServer).putBoolean("welcomeDone", next.welcomeDone).putBoolean("autoplay", next.autoplay)
-            .putInt("avoidRepeatHours", next.avoidRepeatHours).putBoolean("visualizer", next.visualizer).apply()
+            .putInt("avoidRepeatHours", next.avoidRepeatHours).putBoolean("visualizer", next.visualizer).putBoolean("checkUpdates", next.checkUpdates).apply()
         mutable.value = next
     }
 }

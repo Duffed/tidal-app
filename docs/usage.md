@@ -45,7 +45,7 @@ Tap the track title in the player to open its album, or the artist name to open 
 - **Lyrics** highlight the current line. Drag to read ahead, and the view follows the song again after a few seconds. Tap a line to jump to it. Tracks without timing show the plain text, and some tracks have no lyrics. Lyrics are provided by Musixmatch through TIDAL and stay on the device after the first load.
 - The **sleep timer** pauses playback after 15 to 90 minutes or at the end of the track.
 - The **queue** shows what plays next. Drag a row by its handle to move it, and swipe a row sideways to remove it. **Shuffle** puts the tracks after the current one in random order in the queue itself, so the queue always shows the real order, and turning shuffle off restores the earlier order.
-- **Avoid repeats**, under **Settings**, **Playback**, puts tracks that played within the chosen time last in shuffle and leaves them out of radio and autoplay. Its page lists the excluded tracks with the time of their last play and the time that remains. **Include** lets a track play again at once, and its next play starts the time anew.
+- **Avoid repeats**, under **Settings**, **Playback**, puts tracks that played within the chosen time last in shuffle and leaves them out of radio and autoplay. Its page lists the avoided tracks with the time of their last play and the time that remains. **Allow** lets a track play again at once, and its next play starts the time anew.
 - **Autoplay** adds similar tracks from TIDAL when the queue ends. Turn it off under **Settings**, **TIDAL**.
 - Tap the format line in the player to see the codec, bit depth and sample rate of the source. These values describe the file, not the output of your audio device.
 
@@ -81,7 +81,7 @@ Both download options need an account, follow **Download over mobile data**, sto
 
 ## Themes
 
-**Settings**, **Appearance**, **Theme** opens the theme picker. Swipe through the themes, each shown as a preview of the real interface, and choose **Use** to apply one. **System** switches between Light and Dark with the device and is the default on a new install. Dark, Light, Obsidian, Gold, Cyberpunk, Neon, Ocean, Ember, Forest, Paper, Sky and Rose each have their own colours, shapes and type.
+**Settings**, **Appearance**, **Theme** opens the theme picker. Swipe through the themes and the whole app shows each one at once. Choose **Use** to keep a theme. Closing the picker brings back the saved theme. **System** switches between Light and Dark with the device and is the default on a new install. Dark, Light, Obsidian, Gold, Cyberpunk, Neon, Ocean, Ember, Forest, Paper, Sky and Rose each have their own colours, shapes and type.
 
 ## Offline listening and downloads
 
@@ -99,7 +99,7 @@ Add the **OpenTune** widget from your launcher's widget list. It shows the curre
 
 ## Statistics, ListenBrainz and backup
 
-**Listening statistics** counts a listen after 30 seconds, or after half of the track when that comes first. The numbers are calculated on the device, and **Clear listening history** removes them.
+**Listening statistics** counts a listen after half of the track or 4 minutes, whichever comes first, and never before 30 seconds. The numbers are calculated on the device, and **Clear listening history** removes them.
 
 [ListenBrainz](https://listenbrainz.org) is an open source service that keeps a long-term history of what you listen to. It is not part of TIDAL. It is off by default. Add a ListenBrainz user token, or the address of your own ListenBrainz-compatible server, under **Settings**, **Experimental**, **ListenBrainz**, and OpenTune sends the artist, title and album of each finished track. Listens that cannot be sent wait on the device until the server answers. The token is stored encrypted.
 

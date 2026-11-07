@@ -208,7 +208,7 @@ fun TuneTonalButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled:
 }
 
 @Composable
-fun TuneOutlinedButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable RowScope.() -> Unit) {
-    OutlinedButton(onClick, modifier, enabled, shape = RoundedCornerShape(6.dp),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 13.dp), content = content)
+fun TuneOutlinedButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 13.dp), content: @Composable RowScope.() -> Unit) {
+    OutlinedButton(onClick, modifier, enabled, shape = RoundedCornerShape(6.dp), contentPadding = contentPadding, content = content)
 }

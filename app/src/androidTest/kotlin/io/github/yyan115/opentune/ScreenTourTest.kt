@@ -84,4 +84,38 @@ class ScreenTourTest {
         compose.onNode(hasText("Licenses") and hasClickAction()).performClick()
         picture("11-licences")
     }
+
+    @Test fun settingsAndFirstScreen() {
+        compose.runOnIdle { model.clearQueue(); model.settings { it.copy(theme = "dark", offline = false, welcomeDone = false, avoidRepeatHours = 0) } }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("welcome").fetchSemanticsNodes().isNotEmpty() }
+        picture("20-first-screen")
+        compose.runOnIdle { model.settings { it.copy(welcomeDone = true) } }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("device-list").fetchSemanticsNodes().isNotEmpty() }
+        picture("21-on-device")
+        compose.onNodeWithContentDescription("Settings").performClick()
+        picture("22-settings-top")
+        compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Licenses"))
+        picture("23-settings-about")
+        compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Listening statistics"))
+        compose.onNode(hasText("Listening statistics") and hasClickAction()).performClick()
+        app.library.clearHistory()
+        picture("24-statistics-empty")
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Avoid repeats"))
+        compose.runOnIdle { model.settings { it.copy(avoidRepeatHours = 24) } }
+        compose.onNode(hasText("Avoid repeats") and hasClickAction()).performClick()
+        picture("25-avoid-repeats")
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.runOnIdle { model.settings { it.copy(avoidRepeatHours = 0) } }
+        compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Licenses"))
+        compose.onNode(hasText("Licenses") and hasClickAction()).performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("licences-list").fetchSemanticsNodes().isNotEmpty() }
+        picture("26-licences")
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Theme"))
+        compose.onNodeWithText("Theme").performClick()
+        compose.onNodeWithTag("theme-pager").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        picture("27-theme-preview")
+    }
 }

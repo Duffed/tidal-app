@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,12 +45,15 @@ private val PreviewHeight = 500.dp
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppearanceSheet(settings: Settings, onChange: (Settings) -> Unit, onClose: () -> Unit) {
+fun AppearanceSheet(settings: Settings, onChange: (Settings) -> Unit, onPreview: (String?) -> Unit = {}, onClose: () -> Unit) {
     val ids = listOf(SYSTEM_THEME) + appThemes.map { it.id }
     val systemDark = isSystemInDarkTheme()
     val pager = rememberPagerState(initialPage = ids.indexOf(settings.theme).coerceAtLeast(0)) { ids.size }
     val shown = ids[pager.currentPage]
     val inUse = settings.theme == shown
+    // The whole app shows the theme that the listener swipes to. It stays only after Use, and closing the picker brings back the saved theme.
+    LaunchedEffect(shown, settings.theme) { onPreview(shown.takeIf { it != settings.theme }) }
+    DisposableEffect(Unit) { onDispose { onPreview(null) } }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         val theme = themeFor(shown, systemDark)
         val name = stringResource(if (shown == SYSTEM_THEME) R.string.theme_system else theme.nameRes)

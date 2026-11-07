@@ -376,7 +376,6 @@ fun LoginSheet(state: AppState, vm: MainViewModel, onClose: () -> Unit) {
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (state.signingIn) LinearProgressIndicator(Modifier.fillMaxWidth())
             TuneButton(onClick = openBrowser, enabled = !state.signingIn, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.login_button)) }
-            Text(stringResource(R.string.login_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -444,6 +443,7 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onOp
         }
         item { SectionTitle(stringResource(R.string.settings_about)) }
         item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), stringResource(R.string.settings_tagline)) }
+        item { SwitchRow(OpenTuneIcons.Refresh, stringResource(R.string.settings_updates), settings.checkUpdates, { value -> vm.settings { it.copy(checkUpdates = value) } }, stringResource(R.string.settings_updates_text)) }
         item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_source), "github.com/yyan115/tidal-app", {
             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/yyan115/tidal-app"))) }
         }) }
@@ -473,7 +473,7 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onOp
             RadioButton(if (mobile) settings.mobileQuality == value else settings.quality == value, onClick = null)
             Text(stringResource(value.labelRes()), Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyMedium)
         } } } }, confirmButton = {})
-    if (theme) AppearanceSheet(settings, { next -> vm.settings { next } }) { theme = false }
+    if (theme) AppearanceSheet(settings, { next -> vm.settings { next } }, onPreview = vm::previewTheme) { theme = false }
     if (signOut) AlertDialog(onDismissRequest = { signOut = false }, title = { Text(stringResource(R.string.signout_title)) }, text = { Text(stringResource(R.string.signout_text)) },
         confirmButton = { TextButton(onClick = { vm.signOut(); signOut = false }) { Text(stringResource(R.string.signout_confirm)) } }, dismissButton = { TextButton(onClick = { signOut = false }) { Text(stringResource(R.string.action_cancel)) } })
 }

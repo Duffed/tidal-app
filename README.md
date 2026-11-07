@@ -2,7 +2,7 @@
 
 <img src="docs/branding/opentune-mark.svg" width="72" alt="OpenTune icon">
 
-A full-featured, unofficial and open source Android music player for TIDAL.
+An unofficial open source music player for TIDAL, with local playback.
 
 Stream your TIDAL library in lossless quality, with synced lyrics, offline listening, Android Auto and twelve themes. Add your own audio files and folders, and they play alongside TIDAL in the same player. OpenTune has no ads, analytics or tracking, and it connects only to TIDAL.
 
