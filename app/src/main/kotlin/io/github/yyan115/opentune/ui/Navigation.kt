@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** The places that the navigation offers. A listener who has not signed in sees only [Device] and [Search]. */
+/** The places that the navigation offers. A listener who has not signed in has [Device] only, so the navigation is not shown. */
 enum class Destination(val tag: String, @androidx.annotation.StringRes val title: Int) {
     Home("home", R.string.nav_home), Search("search", R.string.nav_search), Library("library", R.string.nav_library), Device("device", R.string.nav_device);
 

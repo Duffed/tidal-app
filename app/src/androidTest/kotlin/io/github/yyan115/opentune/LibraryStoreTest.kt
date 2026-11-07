@@ -205,4 +205,43 @@ class LibraryStoreTest {
             assertEquals(listOf(old.id), store.outdatedFiles(1).map { it.id })
         } } finally { context.deleteDatabase(name) }
     }
+
+    @Test fun aTrackThatWasAllowedAgainStaysOutOfTheWindowUntilItPlaysAgain() {
+        val name = "repeats-test.db"
+        context.deleteDatabase(name)
+        val one = Track("1", "One", "Artist"); val two = Track("2", "Two", "Artist")
+        try { withStore(name) { store ->
+            val hour = 3_600_000L; val now = System.currentTimeMillis()
+            store.recordPlay(one, 60_000, now - 2 * hour); store.recordPlay(two, 60_000, now - hour); store.recordPlay(one, 60_000, now - 30 * hour)
+            assertEquals("The latest play of each track within the window, the latest first", listOf("2" to now - hour, "1" to now - 2 * hour), store.excludedSince(now - 24 * hour))
+            assertEquals(setOf("1", "2"), store.playedSince(now - 24 * hour))
+            store.allowAgain("1", now - 30 * 60_000L)
+            assertEquals("A track that was allowed again after its last play leaves the window", setOf("2"), store.playedSince(now - 24 * hour))
+            store.recordPlay(one, 60_000, now)
+            assertEquals("A new play starts the window again", listOf("1", "2"), store.excludedSince(now - 24 * hour).map { it.first })
+            store.allowAgain("2", now + 1)
+            store.clearHistory()
+            assertTrue(store.excludedSince(0).isEmpty())
+            store.recordPlay(two, 60_000, now + 2)
+            assertEquals("Clearing the history also clears what was allowed again", setOf("2"), store.playedSince(0))
+        } } finally { context.deleteDatabase(name) }
+    }
+
+    @Test fun anOlderDatabaseGetsTheTableOfAllowedTracks() {
+        val name = "repeats-upgrade-test.db"
+        context.deleteDatabase(name)
+        val file = context.getDatabasePath(name).also { it.parentFile!!.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
+            db.execSQL("CREATE TABLE tracks (id TEXT PRIMARY KEY, payload TEXT NOT NULL, favorite INTEGER NOT NULL DEFAULT 0, played INTEGER NOT NULL DEFAULT 0)")
+            db.execSQL("CREATE TABLE plays (id INTEGER PRIMARY KEY AUTOINCREMENT, track_id TEXT NOT NULL, played_at INTEGER NOT NULL, listened_ms INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE local_sources (key TEXT PRIMARY KEY, track_id TEXT NOT NULL, modified INTEGER NOT NULL DEFAULT 0, size INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 0, direct INTEGER NOT NULL DEFAULT 0)")
+            db.execSQL("INSERT INTO plays (track_id, played_at, listened_ms) VALUES ('1', ?, 60000)", arrayOf(System.currentTimeMillis()))
+            db.version = 5
+        }
+        try { withStore(name) { store ->
+            assertEquals(setOf("1"), store.playedSince(0))
+            store.allowAgain("1", System.currentTimeMillis() + 1)
+            assertTrue(store.playedSince(0).isEmpty())
+        } } finally { context.deleteDatabase(name) }
+    }
 }

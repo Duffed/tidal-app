@@ -15,7 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class LibraryStore(context: Context, databaseName: String = "library.db") : SQLiteOpenHelper(context, databaseName, null, 5) {
+class LibraryStore(context: Context, databaseName: String = "library.db") : SQLiteOpenHelper(context, databaseName, null, 6) {
     private val revision = MutableStateFlow(0L)
     val changes = revision.asStateFlow()
     override fun onCreate(db: SQLiteDatabase) {
@@ -27,6 +27,7 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
         createHistoryTables(db)
         createFolderTables(db)
         createSourceTables(db)
+        createRepeatTables(db)
     }
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true); db.enableWriteAheadLogging() }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -51,9 +52,15 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
                 }
             }
         }
+        if (oldVersion < 6) createRepeatTables(db)
     }
 
     /** A file on the device is known by the document it came from. [version] says how it was read, [direct] says that the listener added it by hand. */
+    /** A track that the listener allowed again stays out of the avoid-repeats window until it plays once more. */
+    private fun createRepeatTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE repeat_releases (track_id TEXT PRIMARY KEY, released_at INTEGER NOT NULL)")
+    }
+
     private fun createSourceTables(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE local_sources (key TEXT PRIMARY KEY, track_id TEXT NOT NULL, modified INTEGER NOT NULL DEFAULT 0, size INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 0, direct INTEGER NOT NULL DEFAULT 0)")
         db.execSQL("CREATE INDEX local_sources_track ON local_sources(track_id)")
@@ -203,12 +210,28 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
         revision.value++
     }
 
-    /** The ids of the tracks that played since [sinceMs], in epoch milliseconds. */
-    @Synchronized fun playedSince(sinceMs: Long): Set<String> = readableDatabase.rawQuery("SELECT DISTINCT track_id FROM plays WHERE played_at>=?", arrayOf(sinceMs.toString())).use { cursor ->
-        buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+    /**
+     * The ids of the tracks that played since [sinceMs], in epoch milliseconds, without the tracks that the listener allowed again
+     * after their last play. These are the tracks that the avoid-repeats window excludes.
+     */
+    @Synchronized fun playedSince(sinceMs: Long): Set<String> = excludedSince(sinceMs).map { it.first }.toSet()
+
+    /** The tracks that the avoid-repeats window excludes, each with the time of its last play, the latest play first. */
+    @Synchronized fun excludedSince(sinceMs: Long): List<Pair<String, Long>> = readableDatabase.rawQuery(
+        "SELECT p.track_id, MAX(p.played_at) FROM plays p LEFT JOIN repeat_releases r ON r.track_id=p.track_id " +
+            "WHERE p.played_at>=? AND (r.released_at IS NULL OR p.played_at>r.released_at) GROUP BY p.track_id ORDER BY MAX(p.played_at) DESC",
+        arrayOf(sinceMs.toString())).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0) to cursor.getLong(1)) } }
+
+    /** Lets a track play again at once. Its next play starts the window anew. */
+    @Synchronized fun allowAgain(trackId: String, at: Long = System.currentTimeMillis()) {
+        writableDatabase.insertWithOnConflict("repeat_releases", null, ContentValues().apply { put("track_id", trackId); put("released_at", at) }, SQLiteDatabase.CONFLICT_REPLACE)
+        revision.value++
     }
 
-    @Synchronized fun clearHistory() { writableDatabase.delete("plays", null, null); writableDatabase.update("tracks", ContentValues().apply { put("played", 0) }, null, null); revision.value++ }
+    @Synchronized fun clearHistory() {
+        writableDatabase.delete("plays", null, null); writableDatabase.delete("repeat_releases", null, null)
+        writableDatabase.update("tracks", ContentValues().apply { put("played", 0) }, null, null); revision.value++
+    }
 
     @Synchronized fun queueScrobble(listenedAt: Long, payload: String) {
         writableDatabase.insert("pending_scrobbles", null, ContentValues().apply { put("listened_at", listenedAt); put("payload", payload) })

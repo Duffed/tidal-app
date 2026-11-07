@@ -4,7 +4,7 @@
 
 The first screen offers two ways to begin. **Sign in to TIDAL** is the main one. **Use local music only** opens the app without an account, so you can play your own audio files. You can sign in at any time from **Settings** or from the **Connect TIDAL** card.
 
-With an account, OpenTune shows **Home**, **Search**, **Library** and **On device**. Without one, it shows **On device** and **Search**, and search covers the music on the device.
+With an account, OpenTune shows **Home**, **Search**, **Library** and **On device**. Without one, it shows **On device** alone, with a text filter for the music stored on the phone. Settings that only apply to TIDAL appear once an account is connected.
 
 ## Signing in
 
@@ -45,13 +45,13 @@ Tap the track title in the player to open its album, or the artist name to open 
 - **Lyrics** highlight the current line. Drag to read ahead, and the view follows the song again after a few seconds. Tap a line to jump to it. Tracks without timing show the plain text, and some tracks have no lyrics. Lyrics are provided by Musixmatch through TIDAL and stay on the device after the first load.
 - The **sleep timer** pauses playback after 15 to 90 minutes or at the end of the track.
 - The **queue** shows what plays next. Drag a row by its handle to move it, and swipe a row sideways to remove it. **Shuffle** puts the tracks after the current one in random order in the queue itself, so the queue always shows the real order, and turning shuffle off restores the earlier order.
-- **Avoid repeats**, under **Settings**, **Playback**, puts tracks that played within the chosen time last in shuffle and leaves them out of radio and autoplay.
-- **Autoplay** adds similar tracks from TIDAL when the queue ends. Turn it off under **Settings**, **Playback**.
+- **Avoid repeats**, under **Settings**, **Playback**, puts tracks that played within the chosen time last in shuffle and leaves them out of radio and autoplay. Its page lists the excluded tracks with the time of their last play and the time that remains. **Include** lets a track play again at once, and its next play starts the time anew.
+- **Autoplay** adds similar tracks from TIDAL when the queue ends. Turn it off under **Settings**, **TIDAL**.
 - Tap the format line in the player to see the codec, bit depth and sample rate of the source. These values describe the file, not the output of your audio device.
 
 ## Audio
 
-Choose the quality for Wi-Fi and mobile data under **Settings**, **Playback**.
+Choose the quality for Wi-Fi and mobile data under **Settings**, **TIDAL**.
 
 | Setting | Delivered audio |
 | --- | --- |
@@ -65,26 +65,29 @@ Max and Lossless accept FLAC or ALAC and reject lossy responses. A FLAC stream c
 OpenTune keeps up to 90 seconds of the track ahead of the playing position. A short loss of connection passes unheard, and after a longer one playback resumes by itself when the network returns.
 
 - **Volume normalization** evens out the level between tracks using ReplayGain values. Loud tracks are turned down and quiet tracks keep their level. It is off by default so that tracks play unchanged.
-- **Audio output** shows where the music plays and the sample rates that each output accepts.
 
 ## Experimental features
 
-**Settings**, **Experimental** holds features that are new or depend on the device. They stay hidden until you open the section.
+**Settings**, **Experimental** is a section of the list for features that are new or depend on the device.
 
 - **Visualizer** shows the spectrum of the music over the artwork in the player. It needs Android 11 or later.
 - **Equalizer** adjusts the bands of Android's built-in equalizer and offers its presets. The equalizer changes the audio, so leave it off for unaltered playback.
 - **ListenBrainz** sends your listens to a ListenBrainz server, see below.
 - **Bit-perfect USB output**, on Android 14 and later, asks Android to send the audio to a USB DAC without mixing or resampling.
+- **Download saved tracks** downloads a track when you save it with the heart button. Tracks that were saved earlier, or in another app, are not downloaded, and removing a track from saved tracks keeps its download.
+- **Download played tracks** downloads each track that counts as played, with the same rule as the statistics. It asks for confirmation because it uses a large amount of storage and data. The two download options exclude each other, so turning one on turns the other off.
+
+Both download options need an account, follow **Download over mobile data**, stop when offline mode is on or when less than 2 GB of storage is free, and skip local files and tracks that are downloaded already.
 
 ## Themes
 
-**Settings**, **Appearance**, **Theme** opens the theme picker. Swipe through the themes, each shown as a preview of the real interface, and choose **Use** to apply one. **System** switches between Light and Dark with the device. Dark, Light, Obsidian, Audiophile Gold, Cyberpunk, Neon, Ocean, Ember, Forest, Paper, Sky and Rose each have their own colours, shapes and type.
+**Settings**, **Appearance**, **Theme** opens the theme picker. Swipe through the themes, each shown as a preview of the real interface, and choose **Use** to apply one. **System** switches between Light and Dark with the device and is the default on a new install. Dark, Light, Obsidian, Gold, Cyberpunk, Neon, Ocean, Ember, Forest, Paper, Sky and Rose each have their own colours, shapes and type.
 
 ## Offline listening and downloads
 
-Choose **Download** in a track's menu or in the player. Finished downloads appear in **On device** and play without a connection or an account. Downloads wait for Wi-Fi by default. **Download over mobile data**, under **Settings**, **Downloads**, lets them use your data plan after a confirmation. The notification of a download shows its progress and a button to cancel it. Turn on **Keep saved tracks offline** in the same section to download your saved TIDAL tracks in the background, 50 at a time. Downloads pause when free space is low.
+Choose **Download** in a track's menu or in the player. Finished downloads appear in **On device** and play without a connection or an account. Downloads wait for Wi-Fi by default. **Download over mobile data**, under **Settings**, **TIDAL**, lets them use your data plan after a confirmation. The notification of a download shows its progress and a button to cancel it. The experimental options **Download saved tracks** and **Download played tracks** start downloads by themselves, see above.
 
-Turn on **Offline mode** to play only audio stored on the device. OpenTune sends no requests to TIDAL in this mode.
+Turn on **Offline mode**, under **Settings**, **TIDAL**, to play only audio stored on the device. OpenTune sends no requests to TIDAL in this mode.
 
 Downloads are stored in OpenTune's private storage. Android removes them when you uninstall the app or clear its storage. Use **Export audio file** in the menu of a downloaded track to keep a copy. Lossless downloads become tagged `.flac` files without re-encoding. A local file is a file already, so it has no export.
 

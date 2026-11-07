@@ -16,7 +16,6 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import io.github.yyan115.opentune.data.Settings
-import io.github.yyan115.opentune.playback.AudioOutput
 import io.github.yyan115.opentune.playback.EqualizerInfo
 import kotlinx.coroutines.delay
 
@@ -68,11 +67,16 @@ fun EqualizerSheet(settings: Settings, onChange: (Settings) -> Unit, onClose: ()
                 Text(stringResource(R.string.eq_use), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                 Switch(settings.equalizer, { onChange(settings.copy(equalizer = it)) })
             }
-            FlowRow(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LinkPill(stringResource(R.string.eq_flat)) { onChange(settings.copy(equalizerLevels = List(info.bands) { 0 })) }
-                info.presets.forEach { preset -> LinkPill(preset.name) { onChange(settings.copy(equalizerLevels = preset.levels)) } }
-            }
             val levels = List(info.bands) { settings.equalizerLevels.getOrNull(it) ?: 0 }
+            val presets = listOf(stringResource(R.string.eq_flat) to List(info.bands) { 0 }) + info.presets.map { it.name to it.levels }
+            var presetMenu by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(presetMenu, { presetMenu = it }, Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                OutlinedTextField(presets.firstOrNull { it.second == levels }?.first ?: stringResource(R.string.eq_custom), {}, Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                    readOnly = true, singleLine = true, label = { Text(stringResource(R.string.eq_preset)) }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(presetMenu) })
+                ExposedDropdownMenu(presetMenu, { presetMenu = false }) {
+                    presets.forEach { (name, preset) -> DropdownMenuItem(text = { Text(name) }, onClick = { onChange(settings.copy(equalizerLevels = preset)); presetMenu = false }) }
+                }
+            }
             levels.forEachIndexed { band, level ->
                 val hz = info.centerHz[band]
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -84,25 +88,6 @@ fun EqualizerSheet(settings: Settings, onChange: (Settings) -> Unit, onClose: ()
             }
         }
     }
-}
-
-@Composable
-fun AudioOutputDialog(onClose: () -> Unit) {
-    val context = LocalContext.current
-    val resources = LocalResources.current
-    val devices = remember { AudioOutput.devices(context) }
-    AlertDialog(onDismissRequest = onClose, title = { Text(stringResource(R.string.output_title)) }, text = {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            if (devices.isEmpty()) Text(stringResource(R.string.output_none))
-            devices.forEach { device ->
-                Column {
-                    Text(if (device.active) stringResource(R.string.output_in_use, device.name) else device.name, style = MaterialTheme.typography.titleSmall)
-                    Text(device.kind + if (device.sampleRates.isNotEmpty()) " · " + device.sampleRates.joinToString(", ") { resources.getString(R.string.unit_khz, (it / 1000.0).toString()) } else "",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-    }, confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.action_close)) } })
 }
 
 @Composable

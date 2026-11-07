@@ -384,12 +384,9 @@ fun LoginSheet(state: AppState, vm: MainViewModel, onClose: () -> Unit) {
 /** The first Android version on which the visualizer was checked to receive the audio of the player. */
 const val VISUALIZER_API = 30
 
-/** How long a track stays out of shuffle, radio and autoplay after it played, in hours. */
-private val RepeatWindows = listOf(0, 1, 6, 24, 168)
-
 @UnstableApi
 @Composable
-fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
+fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onOpenPage: (SettingsPage) -> Unit) {
     val context = LocalContext.current
     var quality by remember { mutableStateOf(false) }
     var mobile by remember { mutableStateOf(false) }
@@ -397,13 +394,10 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
     var signOut by remember { mutableStateOf(false) }
     var normalization by remember { mutableStateOf(false) }
     var equalizer by remember { mutableStateOf(false) }
-    var output by remember { mutableStateOf(false) }
     var scrobbling by remember { mutableStateOf(false) }
-    var stats by remember { mutableStateOf(false) }
     var clearHistory by remember { mutableStateOf(false) }
     var mobileDataWarning by remember { mutableStateOf(false) }
-    var repeats by remember { mutableStateOf(false) }
-    var experimental by rememberSaveable { mutableStateOf(false) }
+    var playedWarning by remember { mutableStateOf(false) }
     val backup = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { uri -> uri?.let(vm::exportBackup) }
     val restore = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::importBackup) }
     var licenses by remember { mutableStateOf(false) }
@@ -415,37 +409,42 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
             onClick = if (state.signedIn) ({ signOut = true }) else onLogin,
             trailing = { Icon(if (state.signedIn) OpenTuneIcons.CheckCircle else OpenTuneIcons.ChevronRight, null) }) }
         item { SectionTitle(stringResource(R.string.settings_playback)) }
-        item { SettingRow(OpenTuneIcons.Wifi, stringResource(R.string.settings_quality_wifi), stringResource(settings.quality.labelRes()), { quality = true }) }
-        item { SettingRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_quality_mobile), stringResource(settings.mobileQuality.labelRes()), { mobile = true }) }
-        item { SwitchRow(OpenTuneIcons.Radio, stringResource(R.string.settings_autoplay), settings.autoplay, { value -> vm.settings { it.copy(autoplay = value) } }, stringResource(R.string.settings_autoplay_text)) }
-        item { SettingRow(OpenTuneIcons.Shuffle, stringResource(R.string.settings_repeats), if (settings.avoidRepeatHours == 0) stringResource(R.string.settings_off) else repeatWindowText(settings.avoidRepeatHours), { repeats = true }) }
-        item { SettingRow(OpenTuneIcons.GraphicEq, stringResource(R.string.normalization_title), stringResource(when (settings.normalization) { "track" -> R.string.normalization_track; "album" -> R.string.normalization_album; else -> R.string.settings_off }), { normalization = true }) }
-        item { SettingRow(OpenTuneIcons.Headphones, stringResource(R.string.output_title), onClick = { output = true }) }
-        item { SectionTitle(stringResource(R.string.settings_downloads)) }
-        item { SwitchRow(OpenTuneIcons.CloudOff, stringResource(R.string.status_offline), settings.offline, { value -> vm.settings { it.copy(offline = value) } }) }
-        item { SwitchRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_mobile_downloads), !settings.downloadOnWifi, { value ->
-            if (value) mobileDataWarning = true else vm.settings { it.copy(downloadOnWifi = true) }
-        }) }
-        item { SwitchRow(OpenTuneIcons.DownloadDone, stringResource(R.string.settings_keep_offline), settings.keepFavoritesOffline, { value -> vm.settings { it.copy(keepFavoritesOffline = value) } }, stringResource(R.string.settings_keep_offline_text)) }
+        item { SettingRow(OpenTuneIcons.Shuffle, stringResource(R.string.settings_repeats), if (settings.avoidRepeatHours == 0) stringResource(R.string.settings_off) else repeatWindowText(settings.avoidRepeatHours),
+            { onOpenPage(SettingsPage.Repeats) }, trailing = { Icon(OpenTuneIcons.ChevronRight, null) }) }
+        // These settings change how TIDAL is streamed and downloaded, so they appear once an account is connected.
+        if (state.signedIn) {
+            item { SectionTitle(stringResource(R.string.settings_tidal)) }
+            item { SettingRow(OpenTuneIcons.Wifi, stringResource(R.string.settings_quality_wifi), stringResource(settings.quality.labelRes()), { quality = true }) }
+            item { SettingRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_quality_mobile), stringResource(settings.mobileQuality.labelRes()), { mobile = true }) }
+            item { SwitchRow(OpenTuneIcons.Radio, stringResource(R.string.settings_autoplay), settings.autoplay, { value -> vm.settings { it.copy(autoplay = value) } }, stringResource(R.string.settings_autoplay_text)) }
+            item { SettingRow(OpenTuneIcons.GraphicEq, stringResource(R.string.normalization_title), stringResource(when (settings.normalization) { "track" -> R.string.normalization_track; "album" -> R.string.normalization_album; else -> R.string.settings_off }), { normalization = true }) }
+            item { SwitchRow(OpenTuneIcons.CloudOff, stringResource(R.string.status_offline), settings.offline, { value -> vm.settings { it.copy(offline = value) } }) }
+            item { SwitchRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_mobile_downloads), !settings.downloadOnWifi, { value ->
+                if (value) mobileDataWarning = true else vm.settings { it.copy(downloadOnWifi = true) }
+            }) }
+        }
         item { SectionTitle(stringResource(R.string.settings_appearance)) }
         item { SettingRow(OpenTuneIcons.Contrast, stringResource(R.string.settings_theme), stringResource(if (settings.theme == SYSTEM_THEME) R.string.theme_system else themeFor(settings.theme, false).nameRes), { theme = true }) }
         item { SectionTitle(stringResource(R.string.settings_listening)) }
-        item { SettingRow(OpenTuneIcons.LibraryMusic, stringResource(R.string.stats_title), onClick = { stats = true }) }
+        item { SettingRow(OpenTuneIcons.LibraryMusic, stringResource(R.string.stats_title), onClick = { onOpenPage(SettingsPage.Statistics) }, trailing = { Icon(OpenTuneIcons.ChevronRight, null) }) }
         item { SectionTitle(stringResource(R.string.settings_data)) }
         item { SettingRow(OpenTuneIcons.SaveAlt, stringResource(R.string.settings_backup), stringResource(R.string.settings_backup_text), { backup.launch("opentune-backup.json") }) }
         item { SettingRow(OpenTuneIcons.Refresh, stringResource(R.string.settings_restore), onClick = { restore.launch(arrayOf("application/json", "*/*")) }) }
         item { SettingRow(OpenTuneIcons.RemoveCircleOutline, stringResource(R.string.settings_clear_history), stringResource(R.string.settings_clear_history_text), { clearHistory = true }) }
-        item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_experimental),
-            stringResource(R.string.settings_experimental_summary), { experimental = !experimental },
-            trailing = { Icon(OpenTuneIcons.KeyboardArrowDown, null, Modifier.graphicsLayer { rotationZ = if (experimental) 180f else 0f }) }) }
-        if (experimental) {
-            item { SettingRow(OpenTuneIcons.Equalizer, stringResource(R.string.eq_title), stringResource(if (settings.equalizer) R.string.settings_on else R.string.settings_off), { equalizer = true }) }
-            item { SettingRow(OpenTuneIcons.Lyrics, stringResource(R.string.scrobble_title), if (settings.scrobble) stringResource(R.string.settings_scrobble_on, settings.scrobbleServer.removePrefix("https://")) else stringResource(R.string.settings_off), { scrobbling = true }) }
-            if (android.os.Build.VERSION.SDK_INT >= VISUALIZER_API) item { SwitchRow(OpenTuneIcons.GraphicEq, stringResource(R.string.settings_visualizer), settings.visualizer, { value -> vm.settings { it.copy(visualizer = value) } }, stringResource(R.string.settings_visualizer_text)) }
-            if (android.os.Build.VERSION.SDK_INT >= 34) item { SwitchRow(OpenTuneIcons.Waves, stringResource(R.string.settings_bitperfect), settings.bitPerfect, { value -> vm.settings { it.copy(bitPerfect = value) } }, stringResource(R.string.settings_bitperfect_text)) }
+        item { SectionTitle(stringResource(R.string.settings_experimental)) }
+        item { SettingRow(OpenTuneIcons.Equalizer, stringResource(R.string.eq_title), stringResource(if (settings.equalizer) R.string.settings_on else R.string.settings_off), { equalizer = true }) }
+        item { SettingRow(OpenTuneIcons.Lyrics, stringResource(R.string.scrobble_title), if (settings.scrobble) stringResource(R.string.settings_scrobble_on, settings.scrobbleServer.removePrefix("https://")) else stringResource(R.string.settings_off), { scrobbling = true }) }
+        if (android.os.Build.VERSION.SDK_INT >= VISUALIZER_API) item { SwitchRow(OpenTuneIcons.GraphicEq, stringResource(R.string.settings_visualizer), settings.visualizer, { value -> vm.settings { it.copy(visualizer = value) } }, stringResource(R.string.settings_visualizer_text)) }
+        if (android.os.Build.VERSION.SDK_INT >= 34) item { SwitchRow(OpenTuneIcons.Waves, stringResource(R.string.settings_bitperfect), settings.bitPerfect, { value -> vm.settings { it.copy(bitPerfect = value) } }, stringResource(R.string.settings_bitperfect_text)) }
+        if (state.signedIn) {
+            // One rule decides what downloads, so turning one switch on turns the other off.
+            item { SwitchRow(OpenTuneIcons.DownloadDone, stringResource(R.string.settings_download_saved), settings.downloadSaved, { value -> vm.settings { it.withDownloadSaved(value) } }, stringResource(R.string.settings_download_saved_text)) }
+            item { SwitchRow(OpenTuneIcons.Download, stringResource(R.string.settings_download_played), settings.downloadPlayed, { value ->
+                if (value) playedWarning = true else vm.settings { it.withDownloadPlayed(false) }
+            }, stringResource(R.string.settings_download_played_text)) }
         }
         item { SectionTitle(stringResource(R.string.settings_about)) }
-        item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), stringResource(if (BuildConfig.VERSION_NAME.startsWith("0.")) R.string.settings_tagline_prerelease else R.string.settings_tagline)) }
+        item { SettingRow(OpenTuneIcons.Info, stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), stringResource(R.string.settings_tagline)) }
         item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_source), "github.com/yyan115/tidal-app", {
             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/yyan115/tidal-app"))) }
         }) }
@@ -455,18 +454,11 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
     if (licenses) LicensesDialog { licenses = false }
     if (normalization) NormalizationDialog(settings.normalization, { value -> vm.settings { it.copy(normalization = value) } }) { normalization = false }
     if (equalizer) EqualizerSheet(settings, { next -> vm.settings { next } }) { equalizer = false }
-    if (output) AudioOutputDialog { output = false }
     if (scrobbling) ScrobbleDialog(settings, vm) { scrobbling = false }
-    if (stats) StatsSheet(vm) { stats = false }
-    if (repeats) AlertDialog(onDismissRequest = { repeats = false }, title = { Text(stringResource(R.string.settings_repeats)) }, text = {
-        Column {
-            Text(stringResource(R.string.settings_repeats_text), Modifier.padding(bottom = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            RepeatWindows.forEach { hours -> Row(Modifier.fillMaxWidth().clickable { vm.settings { it.copy(avoidRepeatHours = hours) }; repeats = false }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(settings.avoidRepeatHours == hours, onClick = null)
-                Text(if (hours == 0) stringResource(R.string.settings_off) else repeatWindowText(hours), Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyMedium)
-            } }
-        }
-    }, confirmButton = { TextButton(onClick = { repeats = false }) { Text(stringResource(R.string.action_close)) } })
+    if (playedWarning) AlertDialog(onDismissRequest = { playedWarning = false }, title = { Text(stringResource(R.string.download_played_title)) },
+        text = { Text(stringResource(R.string.download_played_text)) },
+        confirmButton = { TextButton(onClick = { vm.settings { it.withDownloadPlayed(true) }; playedWarning = false }) { Text(stringResource(R.string.download_played_enable)) } },
+        dismissButton = { TextButton(onClick = { playedWarning = false }) { Text(stringResource(R.string.action_cancel)) } })
     if (mobileDataWarning) AlertDialog(onDismissRequest = { mobileDataWarning = false }, title = { Text(stringResource(R.string.mobile_downloads_title)) },
         text = { Text(stringResource(R.string.mobile_downloads_text)) },
         confirmButton = { TextButton(onClick = { vm.settings { it.copy(downloadOnWifi = false) }; mobileDataWarning = false }) { Text(stringResource(R.string.mobile_downloads_allow)) } },
@@ -486,10 +478,4 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
     if (theme) AppearanceSheet(settings, { next -> vm.settings { next } }) { theme = false }
     if (signOut) AlertDialog(onDismissRequest = { signOut = false }, title = { Text(stringResource(R.string.signout_title)) }, text = { Text(stringResource(R.string.signout_text)) },
         confirmButton = { TextButton(onClick = { vm.signOut(); signOut = false }) { Text(stringResource(R.string.signout_confirm)) } }, dismissButton = { TextButton(onClick = { signOut = false }) { Text(stringResource(R.string.action_cancel)) } })
-}
-
-@Composable
-private fun repeatWindowText(hours: Int): String = when {
-    hours % 24 == 0 -> pluralStringResource(R.plurals.window_days, hours / 24, hours / 24)
-    else -> pluralStringResource(R.plurals.window_hours, hours, hours)
 }

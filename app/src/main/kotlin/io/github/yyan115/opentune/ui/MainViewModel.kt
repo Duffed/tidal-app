@@ -16,15 +16,11 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import androidx.work.workDataOf
 import io.github.yyan115.opentune.OpenTuneApp
 import io.github.yyan115.opentune.core.*
+import io.github.yyan115.opentune.data.DownloadRequests
 import io.github.yyan115.opentune.data.DownloadWorker
 import io.github.yyan115.opentune.data.Settings
 import io.github.yyan115.opentune.playback.PlaybackCommands
@@ -116,7 +112,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var favoritesOffset = 0
     private val favoriteSyncLock = Mutex()
     private var collectionReady = false
-    private var wasKeepingOffline = app.settings.state.value.keepFavoritesOffline
     private var networkCallbackRegistered = false
     private val connectivity = application.getSystemService(ConnectivityManager::class.java)
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -168,8 +163,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val wasOffline = ui.value.settings.offline
             ui.update { it.copy(settings = settings) }
             if (!wasOffline && settings.offline) app.http.dispatcher.cancelAll()
-            if (settings.keepFavoritesOffline && !wasKeepingOffline && collectionReady) autoDownload()
-            wasKeepingOffline = settings.keepFavoritesOffline
             if (wasOffline && !settings.offline && collectionReady) sync()
         } }
         viewModelScope.launch {
@@ -274,6 +267,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val account = app.tidal.accountId
         val saved = ui.value.local.filter { track -> cloudFavorites.any { it.id == track.id } }
         cancelLogin(); syncJob?.cancel(); detailJob?.cancel(); app.tidal.signOut(); cloudFavorites = emptyList()
+        // The offline switch belongs to the account, so it cannot stay on once the account is gone.
+        app.settings.update { it.copy(offline = false) }
         ui.update { it.copy(signedIn = false, syncing = false, hasMoreFavorites = false, albums = emptyList(), playlists = emptyList(), artists = emptyList(),
             search = SearchResult(), searchError = null, detail = null, routes = emptyList()) }
         viewModelScope.launch {
@@ -308,16 +303,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 ui.update { it.copy(error = userMessage(error)) }
-            } finally { ui.update { it.copy(syncing = false) }; autoDownload() }
+            } finally { ui.update { it.copy(syncing = false) } }
         }
-    }
-
-    /** Queues the next saved tracks for download when the listener keeps saved tracks offline. */
-    private fun autoDownload() = viewModelScope.launch {
-        val current = ui.value
-        if (!current.settings.keepFavoritesOffline || !current.signedIn || current.settings.offline) return@launch
-        if (app.filesDir.usableSpace < MIN_FREE_BYTES_FOR_AUTO_DOWNLOAD) return@launch
-        AutoDownload.pick(current.favorites, current.local.map(Track::id).toSet(), AUTO_DOWNLOAD_BATCH).forEach { download(it, quiet = true) }
     }
 
     fun moreFavorites() = viewModelScope.launch {
@@ -446,6 +433,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         cloudFavorites = if (previous) cloudFavorites.filterNot { it.id == track.id } else cloudFavorites
         refreshLocal()
+        // The download of saved tracks starts with the save. A track that was saved earlier, or in another app, is not downloaded.
+        if (!previous && !track.isFile && ui.value.settings.downloadSaved && DownloadRequests.hasRoom(app)) download(track, quiet = true)
         if (!track.isFile && app.tidal.signedIn && !ui.value.settings.offline) {
             try { favoriteSyncLock.withLock { drainFavorites(account) } }
             catch (error: Exception) { if (error is CancellationException) throw error; notify(app.getString(R.string.notify_saved_local_failed, userMessage(error))) }
@@ -494,10 +483,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!app.tidal.signedIn) { if (!quiet) notify(app.getString(R.string.notify_download_sign_in)); return@launch }
         if (ui.value.settings.offline) { if (!quiet) notify(app.getString(R.string.notify_download_offline)); return@launch }
         withContext(Dispatchers.IO) { app.library.save(track) }
-        val request = OneTimeWorkRequestBuilder<DownloadWorker>().setInputData(workDataOf("track" to JsonCodec.encodeTrack(track).toString()))
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(if (ui.value.settings.downloadOnWifi) NetworkType.UNMETERED else NetworkType.CONNECTED).build())
-            .addTag("audio-download").addTag("track:${track.id}").build()
-        WorkManager.getInstance(app).enqueueUniqueWork("download:${track.id}", ExistingWorkPolicy.KEEP, request)
+        DownloadRequests.enqueue(app, track, ui.value.settings.downloadOnWifi)
         if (!quiet) notify(app.getString(if (ui.value.settings.downloadOnWifi && !app.sources.wifi()) R.string.notify_download_queued_wifi else R.string.notify_download_queued))
     }
     fun cancelDownload(work: WorkInfo) { WorkManager.getInstance(app).cancelWorkById(work.id) }
@@ -624,6 +610,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val artists = tracks.groupBy { it.track.artist }.map { (name, entries) -> name to entries.sumOf { it.plays } }.sortedByDescending { it.second }
         ListeningStats(plays, listened / 3_600_000, listened / 60_000 % 60, tracks.take(25), artists)
     }
+
+    /** A track that the avoid-repeats window excludes, with the time of its last play. */
+    data class ExcludedTrack(val track: Track, val playedAt: Long)
+
+    /** The tracks that the window of [hours] hours excludes now, the latest play first. */
+    suspend fun excludedTracks(hours: Int): List<ExcludedTrack> = withContext(Dispatchers.IO) {
+        if (hours <= 0) emptyList()
+        else app.library.excludedSince(System.currentTimeMillis() - hours * 3_600_000L).mapNotNull { (id, at) -> app.library.get(id)?.let { ExcludedTrack(it, at) } }
+    }
+
+    /** Lets an excluded track play again at once. */
+    fun allowAgain(track: Track) = viewModelScope.launch(Dispatchers.IO) { app.library.allowAgain(track.id) }
 
     fun clearListeningHistory() = viewModelScope.launch(Dispatchers.IO) { app.library.clearHistory(); notify(app.getString(R.string.notify_history_cleared)) }
 
@@ -928,8 +926,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun userMessage(error: Exception): String = app.problemText(error)
     private companion object {
         const val MISSING_LYRICS_MS = 7 * 24 * 3600_000L
-        const val AUTO_DOWNLOAD_BATCH = 50
-        const val MIN_FREE_BYTES_FOR_AUTO_DOWNLOAD = 2L * 1024 * 1024 * 1024
     }
 
     override fun onCleared() {

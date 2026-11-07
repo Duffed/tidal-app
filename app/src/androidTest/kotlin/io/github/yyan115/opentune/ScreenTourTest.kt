@@ -49,7 +49,6 @@ class ScreenTourTest {
         app.library.playlists().filter { it.title == "Evening" }.forEach { app.library.deletePlaylist(it.id) }
         val playlist = app.library.createPlaylist("Evening"); app.library.addToPlaylist(playlist.id, tracks[0])
         compose.waitUntil(10_000) { model.state.value.local.size >= 3 && model.state.value.localPlaylists.any { it.title == "Evening" } }
-        compose.onNodeWithTag("nav-device").performClick()
         picture("1-on-device")
         compose.onNodeWithTag("device-list").performScrollToNode(hasContentDescription("Options for Night Walk"))
         compose.onAllNodesWithContentDescription("Options for Night Walk").onFirst().performClick()
@@ -58,7 +57,6 @@ class ScreenTourTest {
         picture("3-details")
         compose.activityRule.scenario.recreate()
         compose.waitForIdle()
-        compose.onNodeWithTag("nav-device").performClick()
         compose.onNodeWithTag("device-list").performScrollToNode(hasText("Evening"))
         compose.onNodeWithText("Evening").performClick()
         picture("4-playlist")
@@ -76,7 +74,6 @@ class ScreenTourTest {
         compose.onNodeWithContentDescription("Settings").performClick()
         picture("8-settings")
         compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Experimental"))
-        compose.onNode(hasText("Experimental") and hasClickAction()).performClick()
         picture("9-experimental")
         compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Theme"))
         compose.onNodeWithText("Theme").performClick()

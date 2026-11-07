@@ -4,6 +4,26 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- Avoid repeats has its own page. It lists the excluded tracks with the time of their last play and the time that remains, and Include lets a track play again at once.
+- Experimental has two download options. Download saved tracks downloads a track when it is saved with the heart button. Download played tracks downloads each track that counts as played and asks for confirmation. Turning one on turns the other off.
+- Listening statistics has its own page, and the period is chosen with a segmented button.
+- The equalizer chooses its preset from a list that shows the current preset.
+
+### Changed
+
+- Without an account, On device is the only place, with its text filter and no navigation bar. Settings that only apply to TIDAL appear once an account is connected.
+- Experimental is a section of the Settings list and no longer a collapsed row.
+- New installs follow the theme of the device. Audiophile Gold is named Gold, and the themes no longer carry descriptions.
+- The About section names OpenTune as an unofficial open source Android music player for TIDAL, for every version.
+- Offline mode is switched off when the account is disconnected.
+
+### Removed
+
+- Keep saved tracks offline, which became Download saved tracks. A saved track is downloaded when it is saved, and tracks that were saved earlier are no longer downloaded in the background.
+- The Audio output list, which only repeated what Android reports.
+
 ## [0.6.0] - 2026-11-07
 
 ### Added

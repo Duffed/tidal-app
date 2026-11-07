@@ -113,7 +113,7 @@ fun OnDeviceScreen(state: AppState, vm: MainViewModel, onAddFiles: () -> Unit, o
         }
 
         if (state.local.isEmpty()) {
-            if (active.isEmpty()) item { EmptyState(OpenTuneIcons.AudioFile, stringResource(R.string.device_empty_title), stringResource(R.string.device_empty_text)) }
+            if (active.isEmpty()) item { EmptyState(OpenTuneIcons.AudioFile, stringResource(R.string.device_empty_title), stringResource(if (state.signedIn) R.string.device_empty_text else R.string.device_empty_text_local)) }
         } else {
             item { LazyRow(contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(filters.size) { index -> FilterTab(filter == index, { filter = index }, filters[index]) }

@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.SettableFuture
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.yyan115.opentune.MainActivity
 import io.github.yyan115.opentune.OpenTuneApp
+import io.github.yyan115.opentune.data.DownloadRequests
 import io.github.yyan115.opentune.core.JsonCodec
 import io.github.yyan115.opentune.core.Normalization
 import io.github.yyan115.opentune.core.RepeatPolicy
@@ -360,6 +361,7 @@ class PlaybackService : MediaLibraryService() {
         if (listened < needed) return
         scope.launch(Dispatchers.IO) {
             runCatching { app.library.recordPlay(track, listened, startedAt) }
+            runCatching { DownloadRequests.afterPlay(app, track) }
         }
         scope.launch { runCatching { app.scrobbler.listened(track, startedAt) } }
     }

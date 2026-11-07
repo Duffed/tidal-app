@@ -105,7 +105,7 @@ class PseudoLocaleTest {
         sweep("Welcome")
         inWindow("Sign-in from the welcome screen") { compose.onNodeWithTag("welcome-sign-in").performClick() }
         compose.onNodeWithTag("welcome-local").performClick()
-        await("the On device screen") { compose.onAllNodesWithTag("nav-device").fetchSemanticsNodes().isNotEmpty() }
+        await("the On device screen") { compose.onAllNodesWithTag("device-list").fetchSemanticsNodes().isNotEmpty() }
         sweep("On device")
         inWindow("New playlist") {
             compose.onNodeWithTag("device-list").performScrollToNode(hasText(s(R.string.playlist_new)))
@@ -126,14 +126,6 @@ class PseudoLocaleTest {
             sweep("On device ${s(filter)}")
         }
 
-        compose.onNodeWithTag("nav-search").performClick()
-        sweep("Search")
-        compose.runOnIdle { model.search("Night") }
-        await("the search to show the track") { model.state.value.local.any { it.id == track.id } }
-        sweep("Search results")
-        compose.runOnIdle { model.search("zzzz-no-match") }
-        sweep("Search without matches")
-        compose.runOnIdle { model.search("") }
 
         compose.runOnIdle { model.play(listOf(track)) }
         await("playback to start", 30_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
@@ -152,7 +144,6 @@ class PseudoLocaleTest {
         list.performScrollToNode(hasText(s(R.string.settings_data)))
         sweep("Settings middle")
         list.performScrollToNode(hasText(s(R.string.settings_experimental)))
-        compose.onNode(hasText(s(R.string.settings_experimental)) and hasClickAction()).performClick()
         sweep("Settings experimental")
         list.performScrollToNode(hasText(s(R.string.settings_licenses)))
         sweep("Settings bottom")
@@ -164,6 +155,17 @@ class PseudoLocaleTest {
                     .forEach { tab -> await("the licence tab ${s(tab)}") { runCatching { compose.onNodeWithTag("licence-tabs").performScrollToNode(hasText(s(tab))) }; compose.onAllNodes(hasText(s(tab))).fetchSemanticsNodes().isNotEmpty() } }
             })
             inWindow(name, check) { compose.onAllNodes(hasText(s(row)) and hasClickAction()).onFirst().performClick() }
+        }
+        // The pages that open from the list. The avoid-repeats page also shows its list of excluded tracks.
+        for ((row, name) in listOf(R.string.settings_repeats to "Avoid repeats page", R.string.stats_title to "Statistics page")) {
+            if (row == R.string.settings_repeats) app.settings.update { it.copy(avoidRepeatHours = 24) }
+            list.performScrollToNode(hasText(s(row)))
+            compose.onAllNodes(hasText(s(row)) and hasClickAction()).onFirst().performClick()
+            await("the $name") { compose.onAllNodesWithTag("settings-list").fetchSemanticsNodes().isEmpty() }
+            sweep(name)
+            compose.onNodeWithContentDescription(s(R.string.action_back)).performClick()
+            await("the settings list") { compose.onAllNodesWithTag("settings-list").fetchSemanticsNodes().isNotEmpty() }
+            if (row == R.string.settings_repeats) app.settings.update { it.copy(avoidRepeatHours = 0) }
         }
         finish()
     }
@@ -188,15 +190,20 @@ class PseudoLocaleTest {
         sweep("Player with lyrics")
         launchPreview("settings"); await("Settings") { compose.onAllNodesWithTag("settings-list").fetchSemanticsNodes().isNotEmpty() }
         sweep("Settings when signed in")
+        // The rows that need an account, with the dialogs that they open.
+        val signedInList = compose.onNodeWithTag("settings-list")
+        for ((row, name) in listOf(R.string.settings_quality_wifi to "Wi-Fi quality", R.string.settings_quality_mobile to "Mobile quality", R.string.normalization_title to "Normalization",
+            R.string.settings_download_played to "Download played tracks", R.string.settings_mobile_downloads to "Download over mobile data")) {
+            signedInList.performScrollToNode(hasText(s(row)))
+            inWindow(name) { compose.onAllNodes(hasText(s(row)) and hasClickAction()).onFirst().performClick() }
+        }
         inWindow("Disconnect") { compose.onAllNodes(hasText(s(R.string.settings_connected)) and hasClickAction()).onFirst().performClick() }
         finish()
     }
 
     private fun settingsDialogs() = listOf(
-        R.string.settings_quality_wifi to "Wi-Fi quality", R.string.settings_quality_mobile to "Mobile quality", R.string.normalization_title to "Normalization",
-        R.string.eq_title to "Equalizer", R.string.output_title to "Audio output", R.string.settings_theme to "Theme", R.string.scrobble_title to "Scrobbling",
-        R.string.stats_title to "Statistics", R.string.settings_clear_history to "Clear history", R.string.settings_licenses to "Licenses",
-        R.string.settings_repeats to "Avoid repeats",
+        R.string.eq_title to "Equalizer", R.string.settings_theme to "Theme", R.string.scrobble_title to "Scrobbling",
+        R.string.settings_clear_history to "Clear history", R.string.settings_licenses to "Licenses",
     )
 
     private fun finish() {

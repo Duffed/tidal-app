@@ -67,7 +67,7 @@ object AppFonts {
  * One complete look: colours, corner radius and typefaces. [dark] says whether the colours are light on dark,
  * which the system bars and the window of the player follow.
  */
-class AppTheme(val id: String, @StringRes val nameRes: Int, @StringRes val descriptionRes: Int, val dark: Boolean, val scheme: ColorScheme, val radius: Int, val fonts: ThemeFonts) {
+class AppTheme(val id: String, @StringRes val nameRes: Int, val dark: Boolean, val scheme: ColorScheme, val radius: Int, val fonts: ThemeFonts) {
     val shapes get() = Shapes(extraSmall = RoundedCornerShape((radius / 2).dp), small = RoundedCornerShape(radius.dp),
         medium = RoundedCornerShape((radius + 4).dp), large = RoundedCornerShape((radius + 12).dp), extraLarge = RoundedCornerShape((radius + 16).dp))
 }
@@ -98,29 +98,29 @@ private fun scheme(dark: Boolean, background: Long, text: Long, secondary: Long,
 
 /** The themes in the order of the picker. Each one has its own colours, shape and type. */
 val appThemes: List<AppTheme> = listOf(
-    AppTheme("dark", R.string.theme_dark, R.string.theme_dark_description, true,
+    AppTheme("dark", R.string.theme_dark, true,
         scheme(true, 0x0F1012, 0xEEF0F3, 0xA3A8B0, 0x8AB4FF, 0x0A1A3A, tint = 0x8AB4FF, tintAmount = .04f), 10, SansFonts),
-    AppTheme("light", R.string.theme_light, R.string.theme_light_description, false,
+    AppTheme("light", R.string.theme_light, false,
         scheme(false, 0xFAFAF9, 0x16181B, 0x5C6168, 0x2554F0, 0xFFFFFF), 10, SansFonts),
-    AppTheme("obsidian", R.string.theme_obsidian, R.string.theme_obsidian_description, true,
+    AppTheme("obsidian", R.string.theme_obsidian, true,
         scheme(true, 0x000000, 0xF4F4F5, 0x9C9CA3, 0xFFFFFF, 0x000000, outline = 0x8C8C96), 4, SansFonts),
-    AppTheme("gold", R.string.theme_gold, R.string.theme_gold_description, true,
+    AppTheme("gold", R.string.theme_gold, true,
         scheme(true, 0x0B0A08, 0xF4EDDD, 0xB8AE96, 0xDCB766, 0x2A1E08, tint = 0xDCB766, tintAmount = .05f, outline = 0x9A8450), 3, SerifFonts),
-    AppTheme("cyberpunk", R.string.theme_cyberpunk, R.string.theme_cyberpunk_description, true,
+    AppTheme("cyberpunk", R.string.theme_cyberpunk, true,
         scheme(true, 0x0C0716, 0xF6F0FF, 0xBBA8E6, 0xFF3D9A, 0x20001A, tertiary = 0x22E6FF, tint = 0xB026FF, tintAmount = .1f, outline = 0x9470FF), 2, GroteskFonts),
-    AppTheme("neon", R.string.theme_neon, R.string.theme_neon_description, true,
+    AppTheme("neon", R.string.theme_neon, true,
         scheme(true, 0x050907, 0xE9FFF1, 0x8ED2A8, 0x3DFF9A, 0x002712, tertiary = 0xC8FF3D, tint = 0x3DFF9A, tintAmount = .05f, outline = 0x2CB872), 14, GroteskFonts),
-    AppTheme("ocean", R.string.theme_ocean, R.string.theme_ocean_description, true,
+    AppTheme("ocean", R.string.theme_ocean, true,
         scheme(true, 0x06131C, 0xE6F4F8, 0x8FB5C4, 0x4FD8D0, 0x022B2D, tint = 0x4FD8D0, tintAmount = .05f), 16, SansFonts),
-    AppTheme("ember", R.string.theme_ember, R.string.theme_ember_description, true,
+    AppTheme("ember", R.string.theme_ember, true,
         scheme(true, 0x150C08, 0xF8EBDF, 0xC9A794, 0xFF8A4C, 0x3A1403, tint = 0xFF8A4C, tintAmount = .05f), 8, SerifFonts),
-    AppTheme("forest", R.string.theme_forest, R.string.theme_forest_description, true,
+    AppTheme("forest", R.string.theme_forest, true,
         scheme(true, 0x09110B, 0xE9F2E7, 0x9FBAA2, 0x93D99A, 0x0A2A12, tint = 0x93D99A, tintAmount = .05f), 12, GroteskFonts),
-    AppTheme("paper", R.string.theme_paper, R.string.theme_paper_description, false,
+    AppTheme("paper", R.string.theme_paper, false,
         scheme(false, 0xF6F0E4, 0x2A2420, 0x6B6054, 0x8A2D3F, 0xFFFFFF, outline = 0x7A5F4F), 3, SerifFonts),
-    AppTheme("sky", R.string.theme_sky, R.string.theme_sky_description, false,
+    AppTheme("sky", R.string.theme_sky, false,
         scheme(false, 0xF2F7FC, 0x10202E, 0x45596B, 0x0A66D0, 0xFFFFFF, tint = 0x0A66D0, tintAmount = .03f), 16, SansFonts),
-    AppTheme("rose", R.string.theme_rose, R.string.theme_rose_description, false,
+    AppTheme("rose", R.string.theme_rose, false,
         scheme(false, 0xFFF5F6, 0x2B1A1E, 0x765860, 0xC72A63, 0xFFFFFF, tertiary = 0x8B3FD1), 18, GroteskFonts),
 )
 

@@ -42,7 +42,6 @@ class LocalPlaybackTest {
     }
 
     @Test fun localFlacPlaysThroughTheInterfaceAndPauses() {
-        compose.onNodeWithTag("nav-device").performClick()
         compose.onNodeWithTag("device-list").performScrollToNode(hasText("Night Walk"))
         compose.onNodeWithText("Night Walk").performClick()
         compose.waitUntil(25_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
@@ -95,7 +94,6 @@ class LocalPlaybackTest {
     }
 
     @Test fun localPlaylistCreationAndSavingArePersistent() {
-        compose.onNodeWithTag("nav-device").performClick()
         compose.onNodeWithTag("device-list").performScrollToNode(hasText("New playlist"))
         compose.onNodeWithText("New playlist").performClick()
         compose.onNodeWithText("Name").performTextInput("Evening")
@@ -113,7 +111,6 @@ class LocalPlaybackTest {
     }
 
     @Test fun aNewPlaylistFromTrackOptionsContainsThatTrack() {
-        compose.onNodeWithTag("nav-device").performClick()
         compose.onNodeWithTag("device-list").performScrollToNode(hasContentDescription("Options for Night Walk"))
         compose.onNodeWithContentDescription("Options for Night Walk").performClick()
         compose.onNodeWithText("Add to playlist").performScrollTo().performClick()
@@ -141,12 +138,12 @@ class LocalPlaybackTest {
 
     @Test fun mainScreensAndThemeCanBeOpened() {
         screenshot("on-device")
-        compose.onNodeWithTag("nav-search").performClick()
-        compose.onNodeWithText("Tracks, albums, artists").performTextInput("Night")
-        compose.waitUntil(5_000) { model.state.value.searchQuery == "Night" }
+        // One place needs no navigation, and its filter does the work of a search.
+        compose.onAllNodesWithTag("nav-device").assertCountEquals(0)
+        compose.onAllNodesWithTag("nav-search").assertCountEquals(0)
+        compose.onNodeWithText("Filter").performTextInput("Night")
         compose.onNodeWithText("Night Walk").assertIsDisplayed()
-        screenshot("search-local")
-        compose.onNodeWithTag("nav-device").performClick()
+        screenshot("filter-local")
         compose.onNodeWithText("Add files").assertIsDisplayed()
         compose.onNodeWithText("Add folder").assertIsDisplayed()
         screenshot("downloads")
@@ -162,6 +159,65 @@ class LocalPlaybackTest {
         compose.activityRule.scenario.recreate()
         compose.waitUntil(5_000) { ViewModelProvider(compose.activity)[MainViewModel::class.java].state.value.settings.theme == chosen }
         screenshot("settings-dark")
+    }
+
+    @Test fun signedOutSettingsShowOnlyWhatWorksWithoutAnAccount() {
+        compose.onNodeWithContentDescription("Settings").performClick()
+        val list = compose.onNodeWithTag("settings-list")
+        // Rows that change how TIDAL is streamed and downloaded need an account.
+        for (hidden in listOf("Wi-Fi audio quality", "Mobile audio quality", "Autoplay", "Volume normalization", "Offline mode", "Download over mobile data", "Download saved tracks", "Download played tracks", "Audio output", "Keep saved tracks offline"))
+            compose.onAllNodesWithText(hidden).assertCountEquals(0)
+        // Experimental is a section of the list and not a page, so its rows show without a tap.
+        list.performScrollToNode(hasText("Experimental"))
+        list.performScrollToNode(hasText("Equalizer"))
+        compose.onNodeWithText("Equalizer").assertIsDisplayed()
+        list.performScrollToNode(hasText("ListenBrainz"))
+        compose.onNodeWithText("ListenBrainz").assertIsDisplayed()
+        list.performScrollToNode(hasText("Unofficial open source Android music player for TIDAL"))
+        compose.onNodeWithText("No ads, analytics or tracking.").assertIsDisplayed()
+    }
+
+    @Test fun theAvoidRepeatsPageListsTheExcludedTracksAndIncludesOneOnRequest() {
+        app.library.clearHistory()
+        app.library.recordPlay(track, 40_000)
+        compose.runOnIdle { model.settings { it.copy(avoidRepeatHours = 24) } }
+        try {
+            compose.onNodeWithContentDescription("Settings").performClick()
+            compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Avoid repeats"))
+            compose.onNode(hasText("Avoid repeats") and hasClickAction()).performClick()
+            compose.onNodeWithText("Excluded tracks").assertIsDisplayed()
+            compose.onNodeWithTag("repeats-list").performScrollToNode(hasText("Night Walk"))
+            compose.onNodeWithText("Night Walk").assertIsDisplayed()
+            compose.onNodeWithText("Include").performClick()
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("No excluded tracks").fetchSemanticsNodes().isNotEmpty() }
+            assertTrue(app.library.playedSince(0).isEmpty())
+            // Every time window is one choice of several.
+            compose.onNode(hasText("Off") and hasClickAction()).performClick()
+            compose.waitUntil(5_000) { model.state.value.settings.avoidRepeatHours == 0 }
+            compose.onAllNodesWithText("Excluded tracks").assertCountEquals(0)
+            compose.onNodeWithContentDescription("Back").performClick()
+            compose.onNodeWithTag("settings-list").assertIsDisplayed()
+        } finally {
+            compose.runOnIdle { model.settings { it.copy(avoidRepeatHours = 0) } }
+            app.library.clearHistory()
+        }
+    }
+
+    @Test fun theStatisticsPageSelectsOnePeriodAtATime() {
+        app.library.clearHistory()
+        app.library.recordPlay(track, 40_000)
+        try {
+            compose.onNodeWithContentDescription("Settings").performClick()
+            compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Listening statistics"))
+            compose.onNode(hasText("Listening statistics") and hasClickAction()).performClick()
+            compose.onNodeWithTag("stats-range").assertIsDisplayed()
+            compose.onNode(hasText("7 days") and hasClickAction()).assertIsNotSelected()
+            compose.onNode(hasText("30 days") and hasClickAction()).assertIsSelected()
+            compose.onNode(hasText("7 days") and hasClickAction()).performClick()
+            compose.onNode(hasText("7 days") and hasClickAction()).assertIsSelected()
+            compose.onNode(hasText("30 days") and hasClickAction()).assertIsNotSelected()
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("Night Walk").fetchSemanticsNodes().isNotEmpty() }
+        } finally { app.library.clearHistory() }
     }
 
     private fun screenshot(name: String) {

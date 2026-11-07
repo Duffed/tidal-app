@@ -46,7 +46,7 @@ gh attestation verify opentune-<version>.apk --repo yyan115/tidal-app
 - Home with your mixes, radio, new releases, genres and moods. Artist and album pages with biographies, reviews and credits. Music videos with picture-in-picture.
 - Your library: saved tracks, albums, artists, playlists, folders and mixes. Create and edit playlists, organise them in folders and save playlists from other people.
 - Lyrics that follow the song, track and artist radio, and autoplay that keeps the music going when the queue ends.
-- Downloads, offline mode and a setting that keeps your saved tracks downloaded.
+- Downloads, offline mode, and experimental options that download a track when you save it or when it plays.
 
 **Your own music**
 
@@ -56,8 +56,8 @@ gh attestation verify opentune-<version>.apk --repo yyan115/tidal-app
 
 **Playback and system**
 
-- Gapless playback with a deep buffer, a queue that you reorder by dragging, shuffle that reorders the queue itself, a sleep timer, volume normalization and audio output information. A setting avoids tracks that played recently.
-- Experimental: a visualizer, an equalizer, ListenBrainz and bit-perfect USB output on Android 14 and later.
+- Gapless playback with a deep buffer, a queue that you reorder by dragging, shuffle that reorders the queue itself, a sleep timer, volume normalization and a setting that avoids tracks that played recently, with a page that lists them.
+- Experimental: a visualizer, an equalizer, ListenBrainz, bit-perfect USB output on Android 14 and later, and automatic downloads.
 - Controls in the notification, on the lock screen, on Bluetooth devices and in Android Auto. A home screen widget and voice requests such as "play Nujabes".
 
 **Your phone, your way**

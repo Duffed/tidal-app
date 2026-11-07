@@ -27,7 +27,7 @@ class BackupManager(private val app: OpenTuneApp) {
                 put("quality", settings.quality.name); put("mobileQuality", settings.mobileQuality.name); put("downloadOnWifi", settings.downloadOnWifi)
                 put("theme", settings.theme); put("normalization", settings.normalization)
                 put("equalizer", settings.equalizer); put("equalizerLevels", JSONArray(settings.equalizerLevels)); put("bitPerfect", settings.bitPerfect)
-                put("keepFavoritesOffline", settings.keepFavoritesOffline); put("scrobble", settings.scrobble); put("scrobbleServer", settings.scrobbleServer)
+                put("downloadSaved", settings.downloadSaved); put("downloadPlayed", settings.downloadPlayed); put("scrobble", settings.scrobble); put("scrobbleServer", settings.scrobbleServer)
             })
             put("playlists", JSONArray().apply {
                 app.library.playlists().forEach { playlist ->
@@ -57,7 +57,8 @@ class BackupManager(private val app: OpenTuneApp) {
                     theme = io.github.yyan115.opentune.ui.migrateTheme(values.optString("theme", current.theme), values.optString("colorTheme").ifBlank { null }),
                     normalization = values.optString("normalization", current.normalization), equalizer = values.optBoolean("equalizer", current.equalizer),
                     equalizerLevels = values.optJSONArray("equalizerLevels")?.let { array -> (0 until array.length()).map(array::getInt) } ?: current.equalizerLevels,
-                    bitPerfect = values.optBoolean("bitPerfect", current.bitPerfect), keepFavoritesOffline = values.optBoolean("keepFavoritesOffline", current.keepFavoritesOffline),
+                    bitPerfect = values.optBoolean("bitPerfect", current.bitPerfect), downloadSaved = values.optBoolean("downloadSaved", values.optBoolean("keepFavoritesOffline", current.downloadSaved)),
+                    downloadPlayed = values.optBoolean("downloadPlayed", current.downloadPlayed),
                     scrobble = values.optBoolean("scrobble", current.scrobble), scrobbleServer = values.optString("scrobbleServer", current.scrobbleServer),
                 )
             }

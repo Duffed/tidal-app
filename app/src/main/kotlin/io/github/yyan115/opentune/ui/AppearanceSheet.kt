@@ -69,8 +69,6 @@ fun AppearanceSheet(settings: Settings, onChange: (Settings) -> Unit, onClose: (
             }
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(name, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                Text(stringResource(if (shown == SYSTEM_THEME) R.string.theme_system_description else theme.descriptionRes), Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 2)
             }
             TuneButton(onClick = { onChange(settings.copy(theme = shown)) }, enabled = !inUse,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 12.dp).heightIn(min = 48.dp).testTag("theme-apply")) {

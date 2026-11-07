@@ -1,43 +1,6 @@
 package io.github.yyan115.opentune.playback
 
-import io.github.yyan115.opentune.R
-import android.content.Context
-import android.media.AudioAttributes
-import android.media.AudioDeviceInfo
-import android.media.AudioManager
 import android.media.audiofx.Equalizer
-import android.os.Build
-
-/** An audio output that Android can play to. */
-data class OutputDevice(val name: String, val kind: String, val sampleRates: List<Int>, val active: Boolean)
-
-object AudioOutput {
-    private fun kind(context: Context, type: Int): String? = when (type) {
-        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> context.getString(R.string.output_kind_speaker)
-        AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET -> context.getString(R.string.output_kind_wired)
-        AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_ACCESSORY -> context.getString(R.string.output_kind_usb)
-        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> context.getString(R.string.output_kind_bluetooth)
-        AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER, AudioDeviceInfo.TYPE_BLE_BROADCAST -> context.getString(R.string.output_kind_ble)
-        AudioDeviceInfo.TYPE_HDMI, AudioDeviceInfo.TYPE_HDMI_ARC, AudioDeviceInfo.TYPE_HDMI_EARC -> context.getString(R.string.output_kind_hdmi)
-        AudioDeviceInfo.TYPE_LINE_ANALOG, AudioDeviceInfo.TYPE_LINE_DIGITAL -> context.getString(R.string.output_kind_line)
-        AudioDeviceInfo.TYPE_DOCK -> context.getString(R.string.output_kind_dock)
-        else -> null
-    }
-
-    /** The outputs that music uses now, followed by the other connected outputs. */
-    fun devices(context: Context): List<OutputDevice> {
-        val manager = context.getSystemService(AudioManager::class.java)
-        val routed = if (Build.VERSION.SDK_INT >= 33) runCatching {
-            manager.getAudioDevicesForAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()).map { it.id }
-        }.getOrDefault(emptyList()) else emptyList()
-        return manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).mapNotNull { device ->
-            kind(context, device.type)?.let { label ->
-                OutputDevice(device.productName?.toString().orEmpty().ifBlank { label }, label,
-                    device.sampleRates.filter { it > 0 }.sorted(), active = device.id in routed)
-            }
-        }.sortedByDescending { it.active }
-    }
-}
 
 /** The bands, range and presets of the built-in equalizer, or null when the device has none. */
 data class EqualizerInfo(val minLevel: Int, val maxLevel: Int, val centerHz: List<Int>, val presets: List<Preset>) {

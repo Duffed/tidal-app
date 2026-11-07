@@ -11,14 +11,17 @@ data class Settings(
     val downloadOnWifi: Boolean = true,
     val offline: Boolean = false,
     /** The id of a theme, or "system". See `appThemes`. */
-    val theme: String = "dark",
+    val theme: String = io.github.yyan115.opentune.ui.SYSTEM_THEME,
     /** Volume normalization from ReplayGain data: "off", "track" or "album". */
     val normalization: String = "off",
     val equalizer: Boolean = false,
     /** Band levels in millibels, in band order. Empty until the listener changes a band. */
     val equalizerLevels: List<Int> = emptyList(),
     val bitPerfect: Boolean = false,
-    val keepFavoritesOffline: Boolean = false,
+    /** Downloads a track when it is saved with the heart button. At most one of [downloadSaved] and [downloadPlayed] is on. */
+    val downloadSaved: Boolean = false,
+    /** Downloads each track that counts as played. At most one of [downloadSaved] and [downloadPlayed] is on. */
+    val downloadPlayed: Boolean = false,
     val scrobble: Boolean = false,
     val scrobbleServer: String = "https://api.listenbrainz.org",
     /** Whether the first-launch screen was answered. */
@@ -29,7 +32,13 @@ data class Settings(
     val avoidRepeatHours: Int = 0,
     /** Shows the spectrum of the music over the artwork in the player. */
     val visualizer: Boolean = false,
-)
+) {
+    /** Turns the download of saved tracks on or off. Turning it on turns the download of played tracks off. */
+    fun withDownloadSaved(on: Boolean) = copy(downloadSaved = on, downloadPlayed = downloadPlayed && !on)
+
+    /** Turns the download of played tracks on or off. Turning it on turns the download of saved tracks off. */
+    fun withDownloadPlayed(on: Boolean) = copy(downloadPlayed = on, downloadSaved = downloadSaved && !on)
+}
 
 class AppSettings(context: Context) {
     private val preferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -37,25 +46,32 @@ class AppSettings(context: Context) {
         AudioQuality.valueOf(preferences.getString(key, fallback.name)!!)
     }.getOrDefault(fallback)
     private val mutable = MutableStateFlow(Settings(
-        quality("quality", AudioQuality.LOSSLESS), quality("mobileQuality", AudioQuality.LOSSLESS),
-        preferences.getBoolean("downloadOnWifi", true), preferences.getBoolean("offline", false),
-        io.github.yyan115.opentune.ui.migrateTheme(preferences.getString("theme", "dark") ?: "dark", preferences.getString("colorTheme", null)),
-        preferences.getString("normalization", "off") ?: "off", preferences.getBoolean("equalizer", false),
-        preferences.getString("equalizerLevels", "").orEmpty().split(',').mapNotNull { it.trim().toIntOrNull() },
-        preferences.getBoolean("bitPerfect", false), preferences.getBoolean("keepFavoritesOffline", false),
-        preferences.getBoolean("scrobble", false), preferences.getString("scrobbleServer", "https://api.listenbrainz.org") ?: "https://api.listenbrainz.org",
-        preferences.getBoolean("welcomeDone", false), preferences.getBoolean("autoplay", true), preferences.getInt("avoidRepeatHours", 0), preferences.getBoolean("visualizer", false)))
+        quality = quality("quality", AudioQuality.LOSSLESS), mobileQuality = quality("mobileQuality", AudioQuality.LOSSLESS),
+        downloadOnWifi = preferences.getBoolean("downloadOnWifi", true), offline = preferences.getBoolean("offline", false),
+        theme = io.github.yyan115.opentune.ui.migrateTheme(preferences.getString("theme", io.github.yyan115.opentune.ui.SYSTEM_THEME) ?: io.github.yyan115.opentune.ui.SYSTEM_THEME, preferences.getString("colorTheme", null)),
+        normalization = preferences.getString("normalization", "off") ?: "off", equalizer = preferences.getBoolean("equalizer", false),
+        equalizerLevels = preferences.getString("equalizerLevels", "").orEmpty().split(',').mapNotNull { it.trim().toIntOrNull() },
+        bitPerfect = preferences.getBoolean("bitPerfect", false),
+        // The option that kept saved tracks offline became the download of saved tracks.
+        downloadSaved = preferences.getBoolean("downloadSaved", preferences.getBoolean("keepFavoritesOffline", false)),
+        downloadPlayed = preferences.getBoolean("downloadPlayed", false),
+        scrobble = preferences.getBoolean("scrobble", false), scrobbleServer = preferences.getString("scrobbleServer", "https://api.listenbrainz.org") ?: "https://api.listenbrainz.org",
+        welcomeDone = preferences.getBoolean("welcomeDone", false), autoplay = preferences.getBoolean("autoplay", true),
+        avoidRepeatHours = preferences.getInt("avoidRepeatHours", 0), visualizer = preferences.getBoolean("visualizer", false)).exclusive())
     val state = mutable.asStateFlow()
     fun update(transform: (Settings) -> Settings) {
-        val next = transform(mutable.value)
+        val next = transform(mutable.value).exclusive()
         preferences.edit().putString("quality", next.quality.name).putString("mobileQuality", next.mobileQuality.name)
             .putBoolean("downloadOnWifi", next.downloadOnWifi).putBoolean("offline", next.offline)
             .putString("theme", next.theme).remove("colorTheme")
             .putString("normalization", next.normalization).putBoolean("equalizer", next.equalizer)
             .putString("equalizerLevels", next.equalizerLevels.joinToString(",")).putBoolean("bitPerfect", next.bitPerfect)
-            .putBoolean("keepFavoritesOffline", next.keepFavoritesOffline).putBoolean("scrobble", next.scrobble)
+            .putBoolean("downloadSaved", next.downloadSaved).putBoolean("downloadPlayed", next.downloadPlayed).remove("keepFavoritesOffline").putBoolean("scrobble", next.scrobble)
             .putString("scrobbleServer", next.scrobbleServer).putBoolean("welcomeDone", next.welcomeDone).putBoolean("autoplay", next.autoplay)
             .putInt("avoidRepeatHours", next.avoidRepeatHours).putBoolean("visualizer", next.visualizer).apply()
         mutable.value = next
     }
 }
+
+/** Settings that arrive from storage or a backup may have both automatic downloads on. The download of saved tracks stays. */
+private fun Settings.exclusive() = if (downloadSaved && downloadPlayed) copy(downloadPlayed = false) else this

@@ -11,7 +11,6 @@ import androidx.media3.session.SessionToken
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.yyan115.opentune.core.Track
-import io.github.yyan115.opentune.playback.AudioOutput
 import io.github.yyan115.opentune.playback.EqualizerInfo
 import io.github.yyan115.opentune.playback.PlaybackService
 import io.github.yyan115.opentune.ui.MainViewModel
@@ -98,11 +97,5 @@ class PlaybackFeaturesTest {
         assertTrue(model.state.value.playback.playing)
         compose.runOnIdle { model.settings { it.copy(equalizer = false) } }
         compose.waitUntil(10_000) { model.state.value.playback.playing }
-    }
-
-    @Test fun audioOutputListsTheDevicesAndMarksTheOneInUse() {
-        val devices = AudioOutput.devices(InstrumentationRegistry.getInstrumentation().targetContext)
-        assertTrue("The emulator has at least a speaker", devices.isNotEmpty())
-        assertTrue(devices.all { it.name.isNotBlank() })
     }
 }

@@ -7,7 +7,7 @@ OpenTune has no ads, analytics or tracking, and it connects only to TIDAL.
 <li>Home, mixes, radio, new releases, artist and album pages with biographies and credits, and music videos.</li>
 <li>Your library: saved tracks, albums, artists, playlists and folders. Create and edit playlists.</li>
 <li>Lyrics that follow the song, and autoplay when the queue ends.</li>
-<li>Download tracks, keep your saved tracks offline and listen without a connection.</li>
+<li>Download tracks, optionally download saved or played tracks automatically, and listen without a connection.</li>
 <li>Add audio files and folders. They stay up to date, show their format and location, and play in the same player as TIDAL.</li>
 <li>Twelve themes with a live preview, a sleep timer, volume normalization and a queue that you reorder by dragging.</li>
 <li>Controls in the notification, on the lock screen, on Bluetooth devices and in Android Auto, and a home screen widget.</li>
