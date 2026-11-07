@@ -4,6 +4,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-07
+
 ### Added
 
 - Local files are known by their document, so a file that you add by hand and that a folder holds is one track. A file is read again when it changes.

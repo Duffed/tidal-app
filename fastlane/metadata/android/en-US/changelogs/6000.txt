@@ -1,0 +1,2 @@
+- Local files are known by their document, so a file that you add by hand and that a folder holds is one track. A file is read again when it changes.
+- Local files show their bit depth, sample rate and bitrate, carry a Local mark and have a details sheet with their location, folder and size. A file without a picture takes the cover of its folder, or a coloured tile with a note.
