@@ -99,9 +99,11 @@ class PlaybackService : MediaLibraryService() {
         app = application as OpenTuneApp
         // The renderers pass the audio through a processor that lets the visualizer see it. The audio itself does not change.
         val renderers = object : androidx.media3.exoplayer.DefaultRenderersFactory(this) {
-            override fun buildAudioSink(context: android.content.Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean) =
-                androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context).setEnableFloatOutput(enableFloatOutput)
+            override fun buildAudioSink(context: android.content.Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): androidx.media3.exoplayer.audio.AudioSink {
+                AudioSpectrum.sinks++
+                return androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context).setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams).setAudioProcessors(arrayOf(SpectrumProcessor())).build()
+            }
         }
         player = ExoPlayer.Builder(this, renderers)
             .setLoadControl(streamingLoadControl())

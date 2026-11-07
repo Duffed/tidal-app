@@ -43,7 +43,11 @@ object AudioSpectrum {
     @Volatile var configuration = "never configured"
         internal set
 
-    override fun toString() = "enabled=$enabled written=$written configuration=$configuration"
+    /** How many audio sinks the player built with the tap, for the same reports. */
+    @Volatile var sinks = 0
+        internal set
+
+    override fun toString() = "enabled=$enabled written=$written sinks=$sinks configuration=$configuration"
 }
 
 /**
