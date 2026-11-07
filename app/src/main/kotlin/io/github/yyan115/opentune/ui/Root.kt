@@ -91,7 +91,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     LaunchedEffect(state.message) { state.message?.let { snackbar.showSnackbar(it); vm.messageShown() } }
     LaunchedEffect(state.signedIn) { if (state.signedIn) { login = false; vm.finishWelcome() } }
     BackHandler(enabled = state.detail != null || settings || state.routes.isNotEmpty()) {
-        if (settingsPageOpen != null) settingsPage = null else if (settings) closeSettings() else vm.closeDetail()
+        if (settingsPageOpen != null) settingsPage = settingsPageOpen.parent?.name else if (settings) closeSettings() else vm.closeDetail()
     }
 
     if (welcome) WelcomeScreen(onSignIn = openLogin, onLocalOnly = vm::finishWelcome)
@@ -104,7 +104,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
             } ?: stringResource(destination.title)
             Column(Modifier.statusBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(start = if (settings || inDetail || largeText) 8.dp else 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (settings || inDetail) IconButton(onClick = { if (settingsPageOpen != null) settingsPage = null else if (settings) closeSettings() else vm.closeDetail() }) { Icon(OpenTuneIcons.ArrowBack, stringResource(R.string.action_back)) }
+                    if (settings || inDetail) IconButton(onClick = { if (settingsPageOpen != null) settingsPage = settingsPageOpen.parent?.name else if (settings) closeSettings() else vm.closeDetail() }) { Icon(OpenTuneIcons.ArrowBack, stringResource(R.string.action_back)) }
                     else if (largeText && navigation) IconButton(onClick = { navigationMenu = true }) { Icon(OpenTuneIcons.Menu, stringResource(R.string.nav_open)) }
                     if (!settings && !inDetail && !largeText) {
                         Icon(OpenTuneIcons.Brand, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
@@ -148,6 +148,8 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                 settings -> when (settingsPageOpen) {
                     SettingsPage.Repeats -> AvoidRepeatsPage(state, vm)
                     SettingsPage.Statistics -> StatisticsPage(vm)
+                    SettingsPage.Licenses -> LicencesPage { settingsPage = it.name }
+                    SettingsPage.Notices, SettingsPage.Gpl, SettingsPage.Apache, SettingsPage.Inter, SettingsPage.Serif, SettingsPage.Space, SettingsPage.Mono -> LicenceDocumentPage(settingsPageOpen)
                     null -> SettingsScreen(state, vm, openLogin) { settingsPage = it.name }
                 }
                 state.routes.isNotEmpty() -> PageScreen(state.routes.last(), state, vm, pagesVm, openTrackMenu)

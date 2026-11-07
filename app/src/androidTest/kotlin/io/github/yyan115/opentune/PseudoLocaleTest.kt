@@ -149,20 +149,22 @@ class PseudoLocaleTest {
         sweep("Settings bottom")
         for ((row, name) in settingsDialogs()) {
             list.performScrollToNode(hasText(s(row)))
-            // The licence texts are legal documents that stay in English, so only the title and the tabs of that dialog are checked.
-            val check = if (row != R.string.settings_licenses) ({ sweep(name) }) else ({
-                listOf(R.string.licenses_title, R.string.licenses_notices, R.string.licenses_gpl, R.string.licenses_apache, R.string.licenses_inter, R.string.licenses_serif, R.string.licenses_space, R.string.licenses_mono)
-                    .forEach { tab -> await("the licence tab ${s(tab)}") { runCatching { compose.onNodeWithTag("licence-tabs").performScrollToNode(hasText(s(tab))) }; compose.onAllNodes(hasText(s(tab))).fetchSemanticsNodes().isNotEmpty() } }
-            })
-            inWindow(name, check) { compose.onAllNodes(hasText(s(row)) and hasClickAction()).onFirst().performClick() }
+            inWindow(name) { compose.onAllNodes(hasText(s(row)) and hasClickAction()).onFirst().performClick() }
         }
         // The pages that open from the list. The avoid-repeats page also shows its list of excluded tracks.
-        for ((row, name) in listOf(R.string.settings_repeats to "Avoid repeats page", R.string.stats_title to "Statistics page")) {
+        for ((row, name) in listOf(R.string.settings_repeats to "Avoid repeats page", R.string.stats_title to "Statistics page", R.string.settings_licenses to "Licenses page")) {
             if (row == R.string.settings_repeats) app.settings.update { it.copy(avoidRepeatHours = 24) }
             list.performScrollToNode(hasText(s(row)))
             compose.onAllNodes(hasText(s(row)) and hasClickAction()).onFirst().performClick()
             await("the $name") { compose.onAllNodesWithTag("settings-list").fetchSemanticsNodes().isEmpty() }
             sweep(name)
+            if (row == R.string.settings_licenses) {
+                // The licence texts are legal documents that stay in English, so a document is only checked for opening.
+                compose.onAllNodes(hasText(s(R.string.licenses_gpl)) and hasClickAction()).onFirst().performClick()
+                await("the licence document") { compose.onAllNodesWithTag("licence-document").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithContentDescription(s(R.string.action_back)).performClick()
+                await("the licence list") { compose.onAllNodesWithTag("licences-list").fetchSemanticsNodes().isNotEmpty() }
+            }
             compose.onNodeWithContentDescription(s(R.string.action_back)).performClick()
             await("the settings list") { compose.onAllNodesWithTag("settings-list").fetchSemanticsNodes().isNotEmpty() }
             if (row == R.string.settings_repeats) app.settings.update { it.copy(avoidRepeatHours = 0) }
@@ -203,7 +205,7 @@ class PseudoLocaleTest {
 
     private fun settingsDialogs() = listOf(
         R.string.eq_title to "Equalizer", R.string.settings_theme to "Theme", R.string.scrobble_title to "Scrobbling",
-        R.string.settings_clear_history to "Clear history", R.string.settings_licenses to "Licenses",
+        R.string.settings_clear_history to "Clear history",
     )
 
     private fun finish() {

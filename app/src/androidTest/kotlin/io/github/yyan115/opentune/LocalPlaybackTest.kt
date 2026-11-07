@@ -173,7 +173,9 @@ class LocalPlaybackTest {
         compose.onNodeWithText("Equalizer").assertIsDisplayed()
         list.performScrollToNode(hasText("ListenBrainz"))
         compose.onNodeWithText("ListenBrainz").assertIsDisplayed()
-        list.performScrollToNode(hasText("Unofficial open source Android music player for TIDAL"))
+        // The About rows are the last of the list, so they are on the screen together.
+        list.performScrollToNode(hasText("Licenses"))
+        compose.onNodeWithText("Unofficial open source Android music player for TIDAL").assertIsDisplayed()
         compose.onNodeWithText("No ads, analytics or tracking.").assertIsDisplayed()
     }
 
@@ -185,7 +187,8 @@ class LocalPlaybackTest {
             compose.onNodeWithContentDescription("Settings").performClick()
             compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Avoid repeats"))
             compose.onNode(hasText("Avoid repeats") and hasClickAction()).performClick()
-            compose.onNodeWithText("Excluded tracks").assertIsDisplayed()
+            // Section labels are drawn in capitals.
+            compose.onNodeWithText("EXCLUDED TRACKS").assertIsDisplayed()
             compose.onNodeWithTag("repeats-list").performScrollToNode(hasText("Night Walk"))
             compose.onNodeWithText("Night Walk").assertIsDisplayed()
             compose.onNodeWithText("Include").performClick()
@@ -194,7 +197,7 @@ class LocalPlaybackTest {
             // Every time window is one choice of several.
             compose.onNode(hasText("Off") and hasClickAction()).performClick()
             compose.waitUntil(5_000) { model.state.value.settings.avoidRepeatHours == 0 }
-            compose.onAllNodesWithText("Excluded tracks").assertCountEquals(0)
+            compose.onAllNodesWithText("EXCLUDED TRACKS").assertCountEquals(0)
             compose.onNodeWithContentDescription("Back").performClick()
             compose.onNodeWithTag("settings-list").assertIsDisplayed()
         } finally {
@@ -218,6 +221,24 @@ class LocalPlaybackTest {
             compose.onNode(hasText("30 days") and hasClickAction()).assertIsNotSelected()
             compose.waitUntil(5_000) { compose.onAllNodesWithText("Night Walk").fetchSemanticsNodes().isNotEmpty() }
         } finally { app.library.clearHistory() }
+    }
+
+    @Test fun theLicencesOpenAsAListAndEachDocumentOnItsOwnPage() {
+        compose.onNodeWithContentDescription("Settings").performClick()
+        compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Licenses"))
+        compose.onNode(hasText("Licenses") and hasClickAction()).performClick()
+        compose.onNodeWithTag("licences-list").assertIsDisplayed()
+        compose.onNodeWithText("GNU General Public License 3.0").assertIsDisplayed()
+        compose.onNodeWithText("Apache License 2.0").assertIsDisplayed()
+        compose.onNodeWithTag("licences-list").performScrollToNode(hasText("JetBrains Mono"))
+        compose.onAllNodesWithText("SIL Open Font License 1.1").assertCountEquals(4)
+        compose.onNodeWithTag("licences-list").performScrollToNode(hasText("GNU General Public License 3.0"))
+        compose.onNode(hasText("GNU General Public License 3.0") and hasClickAction()).performClick()
+        compose.waitUntil(10_000) { compose.onAllNodes(hasText("GNU GENERAL PUBLIC LICENSE", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithTag("licences-list").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithTag("settings-list").assertIsDisplayed()
     }
 
     private fun screenshot(name: String) {
