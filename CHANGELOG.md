@@ -15,6 +15,7 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 - Without an account, On device is the only place, with its text filter and no navigation bar. Settings that only apply to TIDAL appear once an account is connected.
 - Experimental is a section of the Settings list and no longer a collapsed row.
+- The licences open as a list with one page for each document, in place of a dialog with seven tabs.
 - New installs follow the theme of the device. Audiophile Gold is named Gold, and the themes no longer carry descriptions.
 - The About section names OpenTune as an unofficial open source Android music player for TIDAL, for every version.
 - Offline mode is switched off when the account is disconnected.
