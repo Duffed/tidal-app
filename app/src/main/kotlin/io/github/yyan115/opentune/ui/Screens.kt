@@ -432,8 +432,7 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit) {
         item { SettingRow(OpenTuneIcons.SaveAlt, stringResource(R.string.settings_backup), stringResource(R.string.settings_backup_text), { backup.launch("opentune-backup.json") }) }
         item { SettingRow(OpenTuneIcons.Refresh, stringResource(R.string.settings_restore), onClick = { restore.launch(arrayOf("application/json", "*/*")) }) }
         item { SettingRow(OpenTuneIcons.RemoveCircleOutline, stringResource(R.string.settings_clear_history), stringResource(R.string.settings_clear_history_text), { clearHistory = true }) }
-        item { SectionTitle(stringResource(R.string.settings_experimental)) }
-        item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_experimental_features),
+        item { SettingRow(OpenTuneIcons.Code, stringResource(R.string.settings_experimental),
             stringResource(R.string.settings_experimental_summary), { experimental = !experimental },
             trailing = { Icon(OpenTuneIcons.KeyboardArrowDown, null, Modifier.graphicsLayer { rotationZ = if (experimental) 180f else 0f }) }) }
         if (experimental) {

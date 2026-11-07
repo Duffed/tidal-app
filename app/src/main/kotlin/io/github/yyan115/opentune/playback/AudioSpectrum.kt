@@ -38,6 +38,12 @@ object AudioSpectrum {
     }
 
     fun clear() { written = 0 }
+
+    /** The format that the tap was last configured for, for reports of a visualizer that stays empty. */
+    @Volatile var configuration = "never configured"
+        internal set
+
+    override fun toString() = "enabled=$enabled written=$written configuration=$configuration"
 }
 
 /**
@@ -56,6 +62,7 @@ class SpectrumProcessor : BaseAudioProcessor() {
     override fun onConfigure(inputAudioFormat: AudioFormat): AudioFormat {
         // A format that the tap cannot read, such as compressed audio sent on to a receiver, is left alone.
         if (inputAudioFormat.encoding !in SUPPORTED) return AudioFormat.NOT_SET
+        AudioSpectrum.configuration = "encoding ${inputAudioFormat.encoding}, ${inputAudioFormat.channelCount} channels, ${inputAudioFormat.sampleRate} Hz"
         encoding = inputAudioFormat.encoding; channels = inputAudioFormat.channelCount.coerceAtLeast(1)
         step = (inputAudioFormat.sampleRate / 48_000).coerceAtLeast(1); rate = inputAudioFormat.sampleRate / step
         sum = 0f; count = 0

@@ -30,7 +30,7 @@ class LocalPlaybackTest {
         model = ViewModelProvider(compose.activity)[MainViewModel::class.java]
         compose.runOnIdle {
             model.clearQueue()
-            model.settings { it.copy(theme = "light", offline = false, welcomeDone = true) }
+            model.settings { it.copy(theme = "light", offline = false, welcomeDone = true, visualizer = false) }
         }
         app.library.playlists().filter { it.title == "Evening" }.forEach { app.library.deletePlaylist(it.id) }
         val file = File(app.filesDir, "playback-test.flac")
@@ -242,14 +242,20 @@ class LocalPlaybackTest {
 
     @Test fun theVisualizerReadsTheSamplesThatTheOutputReceives() {
         compose.runOnIdle { model.settings { it.copy(visualizer = true) } }
-        io.github.yyan115.opentune.playback.AudioSpectrum.clear()
-        compose.runOnIdle { model.play(listOf(track)) }
-        compose.waitUntil(15_000) { model.state.value.playback.playing }
-        val samples = FloatArray(io.github.yyan115.opentune.core.Spectrum.SIZE)
-        compose.waitUntil(10_000) { io.github.yyan115.opentune.playback.AudioSpectrum.latest(samples) }
-        assertTrue("The tap sees the music, not silence", samples.any { kotlin.math.abs(it) > 0.001f })
-        val bands = io.github.yyan115.opentune.core.Spectrum.bands(samples, io.github.yyan115.opentune.playback.AudioSpectrum.sampleRate)
-        assertTrue("Some band carries energy", bands.any { it > 0.05f })
-        compose.runOnIdle { model.settings { it.copy(visualizer = false) }; model.stopPlayback() }
+        try {
+            io.github.yyan115.opentune.playback.AudioSpectrum.clear()
+            compose.runOnIdle { model.play(listOf(track)) }
+            compose.waitUntil(15_000) { model.state.value.playback.playing }
+            val samples = FloatArray(io.github.yyan115.opentune.core.Spectrum.SIZE)
+            val end = System.currentTimeMillis() + 10_000
+            while (System.currentTimeMillis() < end && !io.github.yyan115.opentune.playback.AudioSpectrum.latest(samples)) Thread.sleep(100)
+            assertTrue("The tap received no samples: ${io.github.yyan115.opentune.playback.AudioSpectrum}", io.github.yyan115.opentune.playback.AudioSpectrum.latest(samples))
+            assertTrue("The tap sees the music, not silence", samples.any { kotlin.math.abs(it) > 0.001f })
+            val bands = io.github.yyan115.opentune.core.Spectrum.bands(samples, io.github.yyan115.opentune.playback.AudioSpectrum.sampleRate)
+            assertTrue("Some band carries energy", bands.any { it > 0.05f })
+        } finally {
+            // The setting is kept on the device, so it must not stay on for the tests that follow.
+            compose.runOnIdle { model.settings { it.copy(visualizer = false) }; model.stopPlayback() }
+        }
     }
 }

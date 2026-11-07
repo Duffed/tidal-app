@@ -75,8 +75,8 @@ class ScreenTourTest {
         compose.runOnIdle { model.stopPlayback() }
         compose.onNodeWithContentDescription("Settings").performClick()
         picture("8-settings")
-        compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Experimental features"))
-        compose.onNode(hasText("Experimental features") and hasClickAction()).performClick()
+        compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Experimental"))
+        compose.onNode(hasText("Experimental") and hasClickAction()).performClick()
         picture("9-experimental")
         compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Theme"))
         compose.onNodeWithText("Theme").performClick()

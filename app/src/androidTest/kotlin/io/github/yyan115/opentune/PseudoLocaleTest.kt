@@ -151,8 +151,8 @@ class PseudoLocaleTest {
         inWindow("Sign-in") { compose.onAllNodes(hasText(s(R.string.action_connect_tidal)) and hasClickAction()).onFirst().performClick() }
         list.performScrollToNode(hasText(s(R.string.settings_data)))
         sweep("Settings middle")
-        list.performScrollToNode(hasText(s(R.string.settings_experimental_features)))
-        compose.onNode(hasText(s(R.string.settings_experimental_features)) and hasClickAction()).performClick()
+        list.performScrollToNode(hasText(s(R.string.settings_experimental)))
+        compose.onNode(hasText(s(R.string.settings_experimental)) and hasClickAction()).performClick()
         sweep("Settings experimental")
         list.performScrollToNode(hasText(s(R.string.settings_licenses)))
         sweep("Settings bottom")

@@ -450,7 +450,6 @@
     <string name="settings_repeats_text">Tracks played within this time come last in shuffle and are left out of radio and autoplay.</string>
     <string name="settings_mobile_downloads">Download over mobile data</string>
     <string name="settings_experimental">Experimental</string>
-    <string name="settings_experimental_features">Experimental features</string>
     <string name="settings_experimental_summary">Visualizer, equalizer, ListenBrainz and USB output</string>
     <string name="settings_tagline_prerelease">Prerelease of an unofficial open source client</string>
     <string name="settings_visualizer">Visualizer</string>
