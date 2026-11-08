@@ -1,0 +1,2 @@
+- A finished download is one tagged audio file in the Music/OpenTune folder, with title, artist, album, track number and cover, and any file manager or music player can open it. Settings shows the folder.
+- A page after the first screen asks for the permissions that the version of Android needs: notifications on Android 13 and later, and storage on Android 9 and older.

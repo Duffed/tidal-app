@@ -4,6 +4,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-08
+
 ### Added
 
 - A finished download is one tagged audio file in the Music/OpenTune folder, with title, artist, album, track number and cover, and any file manager or music player can open it. Settings shows the folder.
