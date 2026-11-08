@@ -2,7 +2,7 @@
 
 ## Getting started
 
-The first screen offers two ways to begin. **Sign in to TIDAL** is the main one. **Use local music only** opens the app without an account, so you can play your own audio files. You can sign in at any time from **Settings** or from the **Connect TIDAL** card.
+The first screen offers two ways to begin. **Sign in to TIDAL** is the main one. **Use local music only** opens the app without an account, so you can play your own audio files. You can sign in at any time from **Settings** or from the **Connect TIDAL** card. After the first screen, OpenTune asks for the permissions that your version of Android needs: notifications on Android 13 and later for the playback controls and the progress of a download, and storage access on Android 9 and older to save downloads. Each one can be skipped.
 
 With an account, OpenTune shows **Home**, **Search**, **Library** and **On device**. Without one, it shows **On device** alone, with a text filter for the music stored on the phone. Settings that only apply to TIDAL appear once an account is connected.
 
@@ -89,7 +89,7 @@ Choose **Download** in a track's menu or in the player. Finished downloads appea
 
 Turn on **Offline mode**, under **Settings**, **TIDAL**, to play only audio stored on the device. OpenTune sends no requests to TIDAL in this mode.
 
-Downloads are stored in OpenTune's private storage. Android removes them when you uninstall the app or clear its storage. Use **Export audio file** in the menu of a downloaded track to keep a copy. Lossless downloads become tagged `.flac` files without re-encoding. A local file is a file already, so it has no export.
+A finished download is one tagged audio file in the **Music/OpenTune** folder of the phone, for example a `.flac` file for a lossless track, with its title, artist, album, track number and cover. Any file manager or music player can open it. **Settings**, **TIDAL**, **Download folder** shows the place. Deleting a download in OpenTune deletes the file. If you delete the file elsewhere, the track becomes a stream again. Downloads from earlier versions move into the folder once after the update. A local file is a file already.
 
 ## Cars, Bluetooth and the widget
 

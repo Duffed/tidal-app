@@ -90,4 +90,13 @@ class FolderScanEndToEndTest {
         assertEquals("A file that was added by hand stays in the library with its folder gone", true, app.library.isDirect(scanned.id))
         assertEquals(DocumentKey.of(scanned.localUri!!).let(app.library::sourceFor)?.trackId, scanned.id)
     }
+
+    @Test fun aFileThatADownloadBecameIsNotAddedByAScan() {
+        val document = DocumentsContract.buildDocumentUri(authority, "root/Album/01 Night Walk.flac")
+        app.library.recordDownloadFile(DocumentKey.of(document.toString()), "2001")
+        try {
+            scan()
+            assertEquals(setOf("02 Second Walk.flac", "Solo.flac"), tracks().map(::fileName).toSet())
+        } finally { app.library.removeDownloadFile("2001") }
+    }
 }

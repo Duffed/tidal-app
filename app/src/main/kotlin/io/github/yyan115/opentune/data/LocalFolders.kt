@@ -88,6 +88,8 @@ class LocalFolders(private val app: OpenTuneApp) {
             val entry = file.entry
             val uri = DocumentsContract.buildDocumentUriUsingTree(tree, entry.documentId)
             val key = DocumentKey.of(uri.toString())
+            // A file that a download became is a track already, so a scan of the music folder does not add it a second time.
+            if (app.library.isDownloadFile(key)) continue
             val known = app.library.sourceFor(key)
             val current = known != null && app.library.get(known.trackId) != null && known.version >= LocalImporter.VERSION &&
                 known.modified == entry.modified && known.size == entry.size

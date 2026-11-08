@@ -4,6 +4,21 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- A finished download is one tagged audio file in the Music/OpenTune folder, with title, artist, album, track number and cover, and any file manager or music player can open it. Settings shows the folder.
+- A page after the first screen asks for the permissions that the version of Android needs: notifications on Android 13 and later, and storage on Android 9 and older.
+
+### Changed
+
+- Downloads from earlier versions move into the folder once, in the background. A download that cannot move keeps playing as before.
+- A download whose file was removed elsewhere is a stream again.
+- A folder scan leaves the files of downloads out, so a track does not appear twice.
+
+### Removed
+
+- Export audio file, because the download is the file.
+
 ## [0.6.4] - 2026-11-07
 
 ### Changed

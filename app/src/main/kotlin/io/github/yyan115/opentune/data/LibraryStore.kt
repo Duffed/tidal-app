@@ -15,7 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class LibraryStore(context: Context, databaseName: String = "library.db") : SQLiteOpenHelper(context, databaseName, null, 6) {
+class LibraryStore(context: Context, databaseName: String = "library.db") : SQLiteOpenHelper(context, databaseName, null, 7) {
     private val revision = MutableStateFlow(0L)
     val changes = revision.asStateFlow()
     override fun onCreate(db: SQLiteDatabase) {
@@ -28,6 +28,7 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
         createFolderTables(db)
         createSourceTables(db)
         createRepeatTables(db)
+        createDownloadFileTables(db)
     }
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true); db.enableWriteAheadLogging() }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -53,9 +54,23 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
             }
         }
         if (oldVersion < 6) createRepeatTables(db)
+        if (oldVersion < 7) createDownloadFileTables(db)
     }
 
     /** A file on the device is known by the document it came from. [version] says how it was read, [direct] says that the listener added it by hand. */
+    /** The audio files that downloads became, by the key of the file. A folder scan leaves these files out, because their tracks are known. */
+    private fun createDownloadFileTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE download_files (key TEXT PRIMARY KEY, track_id TEXT NOT NULL)")
+    }
+
+    @Synchronized fun recordDownloadFile(key: String, trackId: String) {
+        writableDatabase.insertWithOnConflict("download_files", null, ContentValues().apply { put("key", key); put("track_id", trackId) }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    @Synchronized fun isDownloadFile(key: String): Boolean = readableDatabase.rawQuery("SELECT 1 FROM download_files WHERE key=?", arrayOf(key)).use { it.moveToFirst() }
+
+    @Synchronized fun removeDownloadFile(trackId: String) { writableDatabase.delete("download_files", "track_id=?", arrayOf(trackId)) }
+
     /** A track that the listener allowed again stays out of the avoid-repeats window until it plays once more. */
     private fun createRepeatTables(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE repeat_releases (track_id TEXT PRIMARY KEY, released_at INTEGER NOT NULL)")
@@ -250,9 +265,12 @@ class LibraryStore(context: Context, databaseName: String = "library.db") : SQLi
                 writableDatabase.delete("tracks", "id=?", arrayOf(id))
                 writableDatabase.setTransactionSuccessful()
             } finally { writableDatabase.endTransaction() }
-        } else get(id)?.let { track -> writableDatabase.update("tracks", ContentValues().apply {
-            put("payload", JsonCodec.encodeTrack(track.copy(localUri = null, quality = null)).toString())
-        }, "id=?", arrayOf(id)) }
+        } else {
+            get(id)?.let { track -> writableDatabase.update("tracks", ContentValues().apply {
+                put("payload", JsonCodec.encodeTrack(track.copy(localUri = null, quality = null)).toString())
+            }, "id=?", arrayOf(id)) }
+            writableDatabase.delete("download_files", "track_id=?", arrayOf(id))
+        }
         revision.value++
     }
 

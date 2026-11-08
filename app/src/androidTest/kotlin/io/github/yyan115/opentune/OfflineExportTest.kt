@@ -15,7 +15,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
-import java.security.MessageDigest
 
 @UnstableApi
 @RunWith(AndroidJUnit4::class)
@@ -24,26 +23,13 @@ class OfflineExportTest {
     private val app get() = compose.activity.application as OpenTuneApp
     private val model get() = ViewModelProvider(compose.activity)[MainViewModel::class.java]
 
-    @Test fun localFileExportPreservesEveryByte(): Unit = runBlocking {
-        val original = File(app.filesDir, "export-original.flac")
-        InstrumentationRegistry.getInstrumentation().context.assets.open("night-walk.flac").use { input -> original.outputStream().use(input::copyTo) }
-        val track = Track("local:export-original", "Night Walk", "Original recording", localUri = Uri.fromFile(original).toString())
-        val exported = File(app.filesDir, "export-copy.flac")
-        val spec = app.exporter.describe(track)
-        assertEquals("audio/flac", spec.mimeType)
-        assertTrue(spec.fileName.endsWith(".flac"))
-        app.exporter.write(track, Uri.fromFile(exported))
-        assertArrayEquals(MessageDigest.getInstance("SHA-256").digest(original.readBytes()), MessageDigest.getInstance("SHA-256").digest(exported.readBytes()))
-        original.delete(); exported.delete()
-    }
-
     @Test fun downloadedFlacExportsAndPlaysWithoutNetworkOrAccountAccess() = runBlocking {
-        assumeTrue("Requires an existing clear FLAC download", InstrumentationRegistry.getArguments().getString("existingDownload") == "true")
-        val track = app.library.localTracks().first { !it.isFile && it.quality.orEmpty().startsWith("FLAC") }
+        assumeTrue("Requires an existing clear FLAC download that is kept as segments", InstrumentationRegistry.getArguments().getString("existingDownload") == "true")
+        val track = app.library.localTracks().first { it.localUri?.startsWith("opentune-offline:") == true && it.quality.orEmpty().startsWith("FLAC") }
         val file = File(app.filesDir, "export-validation.flac")
         app.tidal.signOut()
         val progress = mutableListOf<Int>()
-        app.exporter.write(track, Uri.fromFile(file), progress::add)
+        file.outputStream().use { app.exporter.writeDash(track, it, null, progress::add) }
         assertEquals(100, progress.last())
         assertTrue(progress.zipWithNext().all { (a, b) -> b >= a })
         assertEquals("fLaC", file.inputStream().use { input -> ByteArray(4).also { input.read(it) } }.toString(Charsets.US_ASCII))

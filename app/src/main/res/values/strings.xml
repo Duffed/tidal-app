@@ -4,7 +4,6 @@
     <!-- Application -->
     <string name="app_name">OpenTune</string>
     <string name="widget_description">Shows the current track with play, pause and skip buttons</string>
-    <string name="export_progress">Exporting audio · %1$d%%</string>
     <string name="import_default_title">Audio file</string>
     <string name="import_unknown_artist">Unknown artist</string>
     <string name="export_default_name">Audio</string>
@@ -225,7 +224,6 @@
     <string name="track_share">Share link</string>
     <string name="track_share_title">Share track</string>
     <string name="track_remove_local">Remove download</string>
-    <string name="track_export">Export audio file</string>
     <string name="track_unreadable">This audio file is no longer readable</string>
     <string name="track_remove_title">Remove this track?</string>
     <string name="track_remove_local_text">The file stays where it is. Only its entry in the library is removed.</string>
@@ -341,6 +339,18 @@
     <string name="downloads_unnamed">Download</string>
     <string name="download_progress">%1$d%%</string>
     <string name="download_failed">Download failed</string>
+    <string name="download_error_storage">Allow storage access to save downloads</string>
+    <string name="migrate_title">Moving downloads</string>
+    <string name="migrate_text">%1$d of %2$d</string>
+    <string name="settings_download_folder">Download folder</string>
+    <string name="setup_title">Permissions</string>
+    <string name="setup_notifications">Notifications</string>
+    <string name="setup_notifications_text">Playback controls and download progress</string>
+    <string name="setup_storage">Storage</string>
+    <string name="setup_storage_text">Saves downloads to Music/OpenTune</string>
+    <string name="setup_allow">Allow</string>
+    <string name="setup_allowed">Allowed</string>
+    <string name="setup_continue">Continue</string>
     <string name="download_error_interrupted">The connection was interrupted. Retry the download.</string>
     <string name="download_error_save">The audio could not be saved. Check available storage and retry.</string>
     <string name="download_waiting">Waiting</string>
@@ -506,9 +516,6 @@
     <string name="notify_download_offline">Turn off offline mode before downloading</string>
     <string name="notify_download_queued_wifi">Download queued for Wi-Fi</string>
     <string name="notify_download_queued">Download queued</string>
-    <string name="notify_export_busy">Wait for the current export to finish</string>
-    <string name="notify_exported">Audio file exported</string>
-    <string name="notify_export_failed">The audio could not be exported. Check the destination and try again.</string>
     <string name="notify_remove_failed">The audio could not be removed. Try again.</string>
     <string name="notify_playlist_created">Playlist created</string>
     <string name="notify_playlist_not_saved">The playlist could not be saved. Check available storage and try again.</string>

@@ -231,6 +231,18 @@ class LocalPlaybackTest {
         } finally { app.library.clearHistory() }
     }
 
+    @Test fun thePermissionsPageFollowsTheFirstScreenAndEndsWithContinue() {
+        org.junit.Assume.assumeTrue("A permission of this version of Android is still missing", io.github.yyan115.opentune.ui.Permissions.missing(app).isNotEmpty())
+        try {
+            compose.runOnIdle { model.settings { it.copy(setupPending = true) } }
+            compose.waitUntil(5_000) { compose.onAllNodesWithTag("setup").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Permissions").assertIsDisplayed()
+            compose.onNodeWithTag("setup-continue").performClick()
+            compose.waitUntil(5_000) { !model.state.value.settings.setupPending }
+            compose.waitUntil(5_000) { compose.onAllNodesWithTag("setup").fetchSemanticsNodes().isEmpty() }
+        } finally { compose.runOnIdle { model.settings { it.copy(setupPending = false) } } }
+    }
+
     @Test fun theLicencesOpenAsAListAndEachDocumentOnItsOwnPage() {
         compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithTag("settings-list").performScrollToNode(hasText("Licenses"))

@@ -46,7 +46,7 @@ gh attestation verify opentune-<version>.apk --repo yyan115/tidal-app
 - Home with your mixes, radio, new releases, genres and moods. Artist and album pages with biographies, reviews and credits. Music videos with picture-in-picture.
 - Your library: saved tracks, albums, artists, playlists, folders and mixes. Create and edit playlists, organise them in folders and save playlists from other people.
 - Lyrics that follow the song, track and artist radio, and autoplay that keeps the music going when the queue ends.
-- Downloads, offline mode, and experimental options that download a track when you save it or when it plays.
+- Downloads as tagged audio files in `Music/OpenTune`, offline mode, and experimental options that download a track when you save it or when it plays.
 
 **Your own music**
 

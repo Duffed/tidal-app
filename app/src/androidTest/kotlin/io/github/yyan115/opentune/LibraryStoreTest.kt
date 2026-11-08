@@ -244,4 +244,34 @@ class LibraryStoreTest {
             assertTrue(store.playedSince(0).isEmpty())
         } } finally { context.deleteDatabase(name) }
     }
+
+    @Test fun theFilesOfDownloadsAreRememberedUntilTheDownloadLeaves() {
+        val name = "download-files-test.db"
+        context.deleteDatabase(name)
+        try { withStore(name) { store ->
+            val track = Track("5", "Five", "Artist", localUri = "content://media/external_primary/audio/media/5")
+            store.save(track)
+            store.recordDownloadFile("authority|primary:Music/OpenTune/Artist - Five.flac", "5")
+            assertTrue(store.isDownloadFile("authority|primary:Music/OpenTune/Artist - Five.flac"))
+            assertFalse(store.isDownloadFile("authority|primary:Music/OpenTune/Other.flac"))
+            store.removeLocal("5")
+            assertFalse("A download that leaves forgets its file", store.isDownloadFile("authority|primary:Music/OpenTune/Artist - Five.flac"))
+            assertNull(store.get("5")?.localUri)
+        } } finally { context.deleteDatabase(name) }
+    }
+
+    @Test fun anOlderDatabaseGetsTheTableOfDownloadFiles() {
+        val name = "download-files-upgrade-test.db"
+        context.deleteDatabase(name)
+        val file = context.getDatabasePath(name).also { it.parentFile!!.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
+            db.execSQL("CREATE TABLE tracks (id TEXT PRIMARY KEY, payload TEXT NOT NULL, favorite INTEGER NOT NULL DEFAULT 0, played INTEGER NOT NULL DEFAULT 0)")
+            db.execSQL("CREATE TABLE repeat_releases (track_id TEXT PRIMARY KEY, released_at INTEGER NOT NULL)")
+            db.version = 6
+        }
+        try { withStore(name) { store ->
+            store.recordDownloadFile("k", "1")
+            assertTrue(store.isDownloadFile("k"))
+        } } finally { context.deleteDatabase(name) }
+    }
 }

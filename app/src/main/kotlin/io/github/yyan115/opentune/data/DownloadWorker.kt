@@ -33,30 +33,43 @@ class DownloadWorker(context: Context, parameters: WorkerParameters) : Coroutine
     private var title = ""
     private var lastNotified = 0L
 
+    private companion object {
+        /** The share of the progress bar that the arrival of the segments takes. The rest is the writing of the file. */
+        const val SEGMENT_SHARE = 85
+    }
+
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val encoded = inputData.getString("track") ?: return@withContext Result.failure()
         val track = JsonCodec.decodeTrack(JSONObject(encoded))
         title = track.title
         if (track.onDevice || app.library.get(track.id)?.onDevice == true) return@withContext Result.success()
         if (app.settings.state.value.offline) return@withContext Result.retry()
+        if (!app.downloadFiles.canWrite()) return@withContext Result.failure(workDataOf("error" to "storage"))
         var temporary: File? = null
-        var completedFile: File? = null
         var dash: DashDownloader? = null
+        var stored: DownloadFiles.Stored? = null
         try {
             setForeground(notification(track.title, 0))
             val stream = app.tidal.stream(track.id, app.settings.state.value.quality)
-            val localUri = if (stream.dashManifest != null) {
+            if (stream.dashManifest != null) {
+                // The segments arrive first, which is most of the work. Then they become one tagged audio file in the download folder.
                 val item = MediaItem.Builder().setUri(app.sources.manifestUri(stream)).setMimeType(MimeTypes.APPLICATION_MPD).build()
                 val downloader = DashDownloader.Factory(app.sources.downloadSource()).setExecutor(java.util.concurrent.Executor { it.run() }).create(item)
                 dash = downloader
                 try {
                     downloader.download { _, _, percent ->
                         if (isStopped || app.settings.state.value.offline) throw InterruptedIOException("Download paused")
-                        progress(percent.toInt())
+                        progress((percent * SEGMENT_SHARE / 100).toInt())
                     }
                     app.sources.saveOffline(track.id, stream)
-                    "opentune-offline://${AudioSources.safeId(track.id)}"
                 } finally { if (isStopped) downloader.cancel() }
+                val spec = app.exporter.spec(track, stream)
+                val cover = if (spec.mimeType == "audio/flac") app.exporter.cover(track) else null
+                stored = app.downloadFiles.create(spec.fileName, spec.mimeType) { output ->
+                    app.exporter.writeDash(track, output, cover) { percent -> progress(SEGMENT_SHARE + percent * (100 - SEGMENT_SHARE) / 100) }
+                }
+                // The file is complete, so the segments are not needed any more.
+                runCatching { app.sources.removeOffline(track.id) }
             } else {
                 val url = requireNotNull(stream.uri)
                 StreamManifest.requireHttps(url)
@@ -75,24 +88,25 @@ class DownloadWorker(context: Context, parameters: WorkerParameters) : Coroutine
                             if (count < 0) break
                             output.write(buffer, 0, count); total += count
                             check(total <= 2L * 1024 * 1024 * 1024) { "The audio file exceeds the download limit." }
-                            if (length > 0) progress((total * 100 / length).toInt())
+                            if (length > 0) progress((total * SEGMENT_SHARE / length).toInt())
                         }
                         output.fd.sync()
                     } }
                     check(total > 0 && (length <= 0 || total == length)) { "The download was interrupted." }
                 }
                 val header = ByteArray(4).also { bytes -> part.inputStream().use { it.read(bytes) } }
-                val extension = if (header.contentEquals("fLaC".toByteArray())) ".flac" else ".m4a"
-                val destination = File(directory, AudioSources.safeId(track.id) + extension)
-                check(part.renameTo(destination)) { "The audio file could not be saved." }
-                completedFile = destination
-                android.net.Uri.fromFile(destination).toString()
+                val flac = header.contentEquals("fLaC".toByteArray())
+                stored = app.downloadFiles.create(app.exporter.fileName(track, if (flac) "flac" else "m4a"), if (flac) "audio/flac" else "audio/mp4") { output -> part.inputStream().use { it.copyTo(output) } }
+                part.delete()
             }
-            app.library.save(track.copy(localUri = localUri, quality = stream.qualityLabel))
+            val file = checkNotNull(stored)
+            app.library.save(track.copy(localUri = file.uri.toString(), quality = stream.qualityLabel))
+            app.library.recordDownloadFile(file.key, track.id)
+            progress(100)
             Result.success()
         } catch (error: Exception) {
             temporary?.delete()
-            completedFile?.delete()
+            stored?.let { runCatching { app.downloadFiles.delete(it.uri) } }
             dash?.let { runCatching { it.remove() } }
             if (dash != null) app.sources.offlineFile(track.id).delete()
             if (isStopped) throw error

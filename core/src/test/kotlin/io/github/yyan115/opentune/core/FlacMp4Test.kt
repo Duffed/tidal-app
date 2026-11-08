@@ -31,6 +31,40 @@ class FlacMp4Test {
         assertEquals("ARTIST=Original recording", ByteArray(comments.int).also(comments::get).toString(Charsets.UTF_8))
     }
 
+    @Test fun addsTheCoverAsTheLastBlockAfterTheComments() {
+        val streamInfo = ByteArray(34) { it.toByte() }
+        val cover = ByteArray(300) { (it % 251).toByte() }
+        val header = FlacMp4.flacHeader(initialization(streamInfo), linkedMapOf("TITLE" to "Night Walk"), FlacMp4.Picture("image/jpeg", cover))
+        val buffer = ByteBuffer.wrap(header)
+        buffer.position(4)
+        val types = mutableListOf<Int>()
+        var last = false
+        var picture: ByteArray? = null
+        while (!last) {
+            val flag = buffer.get().toInt() and 255
+            last = flag and 0x80 != 0
+            val type = flag and 0x7f
+            val length = ((buffer.get().toInt() and 255) shl 16) or ((buffer.get().toInt() and 255) shl 8) or (buffer.get().toInt() and 255)
+            val body = ByteArray(length).also(buffer::get)
+            types += type
+            if (type == 6) picture = body
+        }
+        assertEquals(listOf(0, 4, 6), types)
+        assertEquals("The picture block ends the header", header.size, buffer.position())
+        val block = ByteBuffer.wrap(picture!!)
+        assertEquals(3, block.int)
+        assertEquals("image/jpeg", ByteArray(block.int).also(block::get).toString(Charsets.US_ASCII))
+        assertEquals(0, block.int)
+        repeat(4) { assertEquals(0, block.int) }
+        assertEquals(cover.size, block.int)
+        assertArrayEquals(cover, ByteArray(block.remaining()).also(block::get))
+    }
+
+    @Test fun refusesAnEmptyOrOversizedCover() {
+        val init = initialization(ByteArray(34))
+        expectInvalid { FlacMp4.flacHeader(init, linkedMapOf("TITLE" to "x"), FlacMp4.Picture("image/jpeg", ByteArray(0))) }
+    }
+
     @Test fun copiesOnlyFlacFramesFromMp4MediaBoxes() {
         val first = byteArrayOf(255.toByte(), 248.toByte(), 1, 2, 3, 4)
         val second = byteArrayOf(255.toByte(), 249.toByte(), 5, 6, 7)

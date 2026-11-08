@@ -16,12 +16,15 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import io.github.yyan115.opentune.OpenTuneApp
 import io.github.yyan115.opentune.core.*
 import io.github.yyan115.opentune.data.DownloadRequests
 import io.github.yyan115.opentune.data.DownloadWorker
+import io.github.yyan115.opentune.data.MigrateDownloadsWorker
 import io.github.yyan115.opentune.data.Settings
 import io.github.yyan115.opentune.playback.PlaybackCommands
 import io.github.yyan115.opentune.playback.PlaybackService
@@ -78,7 +81,6 @@ data class AppState(
     /** Playlist folder listings by folder id. The top level is stored as "root". */
     val folders: Map<String, List<Release>> = emptyMap(),
     val hasMoreFavorites: Boolean = false,
-    val exportProgress: Int? = null,
     /** A release that is newer than the installed version, shown in a dialog until it is dismissed. */
     val update: io.github.yyan115.opentune.core.ReleaseNotice? = null,
 )
@@ -166,6 +168,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.library.changes.collectLatest { delay(200); refreshLocal() } }
         viewModelScope.launch { app.folders.scans.collect { scans -> ui.update { it.copy(scans = scans) } } }
         viewModelScope.launch(Dispatchers.IO) { app.folders.rescanStale() }
+        // A download whose file the listener removed is a stream again. Downloads that an earlier version kept as segments move into the download folder.
+        viewModelScope.launch(Dispatchers.IO) {
+            app.library.localTracks().filter { it.isDownload && it.localUri?.startsWith("opentune-offline:") == false }
+                .filter { !app.downloadFiles.readable(Uri.parse(it.localUri.orEmpty())) }.forEach { app.library.removeLocal(it.id) }
+            if (app.downloadFiles.canWrite() && app.library.localTracks().any { it.localUri?.startsWith("opentune-offline:") == true }) {
+                WorkManager.getInstance(application).enqueueUniqueWork("migrate-downloads", ExistingWorkPolicy.KEEP, OneTimeWorkRequestBuilder<MigrateDownloadsWorker>().build())
+            }
+        }
         viewModelScope.launch { app.settings.state.collect { settings ->
             val wasOffline = ui.value.settings.offline
             ui.update { it.copy(settings = settings) }
@@ -472,7 +482,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Answers the first-launch screen. The listener either signed in or chose to use local music only. */
-    fun finishWelcome() { settings { it.copy(welcomeDone = true) } }
+    fun finishWelcome() { settings { it.copy(welcomeDone = true, setupPending = it.setupPending || !it.welcomeDone) } }
+
+    /** The permissions page was answered. */
+    fun finishSetup() { settings { it.copy(setupPending = false) } }
 
     fun addDeviceFolder(tree: Uri) = viewModelScope.launch(Dispatchers.IO) {
         try { app.folders.add(tree) }
@@ -503,18 +516,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelDownload(work: WorkInfo) { WorkManager.getInstance(app).cancelWorkById(work.id) }
     fun clearDownloadHistory() { WorkManager.getInstance(app).pruneWork() }
 
-    fun export(track: Track, destination: Uri) = viewModelScope.launch {
-        if (ui.value.exportProgress != null) { notify(app.getString(R.string.notify_export_busy)); return@launch }
-        ui.update { it.copy(exportProgress = 0) }
-        try {
-            app.exporter.write(track, destination) { percent -> ui.update { it.copy(exportProgress = percent) } }
-            notify(app.getString(R.string.notify_exported))
-        } catch (error: Exception) {
-            if (error is CancellationException) throw error
-            notify(app.getString(R.string.notify_export_failed))
-        } finally { ui.update { it.copy(exportProgress = null) } }
-    }
-
     fun removeLocal(track: Track) = viewModelScope.launch {
         try {
             controller?.let { player ->
@@ -525,10 +526,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.IO) {
                 WorkManager.getInstance(app).cancelUniqueWork("download:${track.id}").result.get()
                 if (track.localUri?.startsWith("opentune-offline:") == true) app.sources.removeOffline(track.id)
-                if (track.localUri?.startsWith("file:") == true) {
-                    val file = java.io.File(Uri.parse(track.localUri).path.orEmpty())
-                    if (file.canonicalPath.startsWith(app.filesDir.canonicalPath + "/downloads/") && file.exists()) check(file.delete())
-                }
+                // The file of a download lies in the download folder. A file that Android does not let the app remove stays, and the track leaves the library.
+                else if (track.isDownload && track.localUri != null) app.downloadFiles.delete(Uri.parse(track.localUri))
                 app.library.removeLocal(track.id)
                 if (track.isFile && track.localUri?.startsWith("content:") == true) runCatching {
                     app.contentResolver.releasePersistableUriPermission(Uri.parse(track.localUri), android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)

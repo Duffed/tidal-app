@@ -405,6 +405,7 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onOp
             item { SwitchRow(OpenTuneIcons.SignalCellularAlt, stringResource(R.string.settings_mobile_downloads), !settings.downloadOnWifi, { value ->
                 if (value) mobileDataWarning = true else vm.settings { it.copy(downloadOnWifi = true) }
             }) }
+            item { SettingRow(OpenTuneIcons.Folder, stringResource(R.string.settings_download_folder), io.github.yyan115.opentune.data.DownloadFiles.FOLDER) }
         }
         item { SectionTitle(stringResource(R.string.settings_appearance)) }
         item { SettingRow(OpenTuneIcons.Contrast, stringResource(R.string.settings_theme), stringResource(if (settings.theme == SYSTEM_THEME) R.string.theme_system else themeFor(settings.theme, false).nameRes), { theme = true }) }

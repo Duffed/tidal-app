@@ -27,6 +27,7 @@ class OpenTuneApp : Application() {
     val importer by lazy { LocalImporter(this, library) }
     val scrobbler by lazy { io.github.yyan115.opentune.data.Scrobbler(this) }
     val exporter by lazy { OfflineExporter(this) }
+    val downloadFiles by lazy { io.github.yyan115.opentune.data.DownloadFiles(this) }
     val folders by lazy { io.github.yyan115.opentune.data.LocalFolders(this) }
     val sources by lazy { AudioSources(this) }
 

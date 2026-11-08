@@ -61,7 +61,9 @@ class AudioSources(private val app: OpenTuneApp) {
         val saved = app.library.get(track.id) ?: track
         saved.localUri?.let { local ->
             if (local.startsWith("opentune-offline:")) return item(saved, readOffline(saved.id))
-            return metadata(saved).setUri(local).build()
+            // The file of a download is in a folder that the listener can reach. When it is gone, the track is a stream again.
+            if (!saved.isDownload || app.downloadFiles.readable(Uri.parse(local))) return metadata(saved).setUri(local).build()
+            app.library.removeLocal(saved.id)
         }
         if (app.settings.state.value.offline) throw ServiceException(0, "This track is not available offline. Download it first.", Problem.NOT_AVAILABLE_OFFLINE)
         val settings = app.settings.state.value

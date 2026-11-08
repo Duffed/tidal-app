@@ -135,4 +135,12 @@ class ScreenTourTest {
         compose.waitUntil(10_000) { model.state.value.local.isEmpty() && model.state.value.localPlaylists.isEmpty() }
         picture("30-empty-device")
     }
+
+    @Test fun permissionsPage() {
+        assumeTrue("A permission of this version of Android is still missing", io.github.yyan115.opentune.ui.Permissions.missing(app).isNotEmpty())
+        compose.runOnIdle { model.settings { it.copy(theme = "dark", welcomeDone = true, setupPending = true) } }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("setup").fetchSemanticsNodes().isNotEmpty() }
+        picture("31-permissions")
+        compose.runOnIdle { model.settings { it.copy(setupPending = false) } }
+    }
 }

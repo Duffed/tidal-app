@@ -57,7 +57,6 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     var deletePlaylist by remember { mutableStateOf(false) }
     var removeTrack by remember { mutableStateOf<Track?>(null) }
     var detailsTrack by remember { mutableStateOf<Track?>(null) }
-    var exportTarget by rememberSaveable { mutableStateOf<String?>(null) }
     var navigationMenu by rememberSaveable { mutableStateOf(false) }
     var statsInfo by remember { mutableStateOf(false) }
     val configuration = LocalConfiguration.current
@@ -75,12 +74,9 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     val snackbar = remember { SnackbarHostState() }
     val inDetail = state.detail != null || state.routes.isNotEmpty()
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> vm.import(uris) }
-    val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    val exporter = rememberLauncherForActivityResult(ExportContract()) { uri ->
-        val encoded = exportTarget
-        exportTarget = null
-        if (uri != null && encoded != null) vm.export(JsonCodec.decodeTrack(org.json.JSONObject(encoded)), uri)
-    }
+    val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
+    // A download needs the permissions that apply to this version of Android. They are asked for when they are missing.
+    val askPermissions = { val missing = Permissions.missing(context); if (missing.isNotEmpty()) permissions.launch(missing) }
     val importAudio = { importer.launch(arrayOf("audio/*")) }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) vm.addDeviceFolder(uri) }
     val addFolder = { folderPicker.launch(null) }
@@ -94,7 +90,12 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
         if (settingsPageOpen != null) settingsPage = settingsPageOpen.parent?.name else if (settings) closeSettings() else vm.closeDetail()
     }
 
+    // The permissions page follows the first screen when there is anything to ask. It stays until the listener continues.
+    val setupPending = state.settings.setupPending
+    val setup by rememberSaveable(setupPending) { mutableStateOf(setupPending && Permissions.missing(context).isNotEmpty()) }
+    LaunchedEffect(setupPending, setup) { if (setupPending && !setup) vm.finishSetup() }
     if (welcome) WelcomeScreen(onSignIn = openLogin, onLocalOnly = vm::finishWelcome)
+    else if (setup) SetupScreen(onContinue = vm::finishSetup)
     else Row(Modifier.fillMaxSize().then(if (landscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Start)) else Modifier)) {
     if (rail && navigation) OpenTuneRail(destinations, destination, select)
     Scaffold(modifier = Modifier.weight(1f),
@@ -165,12 +166,6 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                     libraryFilter, { libraryFilter = it })
                 else -> OnDeviceScreen(state, vm, importAudio, addFolder, openLogin, { newPlaylistTrack = null; playlistTitle = ""; newPlaylist = true }, openTrackMenu)
             }
-            state.exportProgress?.let { percent -> Surface(Modifier.fillMaxWidth().align(androidx.compose.ui.Alignment.BottomCenter), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                Column(Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
-                    Text(stringResource(R.string.export_progress, percent), style = MaterialTheme.typography.bodySmall)
-                    LinearProgressIndicator(progress = { percent / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                }
-            } }
         }
     }
     }
@@ -186,7 +181,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
     // The sign-in finishes in the browser, so a bar shows while the app exchanges the answer.
     if (state.signingIn) LinearProgressIndicator(Modifier.fillMaxWidth().statusBarsPadding())
     if (nowPlaying && state.playback.track != null) NowPlayingScreen(state, vm, onClose = { nowPlaying = false }, onQueue = { queue = true }, onMenu = openTrackMenu, onDownload = { track ->
-        if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        askPermissions()
         vm.download(track)
     }, onAlbum = { track -> openRelease(Release(track.albumId, track.album, track.artist, track.artwork)) },
         onArtist = { track -> openRelease(Release(track.artistId, track.artist.substringBefore(","), "", type = ReleaseType.ARTIST)) }, initialLyrics = initialLyrics)
@@ -218,7 +213,7 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                     }
                 }
                 if (!track.onDevice) SettingRow(OpenTuneIcons.Download, stringResource(R.string.action_download), onClick = {
-                    if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    askPermissions()
                     vm.download(track); trackMenu = null
                 })
                 if (track.albumId.isNotBlank() && !track.isFile) SettingRow(OpenTuneIcons.Album, stringResource(R.string.track_go_album), onClick = {
@@ -240,13 +235,6 @@ fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destina
                 // A file that came with a folder returns at the next scan, so it leaves with its folder. A download or a file that was added by hand can be removed.
                 if (stored != null && (!stored.isFile || stored.id !in state.folderFiles)) SettingRow(OpenTuneIcons.RemoveCircleOutline,
                     stringResource(if (stored.isFile) R.string.track_remove_file else R.string.track_remove_local), onClick = { removeTrack = stored; trackMenu = null })
-                // A downloaded track is exported to get a file that other apps can read. A file on the device is that already.
-                if (stored != null && stored.isDownload) SettingRow(OpenTuneIcons.SaveAlt, stringResource(R.string.track_export), onClick = {
-                    try {
-                        exportTarget = JsonCodec.encodeTrack(stored).toString()
-                        exporter.launch(vm.app.exporter.describe(stored)); trackMenu = null; nowPlaying = false
-                    } catch (_: Exception) { vm.notify(resources.getString(R.string.track_unreadable)) }
-                })
             }
         }
     }

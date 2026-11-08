@@ -50,7 +50,7 @@ class PseudoLocaleTest {
     private lateinit var activity: Activity
     private lateinit var track: Track
     private val offenders = mutableListOf<String>()
-    private val data = setOf("Night Walk", "Playback test", "Local audio checks", "Evening", "Night", "FLAC", "AAC", "github.com/yyan115/tidal-app") + ThemePreviewActivity.SAMPLE_TEXT
+    private val data = setOf("Night Walk", "Playback test", "Local audio checks", "Evening", "Night", "FLAC", "AAC", "github.com/yyan115/tidal-app", io.github.yyan115.opentune.data.DownloadFiles.FOLDER) + ThemePreviewActivity.SAMPLE_TEXT
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
     private val app get() = context as OpenTuneApp
 
@@ -104,6 +104,12 @@ class PseudoLocaleTest {
         await("the welcome screen") { compose.onAllNodesWithTag("welcome").fetchSemanticsNodes().isNotEmpty() }
         sweep("Welcome")
         compose.onNodeWithTag("welcome-local").performClick()
+        // The permissions page follows the first screen when a permission of this version of Android is missing.
+        if (io.github.yyan115.opentune.ui.Permissions.missing(activity).isNotEmpty()) {
+            await("the permissions page") { compose.onAllNodesWithTag("setup").fetchSemanticsNodes().isNotEmpty() }
+            sweep("Permissions")
+            compose.onNodeWithTag("setup-continue").performClick()
+        }
         await("the On device screen") { compose.onAllNodesWithTag("device-list").fetchSemanticsNodes().isNotEmpty() }
         sweep("On device")
         inWindow("New playlist") {

@@ -11,7 +11,10 @@ object FlacMp4 {
     private const val MAX_SEGMENT = 256L * 1024 * 1024
     private data class Box(val type: String, val payload: Int, val end: Int)
 
-    fun flacHeader(initialization: ByteArray, tags: Map<String, String> = emptyMap()): ByteArray {
+    /** A cover picture for the FLAC file. [mime] is the type of the image, such as image/jpeg. */
+    class Picture(val mime: String, val data: ByteArray)
+
+    fun flacHeader(initialization: ByteArray, tags: Map<String, String> = emptyMap(), picture: Picture? = null): ByteArray {
         if (initialization.size > 2 * 1024 * 1024) throw IOException("The audio initialization is too large.")
         val top = boxes(initialization, 0, initialization.size)
         val moov = only(top, "moov")
@@ -35,12 +38,27 @@ object FlacMp4 {
             val length = ((metadata[position + 1].toInt() and 255) shl 16) or
                 ((metadata[position + 2].toInt() and 255) shl 8) or (metadata[position + 3].toInt() and 255)
             if ((position == 0 && (type != 0 || length != 34)) || (position > 0 && type == 0) || type == 127 || length > metadata.size - position - 4) throw IOException("Invalid FLAC metadata block.")
-            if (tags.isEmpty() || type != 4) blocks += metadata.copyOfRange(position, position + length + 4).also { it[0] = type.toByte() }
+            if ((tags.isEmpty() || type != 4) && (picture == null || type != 6)) blocks += metadata.copyOfRange(position, position + length + 4).also { it[0] = type.toByte() }
             position += length + 4
         }
         if (tags.isNotEmpty()) blocks += comments(tags)
+        if (picture != null) blocks += pictureBlock(picture)
         blocks.last()[0] = (blocks.last()[0].toInt() or 0x80).toByte()
         return ByteArrayOutputStream().apply { write("fLaC".toByteArray(Charsets.US_ASCII)); blocks.forEach(::write) }.toByteArray()
+    }
+
+    /** The front cover as a FLAC picture block. The size of the picture is not known to the header, so the fields for it stay zero. */
+    private fun pictureBlock(picture: Picture): ByteArray {
+        if (picture.data.size !in 1..8 * 1024 * 1024 || picture.mime.length !in 1..64 || !picture.mime.all { it.code in 32..126 }) throw IOException("The cover picture is not usable.")
+        val payload = ByteArrayOutputStream()
+        fun integer(value: Int) { repeat(4) { payload.write(value ushr (24 - it * 8)) } }
+        integer(3)
+        integer(picture.mime.length); payload.write(picture.mime.toByteArray(Charsets.US_ASCII))
+        integer(0)
+        repeat(4) { integer(0) }
+        integer(picture.data.size); payload.write(picture.data)
+        val bytes = payload.toByteArray()
+        return byteArrayOf(6, (bytes.size ushr 16).toByte(), (bytes.size ushr 8).toByte(), bytes.size.toByte()) + bytes
     }
 
     private fun comments(tags: Map<String, String>): ByteArray {
