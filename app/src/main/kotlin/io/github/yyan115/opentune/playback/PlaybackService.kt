@@ -67,6 +67,7 @@ class PlaybackService : MediaLibraryService() {
     private val tree by lazy { BrowseTree(app) }
     private lateinit var app: OpenTuneApp
     private lateinit var player: ExoPlayer
+    private lateinit var smartShuffle: SmartShufflePlayback
     private var equalizer: Equalizer? = null
     private var equalizerSession = C.AUDIO_SESSION_ID_UNSET
     private var sleepJob: Job? = null
@@ -114,9 +115,13 @@ class PlaybackService : MediaLibraryService() {
         // Shuffle reorders the queue itself, so that the queue shows what plays next and "play next" and reordering do what they say.
         // The player's own shuffle order stays the natural order.
         player.setShuffleOrder(ShuffleOrder.UnshuffledShuffleOrder(0))
+        smartShuffle = SmartShufflePlayback(app, player, scope)
+        scope.launch { while (true) { smartShuffle.tick(); delay(500) } }
         player.addListener(object : Player.Listener {
+            override fun onEvents(player: Player, events: Player.Events) { smartShuffle.tick() }
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) { if (shuffleModeEnabled) shuffleUpcoming() else restoreOrder() }
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                smartShuffle.transitioned()
                 finishListening()
                 val track = mediaItem?.let(::trackOf)
                 if (track != null) {
@@ -147,7 +152,7 @@ class PlaybackService : MediaLibraryService() {
             }
         })
         app.sources.onGains = { id -> Handler(Looper.getMainLooper()).post { if (player.currentMediaItem?.mediaId == id) applyNormalization() } }
-        scope.launch { app.settings.state.collect { AudioSpectrum.enabled = it.visualizer; applyNormalization(); applyEqualizer(); applyBitPerfect() } }
+        scope.launch { app.settings.state.collect { AudioSpectrum.enabled = it.visualizer; applyNormalization(); applyEqualizer(); applyBitPerfect(); smartShuffle.tick() } }
         scope.launch { runCatching { app.scrobbler.flush() } }
         if (Build.VERSION.SDK_INT >= 23) audioManager.registerAudioDeviceCallback(deviceCallback, Handler(Looper.getMainLooper()))
         runCatching { connectivity.registerDefaultNetworkCallback(networkCallback, Handler(Looper.getMainLooper())) }
@@ -228,7 +233,7 @@ class PlaybackService : MediaLibraryService() {
         if (count - current < 3) return
         val hours = app.settings.state.value.avoidRepeatHours
         val recent = if (hours > 0) app.library.playedSince(System.currentTimeMillis() - hours * 3_600_000L) else emptySet()
-        val (manual, context) = orderBeforeShuffle.subList(current + 1, count).partition(ManualQueue::contains)
+        val (manual, context) = orderBeforeShuffle.subList(current + 1, count).partition { ManualQueue.contains(it) || SmartShuffleQueue.contains(it) }
         player.replaceMediaItems(current + 1, count, manual + RepeatPolicy.deferRecent(context.shuffled(), { it.mediaId }, recent))
     }
 
@@ -239,13 +244,13 @@ class PlaybackService : MediaLibraryService() {
         val count = player.mediaItemCount
         if (original.isEmpty() || count == 0) return
         val positions = HashMap<String, ArrayDeque<Int>>()
-        original.filterNot(ManualQueue::contains).forEachIndexed { position, item -> positions.getOrPut(item.mediaId) { ArrayDeque() }.addLast(position) }
+        original.filterNot { ManualQueue.contains(it) || SmartShuffleQueue.contains(it) }.forEachIndexed { position, item -> positions.getOrPut(item.mediaId) { ArrayDeque() }.addLast(position) }
         val current = player.currentMediaItemIndex
         val queue = (0 until count).map(player::getMediaItemAt)
         val ranked = queue.mapIndexed { index, item ->
-            Triple(index, item, if (ManualQueue.contains(item)) -1 else positions[item.mediaId]?.removeFirstOrNull() ?: (original.size + index))
+            Triple(index, item, if (ManualQueue.contains(item) || SmartShuffleQueue.contains(item)) -1 else positions[item.mediaId]?.removeFirstOrNull() ?: (original.size + index))
         }.drop(current + 1)
-        val (manual, context) = ranked.partition { ManualQueue.contains(it.second) }
+        val (manual, context) = ranked.partition { ManualQueue.contains(it.second) || SmartShuffleQueue.contains(it.second) }
         player.replaceMediaItems(current + 1, count, manual.map { it.second } + context.sortedBy { it.third }.map { it.second })
     }
 

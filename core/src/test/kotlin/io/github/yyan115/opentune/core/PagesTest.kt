@@ -51,6 +51,17 @@ class PagesTest {
         assertEquals(134, page.modules.filterIsInstance<TrackListModule>().single().total)
     }
 
+    @Test fun duplicateArtistBiographyIsRemovedButOtherTextRemains() {
+        val root = JSONObject("""{"rows":[{"modules":[
+            {"type":"ARTIST_HEADER","id":"header","artist":{"id":1,"name":"Artist"},"bio":{"text":"First paragraph.<br>Second paragraph."}},
+            {"type":"TEXT_BLOCK","id":"bio","text":"First paragraph. Second paragraph."},
+            {"type":"TEXT_BLOCK","id":"note","text":"Other editorial text"}
+        ]}]}""")
+        assertEquals(listOf("header", "note"), PageCodec.parse(root).modules.map { it.id })
+        root.getJSONArray("rows").getJSONObject(0).getJSONArray("modules").remove(0)
+        assertEquals(listOf("bio", "note"), PageCodec.parse(root).modules.map { it.id })
+    }
+
     @Test fun albumPageHasHeaderWithReviewAndNumberedTracks() {
         val page = fixture("album.json")
         val header = page.modules.filterIsInstance<AlbumHeader>().single()

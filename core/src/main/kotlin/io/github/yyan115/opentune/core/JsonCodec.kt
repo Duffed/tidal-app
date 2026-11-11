@@ -29,6 +29,9 @@ object JsonCodec {
             replayGain = number(value, "replayGain"),
             peak = number(value, "peak"),
             tags = tags(value),
+            isrc = text(value, "isrc"),
+            artistNames = if (artists != null) (0 until artists.length()).map { text(artists.optJSONObject(it), "name") }.filter(String::isNotBlank).distinct()
+                else listOf(text(value.optJSONObject("artist"), "name")).filter(String::isNotBlank),
         )
     }
 
@@ -125,6 +128,8 @@ object JsonCodec {
         put("artwork", track.artwork); put("durationMs", track.durationMs)
         put("explicit", track.explicit); put("localUri", track.localUri)
         put("quality", track.quality); put("addedAt", track.addedAt)
+        put("isrc", track.isrc)
+        put("artistNames", JSONArray(track.artistNames))
         put("artistId", track.artistId); put("trackNumber", track.trackNumber)
         track.replayGain?.let { put("replayGain", it) }
         track.peak?.let { put("peak", it) }
@@ -139,6 +144,8 @@ object JsonCodec {
         localUri = value.optString("localUri").takeIf { it.isNotBlank() && it != "null" },
         quality = value.optString("quality").takeIf { it.isNotBlank() && it != "null" },
         addedAt = value.optLong("addedAt"),
+        isrc = text(value, "isrc"),
+        artistNames = value.optJSONArray("artistNames")?.let { array -> (0 until array.length()).map(array::getString) }.orEmpty(),
         artistId = value.optString("artistId").takeIf { it != "null" }.orEmpty(),
         trackNumber = value.optInt("trackNumber"),
         replayGain = number(value, "replayGain"), peak = number(value, "peak"),

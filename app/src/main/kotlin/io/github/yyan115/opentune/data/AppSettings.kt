@@ -38,6 +38,7 @@ data class Settings(
     val welcomeDone: Boolean = false,
     /** Keeps playing similar music from TIDAL when the queue ends. */
     val autoplay: Boolean = true,
+    val smartShuffle: Boolean = false,
     /** Tracks played within this many hours come last in shuffle and are left out of radio and autoplay. Zero turns it off. */
     val avoidRepeatHours: Int = 0,
     /** Shows the spectrum of the music over the artwork in the player. */
@@ -46,6 +47,7 @@ data class Settings(
     val checkUpdates: Boolean = true,
     /** The permissions page has to be shown, because the first screen was answered and the page was not. */
     val setupPending: Boolean = false,
+    val showDeviceTab: Boolean = true,
     val queueSwipeAction: QueueSwipeAction = QueueSwipeAction.AddToQueue,
 ) {
     /** Turns the download of saved tracks on or off. Turning it on turns the download of played tracks off. */
@@ -73,15 +75,17 @@ class AppSettings(context: Context) {
         downloadSaved = preferences.getBoolean("downloadSaved", preferences.getBoolean("keepFavoritesOffline", false)),
         downloadPlayed = preferences.getBoolean("downloadPlayed", false),
         scrobble = preferences.getBoolean("scrobble", false), scrobbleServer = preferences.getString("scrobbleServer", "https://api.listenbrainz.org") ?: "https://api.listenbrainz.org",
+        smartShuffle = preferences.getBoolean("smartShuffle", false),
         welcomeDone = preferences.getBoolean("welcomeDone", false), autoplay = preferences.getBoolean("autoplay", true),
         avoidRepeatHours = preferences.getInt("avoidRepeatHours", 0), visualizer = preferences.getBoolean("visualizer", false),
         checkUpdates = preferences.getBoolean("checkUpdates", true), setupPending = preferences.getBoolean("setupPending", false),
+        showDeviceTab = preferences.getBoolean("showDeviceTab", true),
         queueSwipeAction = QueueSwipeAction.fromStored(preferences.getString("queueSwipeAction", null))).exclusive())
     val state = mutable.asStateFlow()
     fun update(transform: (Settings) -> Settings) {
         val next = transform(mutable.value).exclusive()
         preferences.edit().putString("quality", next.quality.name).putString("mobileQuality", next.mobileQuality.name)
-            .putString("queueSwipeAction", next.queueSwipeAction.name)
+            .putBoolean("showDeviceTab", next.showDeviceTab).putString("queueSwipeAction", next.queueSwipeAction.name).putBoolean("smartShuffle", next.smartShuffle)
             .putBoolean("downloadOnWifi", next.downloadOnWifi).putBoolean("offline", next.offline)
             .putString("theme", next.theme).remove("colorTheme")
             .putString("normalization", next.normalization).putBoolean("equalizer", next.equalizer)

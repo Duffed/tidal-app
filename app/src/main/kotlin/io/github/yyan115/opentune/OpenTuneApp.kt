@@ -23,6 +23,7 @@ class OpenTuneApp : Application() {
             if (settings.state.value.offline) throw java.io.IOException("Offline mode is enabled")
             chain.proceed(chain.request())
         }.build() }
+    val musicBrainz by lazy { io.github.yyan115.opentune.core.MusicBrainzClient(http, userAgent = "OpenTune/${BuildConfig.VERSION_NAME} (https://github.com/yyan115/tidal-app)") }
     val tidal by lazy { TidalClient(sessions::identity, sessions, http, locale = ::tidalLocale) }
     val importer by lazy { LocalImporter(this, library) }
     val scrobbler by lazy { io.github.yyan115.opentune.data.Scrobbler(this) }

@@ -17,6 +17,7 @@ data class CarouselModule(
 data class TrackListModule(
     override val id: String, override val title: String, val tracks: List<Track>, val numbered: Boolean = false,
     val showMore: String? = null, val dataPath: String? = null, val total: Int = tracks.size,
+    val showAll: Boolean = false,
 ) : PageModule
 
 data class PageLink(val title: String, val path: String)
@@ -43,7 +44,12 @@ object PageCodec {
             val list = rows.optJSONObject(rowIndex)?.optJSONArray("modules") ?: continue
             for (index in 0 until list.length()) list.optJSONObject(index)?.let(::module)?.let(modules::add)
         }
-        return PageData(root.optString("id"), root.optString("title"), modules)
+        // Artist pages may repeat the header biography as a standalone text block.
+        // Keep other editorial text, including biographies on pages without a header.
+        fun normalized(text: String) = text.trim().replace(Regex("\\s+"), " ")
+        val biographies = modules.filterIsInstance<ArtistHeader>().map { normalized(it.bio) }.filter(String::isNotBlank).toSet()
+        return PageData(root.optString("id"), root.optString("title"),
+            modules.filterNot { it is TextModule && normalized(it.text) in biographies })
     }
 
     /** Removes TIDAL's inline link markup from biographies and reviews. */

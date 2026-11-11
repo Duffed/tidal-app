@@ -41,6 +41,7 @@ data class PageUi(
 @androidx.media3.common.util.UnstableApi
 class PagesViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as OpenTuneApp
+    val corrections = ArtistCorrections(app, viewModelScope)
     private val mutable = MutableStateFlow<Map<String, PageUi>>(emptyMap())
     val state: StateFlow<Map<String, PageUi>> = mutable.asStateFlow()
 
@@ -111,7 +112,7 @@ class PagesViewModel(application: Application) : AndroidViewModel(application) {
         if (loaded.size >= module.total) return loaded
         val result = loaded.toMutableList()
         try {
-            while (result.size < module.total && result.size < MAX_PLAY_ALL) {
+            while (result.size < module.total) {
                 val next = PageCodec.tracks(app.tidal.moduleItems(path, result.size, 100))
                 if (next.isEmpty()) break
                 result += next
@@ -131,7 +132,6 @@ class PagesViewModel(application: Application) : AndroidViewModel(application) {
     private companion object {
         const val FRESH_MS = 5 * 60_000L
         const val MAX_CACHED_PAGES = 60
-        const val MAX_PLAY_ALL = 500
     }
 }
 

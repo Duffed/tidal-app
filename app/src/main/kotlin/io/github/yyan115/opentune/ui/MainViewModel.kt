@@ -2,6 +2,7 @@ package io.github.yyan115.opentune.ui
 
 import io.github.yyan115.opentune.textRes
 import io.github.yyan115.opentune.problemText
+import io.github.yyan115.opentune.playback.SmartShuffleQueue
 import io.github.yyan115.opentune.R
 import android.app.Application
 import android.content.ComponentName
@@ -55,6 +56,7 @@ data class PlaybackState(
     val shuffle: Boolean = false, val repeat: Int = Player.REPEAT_MODE_OFF,
     val quality: String = "", val error: String? = null,
     val nextIndex: Int = -1, val previousIndex: Int = -1, val source: String = "", val manualQueuedCount: Int = 0,
+    val smartRecommendation: Boolean = false,
 ) { val track: Track? get() = queue.getOrNull(index) }
 
 enum class LyricsStatus { Idle, Loading, Ready, None, Offline, Error }
@@ -77,6 +79,7 @@ data class AppState(
     val downloadTracks: Map<String, Track> = emptyMap(),
     val lyrics: Lyrics? = null, val lyricsStatus: LyricsStatus = LyricsStatus.Idle, val lyricsTrackId: String = "",
     val routes: List<PageRoute> = emptyList(), val artists: List<Release> = emptyList(),
+    val searchVisits: List<SearchVisit> = emptyList(),
     val credits: CreditsUi? = null, val recentSearches: List<String> = emptyList(), val video: Release? = null,
     val sleepEndsAt: Long = 0, val sleepAtTrackEnd: Boolean = false,
     /** Playlist folder listings by folder id. The top level is stored as "root". */
@@ -92,6 +95,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val app = application as OpenTuneApp
     private val ui = MutableStateFlow(AppState(signedIn = app.tidal.signedIn, settings = app.settings.state.value,
         pkceLogin = app.sessions.pendingPkce(),
+        searchVisits = SearchVisit.decode(application.getSharedPreferences("search", Application.MODE_PRIVATE).getString("visits:${app.tidal.accountId}", null)),
         recentSearches = application.getSharedPreferences("search", Application.MODE_PRIVATE).getString("recent", null)
             ?.let { runCatching { org.json.JSONArray(it).let { array -> (0 until array.length()).map(array::getString) } }.getOrNull() }.orEmpty()))
     val state = ui.asStateFlow()
@@ -109,12 +113,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }).buildAsync()
     private var loginJob: Job? = null
     private var detailJob: Job? = null
+    private var detailReturnRoutes: List<PageRoute> = emptyList()
     private var syncJob: Job? = null
     private var lyricsJob: Job? = null
     private val searchPreferences = application.getSharedPreferences("search", Application.MODE_PRIVATE)
     private val missingLyrics = mutableSetOf<String>()
     private var cloudFavorites = emptyList<Track>()
     private var favoritesOffset = 0
+    private var persistedQueue: List<Track>? = null
+    private var persistedQueueJson = ""
     private val favoriteSyncLock = Mutex()
     private var collectionReady = false
     private var updateChecked = false
@@ -221,6 +228,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun hydrateCollection() {
         val account = app.tidal.accountId
+        ui.update { it.copy(searchVisits = SearchVisit.decode(searchPreferences.getString("visits:$account", null))) }
         if (account.isBlank()) return
         val cached = withContext(Dispatchers.IO) {
             Triple(app.library.cache(account, "favorites"), app.library.cache(account, "albums"), app.library.cache(account, "playlists"))
@@ -275,7 +283,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 app.tidal.completePkce(pending, callback)
                 app.sessions.clearPkce()
-                ui.update { it.copy(pkceLogin = null, signedIn = true, signingIn = false, error = null) }
+                ui.update { it.copy(pkceLogin = null, signedIn = true, signingIn = false, error = null,
+                    searchVisits = SearchVisit.decode(searchPreferences.getString("visits:${app.tidal.accountId}", null))) }
                 notify(app.getString(R.string.settings_connected)); sync()
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
@@ -295,7 +304,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // The offline switch belongs to the account, so it cannot stay on once the account is gone.
         app.settings.update { it.copy(offline = false) }
         ui.update { it.copy(signedIn = false, syncing = false, hasMoreFavorites = false, albums = emptyList(), playlists = emptyList(), artists = emptyList(),
-            search = SearchResult(), searchError = null, detail = null, routes = emptyList()) }
+            search = SearchResult(), searchVisits = emptyList(), searchError = null, detail = null, routes = emptyList()) }
         viewModelScope.launch {
             withContext(Dispatchers.IO) { saved.forEach { app.library.setFavorite(it, true) }; app.library.clearCache(account) }
             refreshLocal()
@@ -359,7 +368,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun openDetail(release: Release) {
         detailJob?.cancel()
-        ui.update { it.copy(detail = release, detailLoading = true, detailTracks = emptyList(), detailAlbums = emptyList(), error = null) }
+        detailReturnRoutes = ui.value.routes
+        ui.update { it.copy(routes = emptyList(), detail = release, detailLoading = true, detailTracks = emptyList(), detailAlbums = emptyList(), error = null) }
         detailJob = viewModelScope.launch {
             try {
                 val account = app.tidal.accountId
@@ -384,9 +394,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun closeDetail() {
         if (ui.value.routes.isNotEmpty()) { ui.update { it.copy(routes = it.routes.dropLast(1)) }; return }
-        detailJob?.cancel(); ui.update { it.copy(detail = null, detailTracks = emptyList(), error = null) }
+        detailJob?.cancel()
+        val returnRoutes = detailReturnRoutes
+        detailReturnRoutes = emptyList()
+        ui.update { it.copy(routes = returnRoutes, detail = null, detailTracks = emptyList(), error = null) }
     }
-    fun closeAll() { detailJob?.cancel(); ui.update { it.copy(routes = emptyList(), detail = null, detailTracks = emptyList(), error = null) } }
+    fun closeAll() {
+        detailJob?.cancel(); detailReturnRoutes = emptyList()
+        ui.update { it.copy(routes = emptyList(), detail = null, detailTracks = emptyList(), error = null) }
+    }
 
     /**
      * Plays [tracks] from [index]. While shuffle is on, the tracks after the first one play in random order.
@@ -403,7 +419,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val start = index.coerceIn(tracks.indices)
         // With shuffle on, the chosen track plays first and every other track is still to come, so that all of them take part.
         val queue = if (shuffled) listOf(tracks[start]) + tracks.filterIndexed { position, _ -> position != start } else tracks
-        player.setMediaItems(queue.map(app.sources::unresolved), if (shuffled) 0 else start, 0)
+        val smartSource = java.util.UUID.randomUUID().toString()
+        player.setMediaItems(queue.map { SmartShuffleQueue.mark(app.sources.unresolved(it), smartSource) }, if (shuffled) 0 else start, 0)
         if (shuffled) player.sendCustomCommand(PlaybackCommands.Reshuffle, android.os.Bundle.EMPTY)
         player.prepare(); player.play()
     }
@@ -773,6 +790,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         withContext(Dispatchers.IO) { app.library.cache(app.tidal.accountId, "artists", JsonCodec.encodeReleases(next)) }
     }
 
+    private fun saveSearchVisits(visits: List<SearchVisit>) {
+        ui.update { it.copy(searchVisits = visits) }
+        searchPreferences.edit().putString("visits:${app.tidal.accountId}", SearchVisit.encode(visits)).apply()
+    }
+    fun rememberSearchVisit(visit: SearchVisit) = saveSearchVisits(SearchVisit.prepend(ui.value.searchVisits, visit))
+    fun removeSearchVisit(visit: SearchVisit) = saveSearchVisits(ui.value.searchVisits.filterNot { it.key == visit.key })
+    fun clearSearchVisits() = saveSearchVisits(emptyList())
+
     fun rememberSearch(text: String) {
         val value = text.trim()
         if (value.length < 2) return
@@ -812,14 +837,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val quality = player.currentMediaItem?.localConfiguration?.tag as? String ?: queue.getOrNull(player.currentMediaItemIndex)?.quality.orEmpty()
         ui.update { it.copy(playback = it.playback.copy(queue = queue, index = player.currentMediaItemIndex.coerceAtLeast(0),
             playing = player.isPlaying, buffering = player.playbackState == Player.STATE_BUFFERING,
+            smartRecommendation = player.currentMediaItem?.let(SmartShuffleQueue::contains) == true,
             shuffle = player.shuffleModeEnabled, repeat = player.repeatMode, quality = quality, nextIndex = player.nextMediaItemIndex, previousIndex = player.previousMediaItemIndex, manualQueuedCount = ManualQueue.upcomingIndices(player).size,
             error = if (player.playerError == null) null else it.playback.error)) }
     }
 
     private fun persistQueue() {
         val player = controller ?: return
-        preferences.edit().putString("queue", JsonCodec.encodeTracks(ui.value.playback.queue))
+        val queue = ui.value.playback.queue
+        // The position changes every save; the thousands of track records usually do not.
+        if (persistedQueue !== queue) {
+            persistedQueueJson = JsonCodec.encodeTracks(queue)
+            persistedQueue = queue
+        }
+        preferences.edit().putString("queue", persistedQueueJson)
             .putInt("index", player.currentMediaItemIndex.coerceAtLeast(0)).putLong("position", player.currentPosition.coerceAtLeast(0))
+            .putStringSet("smartQueue", (0 until player.mediaItemCount).filter { SmartShuffleQueue.contains(player.getMediaItemAt(it)) }.map(Int::toString).toSet())
             .putStringSet("manualQueue", (0 until player.mediaItemCount).filter { ManualQueue.contains(player.getMediaItemAt(it)) }.map(Int::toString).toSet())
             .putBoolean("shuffle", player.shuffleModeEnabled).putInt("repeat", player.repeatMode).apply()
     }
@@ -836,7 +869,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // The saved queue is in the order it was shuffled to, so shuffle is set before the tracks and does not shuffle them again.
             it.shuffleModeEnabled = shuffle
             val manual = preferences.getStringSet("manualQueue", emptySet()).orEmpty()
-            it.setMediaItems(tracks.mapIndexed { position, track -> app.sources.unresolved(track).let { item -> if (position.toString() in manual) ManualQueue.mark(item) else item } }, index, position)
+            val smart = preferences.getStringSet("smartQueue", emptySet()).orEmpty()
+            val smartSource = java.util.UUID.randomUUID().toString()
+            it.setMediaItems(tracks.mapIndexed { position, track ->
+                SmartShuffleQueue.mark(app.sources.unresolved(track), smartSource, position.toString() in smart)
+                    .let { item -> if (position.toString() in manual) ManualQueue.mark(item) else item }
+            }, index, position)
             it.repeatMode = repeat
             ui.update { state -> state.copy(playback = state.playback.copy(source = preferences.getString("source", "").orEmpty())) }
         }

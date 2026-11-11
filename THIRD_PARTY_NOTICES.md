@@ -14,3 +14,7 @@ OpenTune uses these open source components.
 | Instrument Serif | [Instrument](https://github.com/Instrument/instrument-serif) | OFL-1.1 |
 | Space Grotesk | [Florian Karsten](https://github.com/floriankarsten/space-grotesk) | OFL-1.1 |
 | JetBrains Mono | [JetBrains](https://github.com/JetBrains/JetBrainsMono) | OFL-1.1 |
+
+## Smart Shuffle
+
+The behavior and decision engine in `core/.../SmartShuffle.kt` are adapted from [Smart Shuffle for TidaLuna](https://github.com/Duffed/tidaluna-smart-shuffle), copyright (c) 2026 Duffed and contributors, under the [Microsoft Public License](docs/licenses/MS-PL.txt). That file is distributed under MS-PL; the rest of OpenTune retains its existing license.

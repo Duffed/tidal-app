@@ -22,7 +22,7 @@ jobs:
   release:
     name: Build, sign and publish
     needs: check
-    if: github.ref == 'refs/heads/main' && !github.event.repository.fork
+    if: github.ref == 'refs/heads/main' && github.repository == 'Duffed/tidal-app'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:

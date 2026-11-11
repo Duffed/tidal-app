@@ -87,7 +87,7 @@ class AudioSources(private val app: OpenTuneApp) {
         qualities.remove(id)
     }
 
-    fun unresolved(track: Track): MediaItem = metadata(track).setUri("opentune://track/${Uri.encode(track.id)}").build()
+    fun unresolved(track: Track): MediaItem = SmartShuffleQueue.mark(metadata(track).setUri("opentune://track/${Uri.encode(track.id)}").build())
 
     private fun metadata(track: Track): MediaItem.Builder = MediaItem.Builder().setMediaId(track.id).setMediaMetadata(
         MediaMetadata.Builder().setTitle(track.title).setArtist(track.artist).setAlbumTitle(track.album)

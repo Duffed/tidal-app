@@ -59,7 +59,7 @@ val LocalPlaybackPosition = staticCompositionLocalOf<StateFlow<Long>> { MutableS
 
 /** Swipe up to expand; swipe left/right to navigate tracks. Stopping remains an accessibility action. */
 @Composable
-fun MiniPlayer(state: PlaybackState, position: State<Long>, onOpen: () -> Unit, onPlay: () -> Unit, onNext: () -> Unit, onDismiss: () -> Unit = {}, modifier: Modifier = Modifier, onPrevious: () -> Unit = {}) {
+fun MiniPlayer(state: PlaybackState, position: State<Long>, onOpen: () -> Unit, onPlay: () -> Unit, onNext: () -> Unit, onDismiss: () -> Unit = {}, modifier: Modifier = Modifier, onPrevious: () -> Unit = {}, artworkModifier: Modifier = Modifier) {
     val track = state.track ?: return
     var width by remember { mutableIntStateOf(1) }
     var offset by remember(track.id) { mutableFloatStateOf(0f) }
@@ -91,7 +91,7 @@ fun MiniPlayer(state: PlaybackState, position: State<Long>, onOpen: () -> Unit, 
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f))) {
         Column {
             Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(start = 10.dp, end = 2.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                TrackArtwork(track, null, Modifier.size(35.dp))
+                TrackArtwork(track, null, Modifier.size(35.dp).then(artworkModifier))
                 Column(Modifier.weight(1f).padding(start = 12.dp, end = 4.dp)) {
                     Text(track.title, fontFamily = AppFonts.body, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(if (state.error != null) stringResource(R.string.player_stopped) else track.artist, Modifier.padding(top = 2.dp),
@@ -114,7 +114,8 @@ fun MiniPlayer(state: PlaybackState, position: State<Long>, onOpen: () -> Unit, 
 @UnstableApi
 @Composable
 fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, onQueue: () -> Unit, onMenu: (Track) -> Unit, onDownload: (Track) -> Unit,
-    onAlbum: (Track) -> Unit = {}, onArtist: (Track) -> Unit = {}, initialLyrics: Boolean = false, modifier: Modifier = Modifier) {
+    onAlbum: (Track) -> Unit = {}, onArtist: (Track) -> Unit = {}, initialLyrics: Boolean = false, modifier: Modifier = Modifier, artworkModifier: Modifier = Modifier,
+    transparentBackground: Boolean = false) {
     val track = state.playback.track ?: return
     val next: (() -> Unit)? = if (state.playback.nextIndex >= 0) vm::next else null
     val previous: (() -> Unit)? = if (state.playback.previousIndex >= 0) vm::previousTrack else null
@@ -122,7 +123,9 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
     var timer by remember { mutableStateOf(false) }
     LaunchedEffect(track.id, lyrics) { if (lyrics) vm.loadLyrics() }
     var source by remember { mutableStateOf(false) }
-    Surface(modifier.fillMaxSize().testTag("now-playing"), color = MaterialTheme.colorScheme.background) {
+    Surface(modifier.fillMaxSize().testTag("now-playing"),
+        color = if (transparentBackground) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val large = LocalDensity.current.fontScale > 1.3f
             val landscape = maxWidth > maxHeight && maxWidth >= 480.dp && !large
@@ -143,7 +146,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                 if (landscape) {
                     Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                         if (lyrics) LyricsPanel(state, vm, Modifier.width(landscapeArtworkSize * 1.3f).height(landscapeArtworkSize))
-                        else PlayerArtwork(stringResource(R.string.player_artwork, track.album), Modifier.size(landscapeArtworkSize), state.settings.visualizer && android.os.Build.VERSION.SDK_INT >= VISUALIZER_API, state.playback.playing, next, previous, state.playback)
+                        else PlayerArtwork(stringResource(R.string.player_artwork, track.album), Modifier.size(landscapeArtworkSize).then(artworkModifier), state.settings.visualizer && android.os.Build.VERSION.SDK_INT >= VISUALIZER_API, state.playback.playing, next, previous, state.playback)
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                             PlayerHeading(track, true, onAlbum, onArtist)
                             GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, true)
@@ -153,7 +156,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
                         PlayerHeading(track, true, onAlbum, onArtist)
                         if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxWidth().height(if (large) 220.dp else 260.dp))
-                        else PlayerArtwork(stringResource(R.string.player_artwork, track.album), Modifier.size(if (large) 104.dp else 180.dp).align(Alignment.CenterHorizontally).padding(vertical = 8.dp), state.settings.visualizer && android.os.Build.VERSION.SDK_INT >= VISUALIZER_API, state.playback.playing, next, previous, state.playback)
+                        else PlayerArtwork(stringResource(R.string.player_artwork, track.album), Modifier.size(if (large) 104.dp else 180.dp).align(Alignment.CenterHorizontally).padding(vertical = 8.dp).then(artworkModifier), state.settings.visualizer && android.os.Build.VERSION.SDK_INT >= VISUALIZER_API, state.playback.playing, next, previous, state.playback)
                         GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, true)
                     }
                 } else {
@@ -161,7 +164,7 @@ fun NowPlayingScreen(state: AppState, vm: MainViewModel, onClose: () -> Unit, on
                         PlayerHeading(track, dense, onAlbum, onArtist)
                         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                             if (lyrics) LyricsPanel(state, vm, Modifier.fillMaxSize())
-                            else PlayerArtwork(stringResource(R.string.player_artwork, track.album), Modifier.size(minOf(maxWidth - 20.dp, maxHeight - 8.dp).coerceAtLeast(0.dp)), state.settings.visualizer && android.os.Build.VERSION.SDK_INT >= VISUALIZER_API, state.playback.playing, next, previous, state.playback)
+                            else PlayerArtwork(stringResource(R.string.player_artwork, track.album), Modifier.size(minOf(maxWidth - 20.dp, maxHeight - 8.dp).coerceAtLeast(0.dp)).then(artworkModifier), state.settings.visualizer && android.os.Build.VERSION.SDK_INT >= VISUALIZER_API, state.playback.playing, next, previous, state.playback)
                         }
                         GalleryControls(state, vm, onQueue, onDownload, { source = true }, { lyrics = !lyrics }, lyrics, { timer = true }, dense)
                     }
@@ -197,6 +200,9 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
     val timerOn = state.sleepEndsAt > 0 || state.sleepAtTrackEnd
     val timerDescription = stringResource(if (timerOn) R.string.player_timer_on else R.string.player_timer_set)
     val saved = state.favorites.any { it.id == track.id }
+    val smartShuffleContext = androidx.compose.ui.platform.LocalContext.current
+    val smartShuffleExplanation = stringResource(R.string.player_smart_shuffle_enabled)
+    val smartShuffleDisabled = stringResource(R.string.player_smart_shuffle_disabled)
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).heightIn(min = 44.dp).clickable(onClick = onSource).semantics { contentDescription = sourceDetails }, verticalAlignment = Alignment.CenterVertically) {
             val format = SourceReadout.from(player.quality)
@@ -213,17 +219,25 @@ private fun GalleryControls(state: AppState, vm: MainViewModel, onQueue: () -> U
             }
             Spacer(Modifier.width(7.dp)); Icon(OpenTuneIcons.KeyboardArrowDown, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        IconToggleButton(state.settings.smartShuffle, onCheckedChange = { enabled ->
+            vm.settings { it.copy(smartShuffle = enabled) }
+            android.widget.Toast.makeText(smartShuffleContext,
+                if (enabled) smartShuffleExplanation else smartShuffleDisabled, android.widget.Toast.LENGTH_SHORT).show()
+        }) {
+            Icon(OpenTuneIcons.SmartShuffle, stringResource(R.string.player_smart_shuffle), Modifier.size(20.dp),
+                tint = if (state.settings.smartShuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         IconButton(onClick = { vm.favorite(track) }) { Icon(if (saved) OpenTuneIcons.Favorite else OpenTuneIcons.FavoriteBorder,
             stringResource(if (saved) R.string.track_unsave else R.string.track_save), Modifier.size(22.dp), tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
     }
     player.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
     PlaybackSlider(vm, track.id, player.duration)
     Row(Modifier.fillMaxWidth().padding(vertical = if (compact) 12.dp else 18.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        IconToggleButton(player.shuffle, onCheckedChange = { vm.toggleShuffle() }) { Icon(OpenTuneIcons.Shuffle, stringResource(R.string.player_shuffle), Modifier.size(20.dp), tint = if (player.shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
-        IconButton(onClick = vm::previous) { Icon(OpenTuneIcons.SkipPrevious, stringResource(R.string.player_previous), Modifier.size(29.dp)) }
+        IconToggleButton(player.shuffle, onCheckedChange = { vm.toggleShuffle() }, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.Shuffle, stringResource(R.string.player_shuffle), Modifier.size(20.dp), tint = if (player.shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
+        IconButton(onClick = vm::previous, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.SkipPrevious, stringResource(R.string.player_previous), Modifier.size(29.dp)) }
         PlayControl(player.playing, player.buffering, if (compact) 60.dp else 74.dp, vm::togglePlay)
-        IconButton(onClick = vm::next, enabled = player.nextIndex >= 0) { Icon(OpenTuneIcons.SkipNext, stringResource(R.string.player_next), Modifier.size(29.dp)) }
-        IconToggleButton(player.repeat != Player.REPEAT_MODE_OFF, onCheckedChange = { vm.toggleRepeat() }) {
+        IconButton(onClick = vm::next, enabled = player.nextIndex >= 0, modifier = Modifier.weight(1f)) { Icon(OpenTuneIcons.SkipNext, stringResource(R.string.player_next), Modifier.size(29.dp)) }
+        IconToggleButton(player.repeat != Player.REPEAT_MODE_OFF, onCheckedChange = { vm.toggleRepeat() }, modifier = Modifier.weight(1f)) {
             Icon(if (player.repeat == Player.REPEAT_MODE_ONE) OpenTuneIcons.RepeatOne else OpenTuneIcons.Repeat,
                 stringResource(when (player.repeat) { Player.REPEAT_MODE_ONE -> R.string.player_repeat_one; Player.REPEAT_MODE_ALL -> R.string.player_repeat_all; else -> R.string.player_repeat_off }),
                 Modifier.size(20.dp), tint = if (player.repeat != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)

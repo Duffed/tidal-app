@@ -3,6 +3,8 @@ package io.github.yyan115.opentune.ui
 import io.github.yyan115.opentune.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,6 +38,7 @@ import kotlinx.coroutines.launch
 class PageContext(
     val state: AppState, val vm: MainViewModel, val pages: PagesViewModel,
     val scope: CoroutineScope, val onMenu: (Track) -> Unit, val source: String = "",
+    val correction: ArtistCorrectionUi = ArtistCorrectionUi(),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,10 +48,14 @@ fun PageScreen(route: PageRoute, state: AppState, vm: MainViewModel, pages: Page
     val entries by pages.state.collectAsStateWithLifecycle()
     val entry = entries[route.key] ?: PageUi()
     val scope = rememberCoroutineScope()
-    val context = remember(state, vm, pages, scope, onMenu, route.title) { PageContext(state, vm, pages, scope, onMenu, route.title) }
+    val corrections by pages.corrections.state.collectAsStateWithLifecycle()
+    val artistId = route.query["artistId"]
+    val correction = artistId?.let { corrections[pages.corrections.key(it)] } ?: ArtistCorrectionUi()
+    LaunchedEffect(artistId, state.signedIn) { artistId?.let(pages.corrections::load) }
+    val context = PageContext(state, vm, pages, scope, onMenu, route.title, correction)
     LaunchedEffect(route.key, state.signedIn, state.settings.offline) { pages.load(route) }
-    val page = entry.page
-    PullToRefreshBox(isRefreshing = entry.loading && page != null, onRefresh = { pages.load(route, force = true) }, modifier = Modifier.fillMaxSize()) {
+    val page = entry.page?.let { correctedArtistPage(it, correction) }
+    PullToRefreshBox(isRefreshing = entry.loading && page != null, onRefresh = { pages.load(route, force = true); correction.result?.let { result -> artistId?.let { pages.corrections.choose(it, result.artist) } } }, modifier = Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().testTag("page-list"), contentPadding = PaddingValues(bottom = 24.dp)) {
             if (page == null) {
                 item(key = "state") {
@@ -67,6 +74,27 @@ fun PageScreen(route: PageRoute, state: AppState, vm: MainViewModel, pages: Page
     }
 }
 
+@Composable
+internal fun correctedArtistPage(original: PageData, correction: ArtistCorrectionUi): PageData {
+    return run {
+        val result = correction.result
+        val header = original.modules.filterIsInstance<ArtistHeader>().firstOrNull()
+        if (result == null || header == null) original else {
+            val modules = buildList<PageModule> {
+                add(header)
+                add(TrackListModule("corrected-tracks", stringResource(R.string.artist_correction_confirmed), result.confirmed, showAll = true))
+                if (correction.showUnverified) {
+                    if (result.possible.isNotEmpty()) add(TrackListModule("possible-tracks", stringResource(R.string.artist_correction_possible), result.possible, showAll = true))
+                    if (result.unverified.isNotEmpty()) add(TrackListModule("unverified-tracks", stringResource(R.string.artist_correction_unverified), result.unverified, showAll = true))
+                }
+                // Identity correction replaces song lists, not the rest of the original artist page.
+                addAll(original.modules.filterNot { it is ArtistHeader || it is TrackListModule })
+            }
+            original.copy(modules = modules)
+        }
+    }
+}
+
 /** Adds the rows of a page. [viewAll] lists every item of the single module instead of a preview. */
 @UnstableApi
 fun LazyListScope.pageContent(page: PageData, entry: PageUi, routeKey: String, ctx: PageContext, viewAll: Boolean) {
@@ -81,7 +109,7 @@ fun LazyListScope.pageContent(page: PageData, entry: PageUi, routeKey: String, c
             }
             is LinksModule -> item(key = key) { LinksRow(module, ctx) }
             is CarouselModule -> carousel(module, entry, routeKey, ctx, key, viewAll)
-            is TrackListModule -> trackList(module, entry, routeKey, ctx, key, viewAll)
+            is TrackListModule -> trackList(module, entry, routeKey, ctx, key, page.showsAllTracks(module, viewAll))
         }
     }
 }
@@ -118,9 +146,16 @@ private fun LazyListScope.trackList(module: TrackListModule, entry: PageUi, rout
             module.showMore?.let { ctx.vm.openPage(PageRoute.path(it, module.title)) }
         }
     }
-    val shown = if (viewAll || module.numbered) tracks else tracks.take(PREVIEW_TRACKS)
+    val shown = if (viewAll || module.numbered || module.showAll) tracks else tracks.take(PREVIEW_TRACKS)
     itemsIndexed(shown, key = { position, track -> "$key:${track.id}:$position" }) { position, track ->
-        TrackRow(track, ctx.state.playback.track?.id == track.id, onPlay = { ctx.vm.play(tracks, position, ctx.source) }, onMenu = { ctx.onMenu(track) },
+        TrackRow(track, ctx.state.playback.track?.id == track.id, onPlay = {
+            ctx.scope.launch {
+                val queue = if (ctx.correction.result != null) ctx.correction.playbackTracks()
+                    else ctx.pages.allTracks(routeKey, module)
+                val start = if (ctx.correction.result != null) queue.indexOfFirst { it.id == track.id } else position
+                if (start in queue.indices) ctx.vm.play(queue, start, ctx.source)
+            }
+        }, onMenu = { ctx.onMenu(track) },
             index = if (module.numbered) position else null)
     }
     if (viewAll && module.dataPath != null && tracks.size < module.total) item(key = "$key:more") { LoadMore(routeKey, module, entry, ctx) }
@@ -212,10 +247,39 @@ private fun ExpandableText(text: String, source: String, modifier: Modifier = Mo
     }
 }
 
+/** Keep the page compact; the complete biography and attribution live in a scrollable dialog. */
+@Composable
+internal fun ArtistBiography(name: String, text: String, source: String, modifier: Modifier = Modifier) {
+    if (text.isBlank()) return
+    var open by rememberSaveable(name, text) { mutableStateOf(false) }
+    Column(modifier) {
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 4, overflow = TextOverflow.Ellipsis)
+        TextButton(onClick = { open = true }, contentPadding = PaddingValues(0.dp)) {
+            Text(stringResource(R.string.text_read_more))
+        }
+    }
+    if (open) AlertDialog(onDismissRequest = { open = false },
+        modifier = Modifier.testTag("artist-biography-dialog"),
+        title = { Text(name) },
+        text = {
+            Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
+                Text(text, style = MaterialTheme.typography.bodyMedium)
+                if (source.isNotBlank()) Text(stringResource(R.string.page_source, source),
+                    Modifier.padding(top = 16.dp), style = MaterialTheme.typography.labelSmall)
+            }
+        },
+        confirmButton = { TextButton(onClick = { open = false }) { Text(stringResource(R.string.action_close)) } })
+}
+
 private fun firstTracks(page: PageData): TrackListModule? = page.modules.filterIsInstance<TrackListModule>().firstOrNull()
 
 @UnstableApi
 private fun playFromPage(ctx: PageContext, routeKey: String, page: PageData, shuffle: Boolean) {
+    if (ctx.correction.result != null) {
+        ctx.vm.playTracks(ctx.correction.playbackTracks(), shuffle, ctx.source)
+        return
+    }
     val module = firstTracks(page) ?: return
     ctx.scope.launch { ctx.vm.playTracks(ctx.pages.allTracks(routeKey, module), shuffle, ctx.source) }
 }
@@ -228,16 +292,19 @@ private fun ArtistHeaderRow(header: ArtistHeader, ctx: PageContext, routeKey: St
         Artwork(header.artist.artwork, header.artist.title, Modifier.fillMaxWidth().aspectRatio(1.35f))
         Text(header.artist.title, Modifier.padding(top = 18.dp), style = AppFonts.title(42, 48))
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            TuneButton(onClick = { ctx.vm.playArtistTopTracks(header.artist.id) }, modifier = Modifier.weight(1f)) {
+            TuneButton(onClick = { if (ctx.correction.result != null) playFromPage(ctx, routeKey, page, false) else ctx.vm.playArtistTopTracks(header.artist.id) },
+                enabled = (ctx.correction.result == null || ctx.correction.playbackTracks().isNotEmpty()), modifier = Modifier.weight(1f)) {
                 Icon(OpenTuneIcons.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.action_play))
             }
-            TuneTonalButton(onClick = { ctx.vm.playArtistTopTracks(header.artist.id, shuffle = true) }) { Icon(OpenTuneIcons.Shuffle, stringResource(R.string.artist_shuffle)) }
-            TuneOutlinedButton(onClick = { ctx.vm.playArtistRadio(header.artist.id) }) { Icon(OpenTuneIcons.Radio, stringResource(R.string.artist_radio)) }
+            TuneTonalButton(onClick = { if (ctx.correction.result != null) playFromPage(ctx, routeKey, page, true) else ctx.vm.playArtistTopTracks(header.artist.id, shuffle = true) }, enabled = (ctx.correction.result == null || ctx.correction.playbackTracks().isNotEmpty())) { Icon(OpenTuneIcons.Shuffle, stringResource(R.string.artist_shuffle)) }
+            if (ctx.correction.result == null) TuneOutlinedButton(onClick = { ctx.vm.playArtistRadio(header.artist.id) }) { Icon(OpenTuneIcons.Radio, stringResource(R.string.artist_radio)) }
         }
-        if (ctx.state.signedIn) TuneOutlinedButton(onClick = { ctx.vm.toggleFollow(header.artist) }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+        if (ctx.state.signedIn && ctx.correction.result == null) TuneOutlinedButton(onClick = { ctx.vm.toggleFollow(header.artist) }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
             Icon(if (following) OpenTuneIcons.Check else OpenTuneIcons.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(if (following) stringResource(R.string.artist_following) else stringResource(R.string.artist_follow))
         }
-        ExpandableText(header.bio, header.bioSource, Modifier.padding(top = 14.dp))
+        ArtistBiography(header.artist.title, header.bio, header.bioSource, Modifier.padding(top = 14.dp))
+        ArtistCorrectionControls(header.artist.id, header.artist.title, ctx.correction, ctx.pages.corrections,
+            online = ctx.state.signedIn && !ctx.state.settings.offline)
     }
 }
 

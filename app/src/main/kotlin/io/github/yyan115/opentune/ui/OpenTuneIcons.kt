@@ -38,6 +38,7 @@ object OpenTuneIcons {
     val Pause by lazy { glyph("Pause", "M7 5.5H10V18.5H7Z M14 5.5H17V18.5H14Z", solid = true) }
     val SkipNext by lazy { glyph("Next", "M5 5.5L15 12L5 18.5Z M19 5.5V18.5") }
     val SkipPrevious by lazy { glyph("Previous", "M19 5.5L9 12L19 18.5Z M5 5.5V18.5") }
+    val SmartShuffle by lazy { glyph("SmartShuffle", "M12 3L14.5 9.5L21 12L14.5 14.5L12 21L9.5 14.5L3 12L9.5 9.5Z M20 2V6 M18 4H22") }
     val Shuffle by lazy { glyph("Shuffle", "M3 6H5.5C10.5 6 12.5 18 17.5 18H21 M17.5 14.5L21 18L17.5 21.5 M3 18H5.5C7.8 18 9.4 15.3 10.8 12.5 M13.2 7.5C14.6 6.4 15.8 6 17.5 6H21 M17.5 2.5L21 6L17.5 9.5") }
     val Repeat by lazy { glyph("Repeat", "M5 7H18A3 3 0 0 1 21 10V12 M15 4L18 7L15 10 M19 17H6A3 3 0 0 1 3 14V12 M9 14L6 17L9 20") }
     val RepeatOne by lazy { glyph("RepeatOne", "M5 7H18A3 3 0 0 1 21 10V12 M15 4L18 7L15 10 M19 17H6A3 3 0 0 1 3 14V12 M9 14L6 17L9 20 M11 10L13 9V15") }

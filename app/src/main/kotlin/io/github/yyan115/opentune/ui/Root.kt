@@ -13,6 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -21,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
@@ -43,7 +46,10 @@ import io.github.yyan115.opentune.core.*
 @Composable
 fun OpenTuneRoot(vm: MainViewModel, state: AppState, initialDestination: Destination = Destination.Home, initialPlayer: Boolean = false, initialSettings: Boolean = false, initialLyrics: Boolean = false) {
     var queueChoice by remember { mutableStateOf<Track?>(null) }
+    val favoriteTrackIds = remember(state.favorites) { state.favorites.map { it.id }.toSet() }
     CompositionLocalProvider(
+        LocalFavoriteTrackIds provides favoriteTrackIds,
+        LocalToggleTrackFavorite provides { track -> vm.favorite(track); Unit },
         LocalQueueTrack provides { track ->
             when (state.settings.queueSwipeAction) {
                 QueueSwipeAction.Ask -> queueChoice = track
@@ -80,10 +86,12 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
     var settings by rememberSaveable { mutableStateOf(initialSettings) }
     var settingsPage by rememberSaveable { mutableStateOf<String?>(null) }
     val playerExpansion = rememberPlayerExpansion(initialPlayer)
+    var miniBounds by remember { mutableStateOf(Rect.Zero) }
     val flingThreshold = with(LocalDensity.current) { 800.dp.toPx() }
     SideEffect { playerExpansion.flingThreshold = flingThreshold }
     LaunchedEffect(state.playback.track == null) { if (state.playback.track == null) playerExpansion.close() }
     var queue by rememberSaveable { mutableStateOf(false) }
+    var reportTrack by remember { mutableStateOf<Track?>(null) }
     var trackMenu by remember { mutableStateOf<Track?>(null) }
     var addToPlaylist by remember { mutableStateOf<Track?>(null) }
     var newPlaylist by remember { mutableStateOf(false) }
@@ -102,8 +110,12 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
     val largeText = LocalDensity.current.fontScale > 1.3f
     val rail = landscape && !largeText
     // Without an account the app offers the music on the device, which has its own filter, so there is one place and no navigation.
-    val destinations = if (state.signedIn) listOf(Destination.Home, Destination.Search, Destination.Library, Destination.Device) else listOf(Destination.Device)
-    val destination = Destination.entries.firstOrNull { it.name == destinationName }?.takeIf { it in destinations } ?: destinations.first()
+    val destinations = if (state.signedIn) (listOf(Destination.Home, Destination.Search, Destination.Library) + if (state.settings.showDeviceTab) listOf(Destination.Device) else emptyList()) else listOf(Destination.Device)
+    val destination = Destination.entries.firstOrNull { it.name == destinationName }?.takeIf { it in destinations || (state.signedIn && it == Destination.Device) } ?: destinations.first()
+    LaunchedEffect(state.settings.showDeviceTab) {
+        if (!state.settings.showDeviceTab && state.signedIn && destinationName == Destination.Device.name)
+            destinationName = Destination.Library.name
+    }
     val settingsPageOpen = SettingsPage.entries.firstOrNull { it.name == settingsPage }
     val closeSettings = { settings = false; settingsPage = null }
     val select: (Destination) -> Unit = { destinationName = it.name; closeSettings(); vm.closeAll() }
@@ -111,6 +123,13 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
     val welcome = !state.settings.welcomeDone && !state.signedIn
     val snackbar = remember { SnackbarHostState() }
     val inDetail = state.detail != null || state.routes.isNotEmpty()
+    val screenStates = rememberSaveableStateHolder()
+    val screenKey = when {
+        settings -> "settings:${settingsPage.orEmpty()}"
+        state.routes.isNotEmpty() -> "page:${state.routes.last().key}"
+        state.detail != null -> "detail:${state.detail.type}:${state.detail.id}"
+        else -> "tab:${destination.name}"
+    }
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> vm.import(uris) }
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
     // A download needs the permissions that apply to this version of Android. They are asked for when they are missing.
@@ -181,8 +200,9 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
         bottomBar = {
             Column {
                 if (state.playback.track != null) MiniPlayer(state.playback, position, onOpen = { playerExpansion.open() }, onPlay = vm::togglePlay, onNext = vm::next, onDismiss = vm::stopPlayback, onPrevious = vm::previousTrack,
-                    modifier = Modifier.playerDrag(playerExpansion).onGloballyPositioned { playerExpansion.travel = it.positionInRoot().y.coerceAtLeast(1f) }
-                        .graphicsLayer { alpha = (1f - playerExpansion.fraction * 5f).coerceIn(0f, 1f) })
+                    modifier = Modifier.playerDrag(playerExpansion).onGloballyPositioned {
+                        miniBounds = it.boundsInRoot(); playerExpansion.travel = miniBounds.top.coerceAtLeast(1f)
+                    }.graphicsLayer { alpha = if (playerExpansion.visible) 0f else 1f })
                 if (!settings && !landscape && !largeText && navigation) OpenTuneNavigation(destinations, destination, select)
                 else Spacer(Modifier.navigationBarsPadding())
             }
@@ -190,6 +210,7 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
+            screenStates.SaveableStateProvider(screenKey) {
             when {
                 settings -> when (settingsPageOpen) {
                     SettingsPage.Repeats -> AvoidRepeatsPage(state, vm)
@@ -207,6 +228,7 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
                     libraryFilter, { libraryFilter = it })
                 else -> OnDeviceScreen(state, vm, importAudio, addFolder, openLogin, { newPlaylistTrack = null; playlistTitle = ""; newPlaylist = true }, openTrackMenu)
             }
+            }
         }
     }
     }
@@ -223,12 +245,17 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
     if (state.signingIn) LinearProgressIndicator(Modifier.fillMaxWidth().statusBarsPadding())
     BackHandler(enabled = playerExpansion.visible) { playerExpansion.close() }
     if (playerExpansion.visible && state.playback.track != null) Box(Modifier.fillMaxSize().playerDrag(playerExpansion)) {
-        Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = playerExpansion.fraction * .25f)).clickable { playerExpansion.close() })
-        NowPlayingScreen(state, vm, onClose = { playerExpansion.close() }, onQueue = { queue = true }, onMenu = openTrackMenu, onDownload = { track ->
-        askPermissions()
-        vm.download(track)
-    }, onAlbum = { track -> openRelease(Release(track.albumId, track.album, track.artist, track.artwork)) },
-        onArtist = { track -> openRelease(Release(track.artistId, track.artist.substringBefore(","), "", type = ReleaseType.ARTIST)) }, initialLyrics = initialLyrics, modifier = Modifier.graphicsLayer { translationY = playerExpansion.offset })
+        PlayerMorph(playerExpansion.fraction, miniBounds,
+            mini = { modifier ->
+                MiniPlayer(state.playback, position, { playerExpansion.open() }, vm::togglePlay, vm::next,
+                    modifier = modifier)
+            }, full = { modifier ->
+                NowPlayingScreen(state, vm, onClose = { playerExpansion.close() }, onQueue = { queue = true }, onMenu = openTrackMenu,
+                    onDownload = { track -> askPermissions(); vm.download(track) },
+                    onAlbum = { track -> openRelease(Release(track.albumId, track.album, track.artist, track.artwork)) },
+                    onArtist = { track -> openRelease(Release(track.artistId, track.artist.substringBefore(","), "", type = ReleaseType.ARTIST)) },
+                    initialLyrics = initialLyrics, modifier = modifier, transparentBackground = true)
+            })
     }
     if (queue) QueueSheet(state, vm) { queue = false }
     trackMenu?.let { track ->
@@ -271,6 +298,9 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
                     SettingRow(OpenTuneIcons.Radio, stringResource(R.string.track_radio), onClick = { vm.playTrackRadio(track); trackMenu = null })
                     SettingRow(OpenTuneIcons.Info, stringResource(R.string.album_credits), onClick = { vm.showCredits("track", track.id, "${track.title} · ${track.artist}"); trackMenu = null })
                 }
+                if (!track.isFile) SettingRow(OpenTuneIcons.Info, stringResource(R.string.catalog_report_title), onClick = {
+                    reportTrack = track; trackMenu = null
+                })
                 if (!track.isFile) SettingRow(OpenTuneIcons.Share, stringResource(R.string.track_share), onClick = {
                     context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain")
                         .putExtra(Intent.EXTRA_TEXT, "https://tidal.com/browse/track/${track.id}"), resources.getString(R.string.track_share_title))); trackMenu = null
@@ -282,6 +312,11 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
                     stringResource(if (stored.isFile) R.string.track_remove_file else R.string.track_remove_local), onClick = { removeTrack = stored; trackMenu = null })
             }
         }
+    }
+    reportTrack?.let { track ->
+        val url = "https://tidal.com/browse/track/${track.id}"
+        val artistUrl = if (track.artistId.isNotBlank()) "https://tidal.com/browse/artist/${track.artistId}" else ""
+        CatalogReportDialog(url, stringResource(R.string.catalog_report_track, track.title, track.artist, url, artistUrl)) { reportTrack = null }
     }
     if (statsInfo) AlertDialog(onDismissRequest = { statsInfo = false }, text = { Text(stringResource(R.string.stats_info)) },
         confirmButton = { TextButton(onClick = { statsInfo = false }) { Text(stringResource(R.string.action_close)) } })

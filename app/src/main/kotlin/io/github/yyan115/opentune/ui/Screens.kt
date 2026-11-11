@@ -81,7 +81,7 @@ fun SearchScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onMenu
     } }
     val songs = (local + if (state.settings.offline) emptyList() else state.search.tracks).distinctBy(Track::id)
     val result = state.search
-    val open: (Release) -> Unit = { release -> vm.rememberSearch(query); keyboard?.hide(); vm.open(release) }
+    val open: (Release) -> Unit = { release -> vm.rememberSearch(query); keyboard?.hide(); vm.rememberSearchVisit(SearchVisit(release = release)); vm.open(release) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { Spacer(Modifier.height(12.dp)) }
         item { OutlinedTextField(query, vm::search, Modifier.fillMaxWidth().padding(horizontal = 24.dp),
@@ -90,6 +90,24 @@ fun SearchScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onMenu
             singleLine = true, shape = MaterialTheme.shapes.large, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { keyboard?.hide(); vm.rememberSearch(query) })) }
         if (query.isBlank()) {
+            if (state.searchVisits.isNotEmpty()) {
+                item { SectionTitle(stringResource(R.string.search_recently_opened), stringResource(R.string.action_clear), vm::clearSearchVisits) }
+                items(state.searchVisits, key = { "visit:${it.key}" }, contentType = { "search-visit" }) { visit ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) {
+                            val track = visit.track
+                            val release = visit.release
+                            if (track != null) TrackRow(track, state.playback.track?.id == track.id,
+                                onPlay = { vm.rememberSearchVisit(visit); vm.play(listOf(track), 0, searchLabel) },
+                                onMenu = { onMenu(track) })
+                            else if (release != null) ReleaseRow(release) { vm.rememberSearchVisit(visit); vm.open(release) }
+                        }
+                        IconButton(onClick = { vm.removeSearchVisit(visit) }) {
+                            Icon(OpenTuneIcons.Close, stringResource(R.string.search_remove_visit))
+                        }
+                    }
+                }
+            }
             if (state.recentSearches.isNotEmpty()) {
                 item { SectionTitle(stringResource(R.string.search_recent), stringResource(R.string.action_clear), vm::clearSearches) }
                 item { FlowRow(Modifier.padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -98,7 +116,7 @@ fun SearchScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onMenu
             }
             val explore = entries[PageRoute.Explore.key]?.page
             if (online && explore != null) pageContent(explore, entries.getValue(PageRoute.Explore.key), PageRoute.Explore.key, context, viewAll = false)
-            else if (state.recentSearches.isEmpty()) item { EmptyState(OpenTuneIcons.Search, stringResource(R.string.search_empty_title), stringResource(if (state.signedIn && !state.settings.offline) R.string.search_prompt_tidal else R.string.search_prompt_local)) }
+            else if (state.recentSearches.isEmpty() && state.searchVisits.isEmpty()) item { EmptyState(OpenTuneIcons.Search, stringResource(R.string.search_empty_title), stringResource(if (state.signedIn && !state.settings.offline) R.string.search_prompt_tidal else R.string.search_prompt_local)) }
             if (!state.signedIn && !state.settings.offline) item { ConnectCard(onLogin) }
         } else {
             item { LazyRow(state = filters, contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -106,7 +124,7 @@ fun SearchScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onMenu
             } }
             if (state.searching) item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) }
             state.searchError?.let { error -> item { ErrorCard(error, vm::retrySearch) } }
-            val play: (Track) -> Unit = { track -> keyboard?.hide(); vm.rememberSearch(query); vm.play(songs, songs.indexOf(track), searchLabel) }
+            val play: (Track) -> Unit = { track -> keyboard?.hide(); vm.rememberSearch(query); vm.rememberSearchVisit(SearchVisit(track = track)); searchPlaybackQueue(songs, track).let { (queue, index) -> vm.play(queue, index, searchLabel) } }
             when (filter) {
                 0 -> {
                     result.topRelease?.let { top -> item(key = "top-hit") {
@@ -225,6 +243,12 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNew
         LibrarySort.Title -> sortedBy { title(it).lowercase() }
         LibrarySort.Artist -> sortedWith(compareBy({ artist(it).lowercase() }, { title(it).lowercase() }))
     }
+    // Keep the complete playback list; only its visible rows are composed by LazyColumn.
+    val savedTracks = remember(state.favorites, state.settings.offline, text, sort) {
+        val available = if (state.settings.offline) state.favorites.filter(Track::onDevice) else state.favorites
+        val matching = if (text.isBlank()) available else available.filter { matches(it.title, it.artist, it.album) }
+        matching.ordered({ it.title }, { it.artist })
+    }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { Spacer(Modifier.height(8.dp)) }
         item { LazyRow(modifier = Modifier.testTag("library-filters"), state = filters, contentPadding = PaddingValues(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -248,10 +272,11 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNew
         }
         when (filter) {
             0 -> {
-                val all = if (state.settings.offline) state.favorites.filter(Track::onDevice) else state.favorites
-                val tracks = all.filter { matches(it.title, it.artist, it.album) }.ordered({ it.title }, { it.artist })
+                val tracks = savedTracks
                 item { SectionTitle(pluralStringResource(R.plurals.track_count, tracks.size, tracks.size), if (tracks.size > 1) stringResource(R.string.action_shuffle) else null) { vm.playTracks(tracks, shuffle = true) } }
-                items(tracks, key = Track::id) { track -> TrackRow(track, state.playback.track?.id == track.id, { vm.play(tracks, tracks.indexOf(track), libraryTabs[0]) }, { onMenu(track) }) }
+                itemsIndexed(tracks, key = { _, track -> track.id }, contentType = { _, _ -> "track" }) { index, track ->
+                    TrackRow(track, state.playback.track?.id == track.id, { vm.play(tracks, index, libraryTabs[0]) }, { onMenu(track) })
+                }
                 if (tracks.isEmpty() && !state.syncing) item { EmptyState(OpenTuneIcons.FavoriteBorder, if (text.isBlank()) stringResource(R.string.library_no_saved) else stringResource(R.string.library_no_matches),
                     if (text.isBlank()) stringResource(R.string.library_no_saved_text) else stringResource(R.string.library_try_filter), if (state.signedIn || text.isNotBlank()) null else stringResource(R.string.action_connect_tidal), onLogin) }
                 if (state.hasMoreFavorites && text.isBlank()) item { TextButton(onClick = { vm.moreFavorites() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.library_load_more_tracks)) } }
@@ -415,6 +440,8 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onOp
             item { SettingRow(OpenTuneIcons.Folder, stringResource(R.string.settings_download_folder), io.github.yyan115.opentune.data.DownloadFiles.FOLDER) }
         }
         item { SectionTitle(stringResource(R.string.settings_appearance)) }
+        if (state.signedIn) item { SwitchRow(OpenTuneIcons.Folder, stringResource(R.string.settings_show_device_tab), settings.showDeviceTab,
+            { show -> vm.settings { it.copy(showDeviceTab = show) } }) }
         item { SettingRow(OpenTuneIcons.Contrast, stringResource(R.string.settings_theme), stringResource(if (settings.theme == SYSTEM_THEME) R.string.theme_system else themeFor(settings.theme, false).nameRes), { theme = true }) }
         item { SectionTitle(stringResource(R.string.settings_listening)) }
         item { SettingRow(OpenTuneIcons.LibraryMusic, stringResource(R.string.stats_title), onClick = { onOpenPage(SettingsPage.Statistics) }, trailing = { Icon(OpenTuneIcons.ChevronRight, null) }) }

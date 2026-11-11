@@ -6,10 +6,30 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ### Added
 
+- Show a direct favorite toggle in song rows across albums, playlists, artist pages and search.
+
+- Global Smart Shuffle switch in the player: after three started tracks, insert one TIDAL radio recommendation before returning to the queue. Preserve manual queue priority and remove pending recommendations when disabled.
+
+- Prepare editable artist and track attribution reports with source links, and hand them off to the official TIDAL support form or web player.
+
+- Search TIDAL by MusicBrainz recording titles and artist aliases beyond the original artist page, and toggle unverified songs with a switch.
+
+- Correct a merged artist page by selecting a MusicBrainz identity. Show recording-code matches, keep uncertain songs separately accessible, and save or reset the selection locally.
+
 - Drag the mini player up and the full player down, with animations that follow the finger.
 - Swipe between tracks with sliding cover previews, and swipe a song to queue it. Choose whether song swipes ask, play next or add to the queue (the default).
 
 ### Fixed
+
+- Morph the full player surface and existing artwork into the measured mini-player bounds while dragging.
+
+- Continue playback across visible corrected artist sections, collapse identity controls, and retain the original TIDAL artist artwork and biography.
+
+- Remember artist correction toggles, make catalogue title searches opt-in, and select one matching TIDAL release per MusicBrainz recording instead of listing duplicates and unrelated tracks.
+
+- Recognize and display artist aliases in identity search, prioritize exact stage names, and restore cover artwork in corrected song lists.
+
+- Open artist biographies in a scrollable dialog and omit the duplicate biography below the artist sections.
 
 - Manually queued songs play before the remaining playlist, in insertion order; Play next takes priority. Preserve this order when shuffling or restoring playback.
 - Keep the incoming cover visible when a swipe changes tracks, and center the seek thumb on the progress bar.

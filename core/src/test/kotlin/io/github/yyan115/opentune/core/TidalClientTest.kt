@@ -27,6 +27,17 @@ class TidalClientTest {
     }
     @After fun tearDown() { server.shutdown() }
 
+    @Test fun smartRadioRejectsUnavailableTracksAndVideos() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"items":[
+            {"id":1,"allowStreaming":true,"streamReady":true},
+            {"id":2,"allowStreaming":false,"streamReady":true},
+            {"id":3,"allowStreaming":true,"streamReady":false},
+            {"id":4,"allowStreaming":true,"streamReady":true,"contentType":"video"},
+            {"id":5},{"type":"video","item":{"id":6,"allowStreaming":true,"streamReady":true}}]}"""))
+        assertEquals(listOf("1"), client.smartShuffleRadio("seed").map { it.id })
+        assertTrue(server.takeRequest().path!!.startsWith("/v1/tracks/seed/radio"))
+    }
+
     @Test fun encodesSearchAndUsesAccountCountry() = runBlocking {
         server.enqueue(MockResponse().setBody("""{"tracks":{"items":[{"id":42,"title":"Song","duration":182,"artists":[{"name":"First"},{"name":"Second"}],"album":{"id":7,"title":"Album","cover":"a-b-c"}}]}}"""))
         val result = client.search("music & friends")
@@ -75,10 +86,15 @@ class TidalClientTest {
         assertFalse(ClientIdentity("sensitive-client", "sensitive-secret").toString().contains("sensitive"))
     }
 
-    @Test fun losslessRequestRejectsAacInsteadOfSilentlyDowngrading() = runBlocking {
-        server.enqueue(MockResponse().setBody(streamResponse("mp4a.40.2")))
-        try { client.stream("42", AudioQuality.LOSSLESS); fail("Lossy audio was accepted for a lossless request") }
-        catch (error: ServiceException) { assertEquals(406, error.status); assertTrue(error.message.orEmpty().contains("lossless")) }
+    @Test fun losslessRequestsPlayAvailableAacAndKeepActualCodec() = runBlocking {
+        for (requested in listOf(AudioQuality.LOSSLESS, AudioQuality.HI_RES_LOSSLESS)) {
+            server.enqueue(MockResponse().setBody(streamResponse("mp4a.40.2")))
+            val stream = client.stream("42", requested)
+            assertEquals("https://audio.example/track.mp4", stream.uri)
+            assertEquals("mp4a.40.2", stream.codec)
+            assertFalse(stream.qualityLabel.contains("FLAC"))
+            assertEquals(requested.name, server.takeRequest().requestUrl!!.queryParameter("audioquality"))
+        }
     }
 
     @Test fun explicitAacQualityRemainsAvailable() = runBlocking {
@@ -116,6 +132,45 @@ class TidalClientTest {
         assertTrue(pending.await().isFailure)
         assertNull(store.read())
         assertFalse(client.signedIn)
+    }
+
+    @Test fun favoritesRequestOneLargeWindowToAvoidUnstableDatePageBoundaries() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"offset":0,"limit":10000,"totalNumberOfItems":2,"items":[{"item":{"id":1}},{"item":{"id":2}}]}"""))
+        assertEquals(listOf("1", "2"), client.allFavorites().map { it.id })
+        assertEquals("10000", server.takeRequest().requestUrl!!.queryParameter("limit"))
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test fun favoritesContinuePastShortAndEmptyIntermediatePages() = runBlocking {
+        fun page(offset: Int, ids: IntRange) = MockResponse().setBody(
+            """{"offset":$offset,"limit":100,"totalNumberOfItems":400,"items":[${ids.joinToString(",") { """{"item":{"id":$it}}""" }}]}""")
+        server.enqueue(page(0, 1..100))
+        server.enqueue(page(100, 101..191))
+        server.enqueue(page(200, IntRange.EMPTY))
+        server.enqueue(page(300, 301..400))
+        val tracks = client.allFavorites()
+        assertEquals(291, tracks.size)
+        assertEquals("400", tracks.last().id)
+        listOf(0, 100, 200, 300).forEach { offset ->
+            assertEquals(offset.toString(), server.takeRequest().requestUrl!!.queryParameter("offset"))
+        }
+    }
+
+    @Test fun favoritesWithoutTotalContinueUntilEmptyResponse() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"items":[{"item":{"id":1}}]}"""))
+        server.enqueue(MockResponse().setBody("""{"items":[{"item":{"id":2}}]}"""))
+        server.enqueue(MockResponse().setBody("""{"items":[]}"""))
+        assertEquals(listOf("1", "2"), client.allFavorites().map { it.id })
+    }
+
+    @Test fun artistCatalogueIncludesSinglesEpsAndCompilations() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"items":[{"id":1,"title":"Album"}]}"""))
+        server.enqueue(MockResponse().setBody("""{"items":[{"id":2,"title":"Collaboration EP"}]}"""))
+        server.enqueue(MockResponse().setBody("""{"items":[{"id":3,"title":"Compilation"},{"id":2,"title":"Collaboration EP"}]}"""))
+        assertEquals(listOf("1", "2", "3"), client.artistAlbums("artist").map { it.id })
+        assertNull(server.takeRequest().requestUrl!!.queryParameter("filter"))
+        assertEquals("EPSANDSINGLES", server.takeRequest().requestUrl!!.queryParameter("filter"))
+        assertEquals("COMPILATIONS", server.takeRequest().requestUrl!!.queryParameter("filter"))
     }
 
     @Test fun readsEveryPageOfALargePlaylistIncludingDuplicates() = runBlocking {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -33,6 +34,9 @@ import androidx.compose.ui.platform.LocalContext
 import io.github.yyan115.opentune.core.Release
 import io.github.yyan115.opentune.core.Track
 import kotlinx.coroutines.delay
+
+val LocalFavoriteTrackIds = compositionLocalOf<Set<String>> { emptySet() }
+val LocalToggleTrackFavorite = staticCompositionLocalOf<((Track) -> Unit)?> { null }
 
 val LocalOfflineMode = staticCompositionLocalOf { false }
 
@@ -81,8 +85,13 @@ private fun placeholderBrush(seed: String?): Brush {
 
 /** The cover of a track. A file without a picture gets a coloured tile with a note, which tells it from a TIDAL track whose cover is still loading. */
 @Composable
-fun TrackArtwork(track: Track, description: String?, modifier: Modifier = Modifier) =
-    Artwork(track.artwork, description, modifier, if (track.isFile && track.artwork == null) track.album.ifBlank { track.artist.ifBlank { track.title } } else null)
+fun TrackArtwork(track: Track, description: String?, modifier: Modifier = Modifier, thumbnail: Boolean = false) {
+    val artwork = track.artwork
+    val uri = if (thumbnail && artwork?.startsWith("https://resources.tidal.com/images/") == true)
+        artwork.replace("/640x640.jpg", "/160x160.jpg") else artwork
+    Artwork(uri, description, modifier,
+        if (track.isFile && artwork == null) track.album.ifBlank { track.artist.ifBlank { track.title } } else null)
+}
 
 /** Marks a file that the listener added from the device. A TIDAL track carries no mark, because TIDAL is what the app is for. */
 @Composable
@@ -130,12 +139,14 @@ fun ErrorCard(message: String, onRetry: (() -> Unit)? = null) {
 @Composable
 fun TrackRow(track: Track, playing: Boolean = false, onPlay: () -> Unit, onMenu: () -> Unit, index: Int? = null) {
     val queueTrack = LocalQueueTrack.current
+    val favorite = track.id in LocalFavoriteTrackIds.current
+    val toggleFavorite = LocalToggleTrackFavorite.current
     SwipeQueueRow(track.id, queueTrack?.let { { it(track) } }) {
         Row(Modifier.fillMaxWidth().clickable(onClick = onPlay).padding(start = 24.dp, end = 8.dp, top = 11.dp, bottom = 11.dp),
             verticalAlignment = Alignment.CenterVertically) {
             if (index != null) Text("%02d".format(index + 1), Modifier.width(32.dp), fontFamily = AppFonts.mono, fontSize = 10.sp,
                 color = if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-            else TrackArtwork(track, null, Modifier.size(48.dp))
+            else TrackArtwork(track, null, Modifier.size(48.dp).testTag("track-artwork-${track.id}"), thumbnail = true)
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                 Text(track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (playing) FontWeight.SemiBold else FontWeight.Normal,
@@ -150,6 +161,12 @@ fun TrackRow(track: Track, playing: Boolean = false, onPlay: () -> Unit, onMenu:
                     Text(track.artist, fontFamily = AppFonts.body, fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+            }
+            IconToggleButton(checked = favorite, onCheckedChange = { toggleFavorite?.invoke(track) },
+                enabled = toggleFavorite != null, modifier = Modifier.testTag("track-favorite-${track.id}")) {
+                Icon(if (favorite) OpenTuneIcons.Favorite else OpenTuneIcons.FavoriteBorder,
+                    stringResource(if (favorite) R.string.track_unsave else R.string.track_save), Modifier.size(20.dp),
+                    tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onMenu) { Icon(OpenTuneIcons.MoreVert, stringResource(R.string.track_options, track.title), Modifier.size(20.dp)) }
         }

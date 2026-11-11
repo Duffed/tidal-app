@@ -109,8 +109,11 @@ class TidalClient(
             topTrack = if (topType == "TRACKS") topValue?.let(JsonCodec::track) else null)
     }
 
+    private suspend fun favoritesPage(offset: Int, limit: Int = 100): JSONObject =
+        request("users/${userId()}/favorites/tracks", mapOf("limit" to "$limit", "offset" to "$offset", "order" to "DATE", "orderDirection" to "DESC"))
+
     suspend fun favorites(offset: Int = 0): List<Track> =
-        JsonCodec.items(request("users/${userId()}/favorites/tracks", mapOf("limit" to "100", "offset" to "$offset", "order" to "DATE", "orderDirection" to "DESC"))).map(JsonCodec::track)
+        JsonCodec.items(favoritesPage(offset)).map(JsonCodec::track)
 
     suspend fun favoriteAlbums(offset: Int = 0): List<Release> =
         JsonCodec.items(request("users/${userId()}/favorites/albums", mapOf("limit" to "100", "offset" to "$offset"))).map { JsonCodec.release(it, ReleaseType.ALBUM) }
@@ -131,7 +134,31 @@ class TidalClient(
     }
 
     suspend fun allTracks(release: Release): List<Track> = allPages { tracks(release, it) }
-    suspend fun allFavorites(): List<Track> = allPages(page = ::favorites)
+    suspend fun allFavorites(): List<Track> {
+        val result = mutableListOf<Track>()
+        var offset = 0
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            // DATE ordering can repeat/omit tracks across small pages (e.g. bulk saves).
+            // Fetch the largest supported window to keep those groups in one response.
+            val response = favoritesPage(offset, limit = 10_000)
+            val items = JsonCodec.items(response)
+            result.addAll(items.map(JsonCodec::track))
+            val total = response.optInt("totalNumberOfItems", -1)
+            if (total >= 0) {
+                // Missing catalog entries can shorten even an intermediate page. The
+                // server's page window, not the number of decoded tracks, advances it.
+                val limit = response.optInt("limit", 10_000).takeIf { it > 0 } ?: 10_000
+                offset += limit
+                if (offset >= total) break
+            } else {
+                val count = response.optJSONArray("items")?.length() ?: 0
+                if (count == 0) break
+                offset += count
+            }
+        }
+        return result.distinctBy(Track::id)
+    }
     suspend fun allFavoriteAlbums(): List<Release> = allPages(page = ::favoriteAlbums)
     suspend fun allPlaylists(): List<Release> = allPages(50, ::playlists)
 
@@ -147,17 +174,25 @@ class TidalClient(
         }
     }
 
-    suspend fun artistAlbums(id: String): List<Release> = allPages { offset ->
-        JsonCodec.items(request("artists/$id/albums", mapOf("limit" to "100", "offset" to "$offset"))).map { JsonCodec.release(it, ReleaseType.ALBUM) }
+    suspend fun artistAlbums(id: String): List<Release> {
+        val releases = mutableListOf<Release>()
+        for (filter in listOf(null, "EPSANDSINGLES", "COMPILATIONS")) {
+            releases += allPages { offset ->
+                val parameters = mapOf("limit" to "100", "offset" to "$offset") +
+                    (filter?.let { mapOf("filter" to it) } ?: emptyMap())
+                JsonCodec.items(request("artists/$id/albums", parameters)).map { JsonCodec.release(it, ReleaseType.ALBUM) }
+            }
+        }
+        return releases.distinctBy { it.id }
     }
+
+    suspend fun trackDetails(id: String): Track = JsonCodec.track(request("tracks/$id"))
 
     suspend fun stream(id: String, quality: AudioQuality): StreamInfo {
         val stream = StreamManifest.parse(request("tracks/$id/playbackinfopostpaywall", mapOf("audioquality" to quality.name,
             "playbackmode" to "STREAM", "assetpresentation" to "FULL")))
-        if (quality in setOf(AudioQuality.LOSSLESS, AudioQuality.HI_RES_LOSSLESS) &&
-            !stream.codec.equals("flac", ignoreCase = true) && !stream.codec.equals("alac", ignoreCase = true)) {
-            throw ServiceException(406, "TIDAL returned lossy audio instead of lossless. Sign in again using Sign in to TIDAL, or choose High quality to allow AAC.", Problem.LOSSY_AUDIO)
-        }
+        // The preference requests the best desired quality. Accept a valid lower-quality
+        // stream when that is what TIDAL supplies; the player displays its actual codec.
         return stream
     }
 
@@ -261,6 +296,18 @@ class TidalClient(
 
     suspend fun trackRadio(id: String): List<Track> =
         JsonCodec.items(request("tracks/$id/radio", mapOf("limit" to "100"))).map(JsonCodec::track)
+
+    /** Smart Shuffle only inserts radio entries explicitly available for streaming. */
+    suspend fun smartShuffleRadio(id: String): List<Track> {
+        val rows = request("tracks/$id/radio", mapOf("limit" to "100")).optJSONArray("items") ?: return emptyList()
+        return (0 until rows.length()).mapNotNull { index ->
+            val wrapper = rows.optJSONObject(index) ?: return@mapNotNull null
+            val item = wrapper.optJSONObject("item") ?: wrapper
+            if (wrapper.optString("type").equals("video", true) || item.optString("contentType").equals("video", true) ||
+                !item.optBoolean("allowStreaming", false) || !item.optBoolean("streamReady", false)) null
+            else JsonCodec.track(item)
+        }
+    }
 
     suspend fun artistRadio(id: String): List<Track> =
         JsonCodec.items(request("artists/$id/radio", mapOf("limit" to "100"))).map(JsonCodec::track)

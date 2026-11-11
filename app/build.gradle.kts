@@ -8,7 +8,7 @@ val versionParts = releaseVersion.split('.').map(String::toInt)
 require(versionParts.size == 3 && versionParts.all { it in 0..999 })
 val noticeAssets = layout.buildDirectory.dir("generated/noticeAssets")
 val copyNotices = tasks.register<Sync>("copyNotices") {
-    from(rootProject.file("LICENSE"), rootProject.file("THIRD_PARTY_NOTICES.md"), rootProject.file("docs/licenses/Apache-2.0.txt"))
+    from(rootProject.file("LICENSE"), rootProject.file("THIRD_PARTY_NOTICES.md"), rootProject.file("docs/licenses/Apache-2.0.txt"), rootProject.file("docs/licenses/MS-PL.txt"))
     into(noticeAssets.map { it.dir("licenses") })
 }
 android {

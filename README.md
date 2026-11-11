@@ -4,7 +4,7 @@
 
 An unofficial open source music player for TIDAL, with local playback.
 
-Stream your TIDAL library in lossless quality, with synced lyrics, offline listening, Android Auto and twelve themes. Add your own audio files and folders, and they play alongside TIDAL in the same player. OpenTune has no ads, analytics or tracking, and it connects only to TIDAL.
+Stream your TIDAL library in lossless quality, with synced lyrics, offline listening, Android Auto and twelve themes. Add your own audio files and folders, and they play alongside TIDAL in the same player. OpenTune has no ads, analytics or tracking, and artist identity corrections can optionally use MusicBrainz.
 
 [![Check](https://github.com/yyan115/tidal-app/actions/workflows/check.yml/badge.svg)](https://github.com/yyan115/tidal-app/actions/workflows/check.yml)
 [![Release](https://img.shields.io/github/v/release/yyan115/tidal-app?include_prereleases)](https://github.com/yyan115/tidal-app/releases)
@@ -70,7 +70,7 @@ The [usage guide](docs/usage.md) explains each part.
 
 ## Privacy
 
-OpenTune connects to TIDAL. It has no ads, analytics, crash reporting or server of its own. The only other connection is scrobbling, which is off by default. If you turn it on and add a token, OpenTune sends the artist, title and album of tracks you finish to the ListenBrainz server that you choose.
+OpenTune connects to TIDAL. It has no ads, analytics, crash reporting or server of its own. Artist identity correction is optional: when you use it, OpenTune sends the searched artist name and the selected MusicBrainz artist ID to MusicBrainz. Recording matching runs on the device; TIDAL credentials are not sent to MusicBrainz. The selected identity and matched catalogue are saved locally and can be reset. Scrobbling is also off by default. If you turn it on and add a token, OpenTune sends the artist, title and album of tracks you finish to the ListenBrainz server that you choose.
 
 - You sign in on TIDAL's website in your browser. OpenTune never receives your password.
 - Account tokens are stored encrypted with a key held in the Android Keystore.
@@ -102,3 +102,13 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request. Report s
 ## License
 
 [Apache-2.0](LICENSE). Dependency licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+### Smart Shuffle
+
+The player has a saved global Smart Shuffle switch (off by default). It works with albums, playlists, favorites, artist pages, search results and individual TIDAL tracks, independently of normal shuffle. After three started regular tracks it inserts one available track-radio recommendation after manually queued songs, then continues the original queue. Skips count; pause/resume and seeking do not. Recommendations do not count toward the interval. Queue tracks, the current playback collection already loaded into the queue and the last 50 tracks heard while enabled are excluded.
+
+Turning it off removes waiting recommendations while letting the current song finish. Offline mode, local files, signing out and Repeat One suspend recommendations. Switching playback collections/accounts resets progress; late radio responses are discarded. Network failures skip one recommendation slot without interrupting playback. The global setting is included in local backups. The behavior is based on [Duffed’s Smart Shuffle plugin](https://github.com/Duffed/tidaluna-smart-shuffle); the Android implementation runs in the playback service.
+
+## This fork
+
+This working version targets [Duffed/tidal-app](https://github.com/Duffed/tidal-app). See [publishing the fork](docs/FORK_RELEASE.md) for test APKs and signed releases. The upstream project and license notices remain attributed above.
