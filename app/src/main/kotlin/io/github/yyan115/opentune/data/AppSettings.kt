@@ -47,6 +47,9 @@ data class Settings(
     val checkUpdates: Boolean = true,
     /** The permissions page has to be shown, because the first screen was answered and the page was not. */
     val setupPending: Boolean = false,
+    val showUpdatesTab: Boolean = true,
+    val albumsGrid: Boolean = true,
+    val playlistsGrid: Boolean = false,
     val showDeviceTab: Boolean = true,
     val queueSwipeAction: QueueSwipeAction = QueueSwipeAction.AddToQueue,
 ) {
@@ -79,12 +82,16 @@ class AppSettings(context: Context) {
         welcomeDone = preferences.getBoolean("welcomeDone", false), autoplay = preferences.getBoolean("autoplay", true),
         avoidRepeatHours = preferences.getInt("avoidRepeatHours", 0), visualizer = preferences.getBoolean("visualizer", false),
         checkUpdates = preferences.getBoolean("checkUpdates", true), setupPending = preferences.getBoolean("setupPending", false),
+        showUpdatesTab = preferences.getBoolean("showUpdatesTab", true),
+        albumsGrid = preferences.getBoolean("albumsGrid", true),
+        playlistsGrid = preferences.getBoolean("playlistsGrid", false),
         showDeviceTab = preferences.getBoolean("showDeviceTab", true),
         queueSwipeAction = QueueSwipeAction.fromStored(preferences.getString("queueSwipeAction", null))).exclusive())
     val state = mutable.asStateFlow()
     fun update(transform: (Settings) -> Settings) {
         val next = transform(mutable.value).exclusive()
         preferences.edit().putString("quality", next.quality.name).putString("mobileQuality", next.mobileQuality.name)
+            .putBoolean("showUpdatesTab", next.showUpdatesTab).putBoolean("albumsGrid", next.albumsGrid).putBoolean("playlistsGrid", next.playlistsGrid)
             .putBoolean("showDeviceTab", next.showDeviceTab).putString("queueSwipeAction", next.queueSwipeAction.name).putBoolean("smartShuffle", next.smartShuffle)
             .putBoolean("downloadOnWifi", next.downloadOnWifi).putBoolean("offline", next.offline)
             .putString("theme", next.theme).remove("colorTheme")

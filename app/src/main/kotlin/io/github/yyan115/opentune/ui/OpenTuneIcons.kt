@@ -18,6 +18,8 @@ object OpenTuneIcons {
             strokeLineWidth = 1.5f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round,
         ).build()
 
+    val Grid by lazy { glyph("Grid", "M3 3H9V9H3Z M15 3H21V9H15Z M3 15H9V21H3Z M15 15H21V21H15Z") }
+    val ListView by lazy { glyph("List", "M3 5H6V8H3Z M10 6.5H21 M3 16H6V19H3Z M10 17.5H21") }
     val Notifications by lazy { glyph("Notifications", "M6 17V11A6 6 0 0 1 18 11V17L19.5 18.5H4.5Z M10 21A2 2 0 0 0 14 21") }
     val Radio by lazy { glyph("Radio", "M5.5 18.5A9 9 0 0 1 5.5 5.5 M18.5 5.5A9 9 0 0 1 18.5 18.5 M8.6 15.4A4.6 4.6 0 0 1 8.6 8.6 M15.4 8.6A4.6 4.6 0 0 1 15.4 15.4 M13.2 12A1.2 1.2 0 1 1 10.8 12A1.2 1.2 0 0 1 13.2 12Z") }
     val Timer by lazy { glyph("Timer", "M20 13.5A8 8 0 1 1 4 13.5A8 8 0 0 1 20 13.5Z M12 9V13.5L15 15.2 M9.5 2.8H14.5") }

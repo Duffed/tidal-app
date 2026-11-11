@@ -6,6 +6,9 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ### Added
 
+- Add a personal TIDAL Updates tab with cached releases and a visibility setting.
+- Remember independent grid/list choices for library albums and playlists, including playlist folders.
+
 - Show a direct favorite toggle in song rows across albums, playlists, artist pages and search.
 
 - Global Smart Shuffle switch in the player: after three started tracks, insert one TIDAL radio recommendation before returning to the queue. Preserve manual queue priority and remove pending recommendations when disabled.

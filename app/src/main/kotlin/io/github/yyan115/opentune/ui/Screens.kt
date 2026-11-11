@@ -182,12 +182,14 @@ fun ReleaseRow(release: Release, onClick: () -> Unit) {
     }
 }
 
-private fun LazyListScope.releaseGrid(releases: List<Release>, columns: Int, onOpen: (Release) -> Unit) {
+private fun LazyListScope.releaseGrid(releases: List<Release>, columns: Int, onOpen: (Release) -> Unit, actions: @Composable (Release) -> Unit = {}) {
     items(releases.chunked(columns), key = { row -> row.joinToString(":") { it.id } }) { row ->
         Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             row.forEach { release ->
                 Column(Modifier.weight(1f).clickable { onOpen(release) }.padding(bottom = 6.dp)) {
                     Artwork(release.artwork, null, Modifier.fillMaxWidth().aspectRatio(1f))
+                    if (release.isDevicePlaylist) LocalBadge(Modifier.padding(top = 4.dp))
+                    actions(release)
                     Text(release.title, Modifier.padding(top = 10.dp), style = MaterialTheme.typography.titleSmall,
                         maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     Text(release.artist.ifBlank { release.subtitle }, Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall,
@@ -270,6 +272,16 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNew
                 }
             }
         }
+        if (filter == 1 || filter == 3) item(key = "layout-choice") {
+            val grid = if (filter == 1) state.settings.albumsGrid else state.settings.playlistsGrid
+            Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.End) {
+                FilterChip(selected = !grid, onClick = { vm.settings { if (filter == 1) it.copy(albumsGrid = false) else it.copy(playlistsGrid = false) } },
+                    label = { Text(stringResource(R.string.view_list)) }, leadingIcon = { Icon(OpenTuneIcons.ListView, null, Modifier.size(18.dp)) })
+                Spacer(Modifier.width(8.dp))
+                FilterChip(selected = grid, onClick = { vm.settings { if (filter == 1) it.copy(albumsGrid = true) else it.copy(playlistsGrid = true) } },
+                    label = { Text(stringResource(R.string.view_grid)) }, leadingIcon = { Icon(OpenTuneIcons.Grid, null, Modifier.size(18.dp)) })
+            }
+        }
         when (filter) {
             0 -> {
                 val tracks = savedTracks
@@ -283,7 +295,8 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNew
             }
             1 -> {
                 val albums = state.albums.filter { matches(it.title, it.artist) }.ordered({ it.title }, { it.artist })
-                releaseGrid(albums, columns, vm::open)
+                if (state.settings.albumsGrid) releaseGrid(albums, columns, vm::open)
+                else items(albums, key = { "album:${it.id}" }) { ReleaseRow(it) { vm.open(it) } }
                 if (albums.isEmpty() && !state.syncing) item { EmptyState(OpenTuneIcons.Album, if (text.isBlank()) stringResource(R.string.library_no_albums) else stringResource(R.string.library_no_matches),
                     if (text.isBlank()) stringResource(R.string.library_no_albums_text) else stringResource(R.string.library_try_filter), if (!state.signedIn && text.isBlank()) stringResource(R.string.action_connect_tidal) else null, onLogin) }
             }
@@ -314,7 +327,14 @@ fun LibraryScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onNew
                         Icon(OpenTuneIcons.ArrowBack, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(openFolder.second, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                 }
-                items(listed, key = { "${it.type}:${it.id}" }) { entry ->
+                if (state.settings.playlistsGrid) {
+                    items(listed.filter { it.type == ReleaseType.FOLDER }, key = { "folder:${it.id}" }) { entry ->
+                        FolderRow(entry, onOpen = { folderStack = folderStack + (entry.id to entry.title) }, onRename = { renaming = entry }, onDelete = { deleting = entry })
+                    }
+                    releaseGrid(listed.filter { it.type != ReleaseType.FOLDER }, columns, vm::open) { entry ->
+                        if (online && !entry.isDevicePlaylist) TextButton(onClick = { moving = entry }) { Icon(OpenTuneIcons.Folder, stringResource(R.string.playlist_move_description, entry.title), Modifier.size(20.dp)) }
+                    }
+                } else items(listed, key = { "${it.type}:${it.id}" }) { entry ->
                     when {
                         entry.type == ReleaseType.FOLDER -> FolderRow(entry, onOpen = { folderStack = folderStack + (entry.id to entry.title) }, onRename = { renaming = entry }, onDelete = { deleting = entry })
                         entry.isDevicePlaylist -> PlaylistListRow(entry) { vm.open(entry) }
@@ -440,6 +460,8 @@ fun SettingsScreen(state: AppState, vm: MainViewModel, onLogin: () -> Unit, onOp
             item { SettingRow(OpenTuneIcons.Folder, stringResource(R.string.settings_download_folder), io.github.yyan115.opentune.data.DownloadFiles.FOLDER) }
         }
         item { SectionTitle(stringResource(R.string.settings_appearance)) }
+        if (state.signedIn) item { SwitchRow(OpenTuneIcons.Notifications, stringResource(R.string.settings_show_updates_tab), settings.showUpdatesTab,
+            { show -> vm.settings { it.copy(showUpdatesTab = show) } }) }
         if (state.signedIn) item { SwitchRow(OpenTuneIcons.Folder, stringResource(R.string.settings_show_device_tab), settings.showDeviceTab,
             { show -> vm.settings { it.copy(showDeviceTab = show) } }) }
         item { SettingRow(OpenTuneIcons.Contrast, stringResource(R.string.settings_theme), stringResource(if (settings.theme == SYSTEM_THEME) R.string.theme_system else themeFor(settings.theme, false).nameRes), { theme = true }) }

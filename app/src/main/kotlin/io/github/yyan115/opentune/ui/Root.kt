@@ -110,8 +110,11 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
     val largeText = LocalDensity.current.fontScale > 1.3f
     val rail = landscape && !largeText
     // Without an account the app offers the music on the device, which has its own filter, so there is one place and no navigation.
-    val destinations = if (state.signedIn) (listOf(Destination.Home, Destination.Search, Destination.Library) + if (state.settings.showDeviceTab) listOf(Destination.Device) else emptyList()) else listOf(Destination.Device)
+    val destinations = if (state.signedIn) (listOf(Destination.Home, Destination.Search, Destination.Library) + (if (state.settings.showUpdatesTab) listOf(Destination.Updates) else emptyList()) + if (state.settings.showDeviceTab) listOf(Destination.Device) else emptyList()) else listOf(Destination.Device)
     val destination = Destination.entries.firstOrNull { it.name == destinationName }?.takeIf { it in destinations || (state.signedIn && it == Destination.Device) } ?: destinations.first()
+    LaunchedEffect(state.settings.showUpdatesTab) {
+        if (!state.settings.showUpdatesTab && destinationName == Destination.Updates.name) destinationName = Destination.Library.name
+    }
     LaunchedEffect(state.settings.showDeviceTab) {
         if (!state.settings.showDeviceTab && state.signedIn && destinationName == Destination.Device.name)
             destinationName = Destination.Library.name
@@ -223,6 +226,7 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
                 state.detail != null -> DetailScreen(state, vm, { track, index -> trackMenu = track; playlistPosition = index }, onAddSongs = { addSongs = true })
                 destination == Destination.Home -> ListenScreen(state, vm, importAudio, openLogin, { filter -> libraryFilter = filter; destinationName = Destination.Library.name },
                     { destinationName = Destination.Device.name }, openTrackMenu, { playerExpansion.open() })
+                destination == Destination.Updates -> UpdatesScreen(state, vm)
                 destination == Destination.Search -> SearchScreen(state, vm, openLogin, openTrackMenu)
                 destination == Destination.Library -> LibraryScreen(state, vm, openLogin, { newPlaylistTrack = null; playlistTitle = ""; newPlaylist = true }, openTrackMenu,
                     libraryFilter, { libraryFilter = it })

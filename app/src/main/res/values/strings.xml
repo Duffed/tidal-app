@@ -633,4 +633,11 @@
     <string name="search_recently_opened">Recently opened</string>
     <string name="search_remove_visit">Remove from recently opened</string>
     <string name="settings_show_device_tab">Show On device tab</string>
+    <string name="nav_updates">Updates</string>
+    <string name="settings_show_updates_tab">Show Updates tab</string>
+    <string name="view_grid">Grid</string>
+    <string name="view_list">List</string>
+    <string name="updates_description">New releases from artists you follow on TIDAL</string>
+    <string name="updates_empty">No new releases yet</string>
+    <string name="updates_empty_text">Follow artists on TIDAL to see their latest releases here.</string>
 </resources>

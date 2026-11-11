@@ -286,6 +286,8 @@ class TidalClient(
     suspend fun credits(kind: String, id: String): List<Credit> =
         CreditsParser.parse(request("${if (kind == "album") "albums" else "tracks"}/$id/credits"))
 
+    suspend fun updatesJson(): JSONObject = request("feed/activities", base = apiBaseV2)
+
     suspend fun pageJson(path: String, query: Map<String, String> = emptyMap()): JSONObject = request(path, pageParameters + query)
 
     suspend fun page(path: String, query: Map<String, String> = emptyMap()): PageData = PageCodec.parse(pageJson(path, query))

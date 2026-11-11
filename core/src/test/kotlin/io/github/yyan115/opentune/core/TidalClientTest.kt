@@ -27,6 +27,22 @@ class TidalClientTest {
     }
     @After fun tearDown() { server.shutdown() }
 
+    @Test fun personalUpdatesUseV2AndKeepAllUniqueAlbumActivities() = runBlocking {
+        val activities = org.json.JSONArray()
+        repeat(12) { index -> activities.put(org.json.JSONObject().put("followableActivity", org.json.JSONObject()
+            .put("activityType", "NEW_ALBUM_RELEASE").put("album", org.json.JSONObject().put("id", index + 1).put("title", "Release $index").put("cover", "a-b-c")))) }
+        activities.put(activities.getJSONObject(0))
+        activities.put(org.json.JSONObject().put("followableActivity", org.json.JSONObject().put("activityType", "NEW_HISTORY_MIX")))
+        activities.put(org.json.JSONObject().put("followableActivity", org.json.JSONObject().put("activityType", "NEW_ALBUM_RELEASE").put("album", org.json.JSONObject())))
+        server.enqueue(MockResponse().setBody(org.json.JSONObject().put("activities", activities).toString()))
+        val releases = UpdatesCodec.releases(client.updatesJson())
+        assertEquals(12, releases.size)
+        assertEquals("1", releases.first().id)
+        assertTrue(releases.all { it.type == ReleaseType.ALBUM && it.artwork != null })
+        assertEquals("/v2/feed/activities", server.takeRequest().requestUrl!!.encodedPath)
+        assertTrue(UpdatesCodec.releases(org.json.JSONObject()).isEmpty())
+    }
+
     @Test fun smartRadioRejectsUnavailableTracksAndVideos() = runBlocking {
         server.enqueue(MockResponse().setBody("""{"items":[
             {"id":1,"allowStreaming":true,"streamReady":true},
