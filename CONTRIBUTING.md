@@ -38,7 +38,7 @@ Gradle retrieves the screenshots under `app/build/outputs/connected_android_test
 ```sh
 adb shell am instrument -w -r -e liveAccount true \
   -e class io.github.yyan115.opentune.LiveServiceTest \
-  io.github.yyan115.opentune.debug.test/androidx.test.runner.AndroidJUnitRunner
+  io.github.yyan115.opentune.debug.test/io.github.yyan115.opentune.OpenTuneTestRunner
 ```
 
 `LiveServiceTest` downloads a track, changes and restores a saved-track entry, and creates and removes a temporary playlist and folder. `PlaybackSoakLiveTest` plays a long track for several minutes and checks the start time, the buffer, outages of the network and autoplay. `LibraryArtworkLiveTest` checks that covers load again after an outage. Add `-e keepSession true` to leave the account signed in on a development device. Add `-e networkToggle true` to `LiveServiceTest` only on a dedicated test device, because it turns Wi-Fi and mobile data off and on. Never put account credentials or tokens in source files or CI secrets. `PlaylistsLiveTest` adds songs to a temporary playlist from its page and checks that the queue and the playback order of a shuffled queue agree. `PagesLiveTest` checks that the title and the artist in the player open the album and the artist page.

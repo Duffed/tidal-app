@@ -35,7 +35,9 @@ class ArtistCorrectionTest {
 
     private fun saveScreenshot(name: String, node: SemanticsNodeInteraction) {
         val app = InstrumentationRegistry.getInstrumentation().targetContext
-        val bitmap = node.captureToImage().asAndroidBitmap()
+        node.assertIsDisplayed()
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            ?: error("Screenshot capture failed")
         File(app.getExternalFilesDir(null), "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }

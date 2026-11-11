@@ -4,6 +4,10 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Fixed
+
+- Hide the screen behind the expanded player from accessibility and keep player gesture, screenshot and localization tests independent of update popups.
+
 ### Changed
 
 - Ignore release candidates in update checks and retain sign-in when TIDAL refuses the app credentials during token renewal.

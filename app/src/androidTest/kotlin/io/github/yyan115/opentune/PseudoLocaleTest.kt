@@ -134,12 +134,14 @@ class PseudoLocaleTest {
 
         compose.runOnIdle { model.play(listOf(track)) }
         await("playback to start", 30_000) { model.state.value.playback.playing || model.state.value.playback.error != null }
-        val screen = openWindow("Player") { compose.onNodeWithTag("mini-player").performClick() }
+        compose.onNodeWithTag("mini-player").performClick()
+        await("the expanded player") { compose.onNodeWithTag("now-playing").isDisplayed() }
         sweep("Player")
         inWindow("Queue") { compose.onNodeWithText(s(R.string.player_queue_count, 1)).scrollAndClick() }
         inWindow("Sleep timer") { compose.onNodeWithContentDescription(s(R.string.player_timer_set)).scrollAndClick() }
         inWindow("Source details") { compose.onNodeWithContentDescription(s(R.string.player_source_details)).scrollAndClick() }
-        closeWindow(screen)
+        compose.onNodeWithContentDescription(s(R.string.player_close)).performClick()
+        await("the player to close") { compose.onAllNodesWithTag("player-panel").fetchSemanticsNodes().isEmpty() }
         compose.runOnIdle { model.clearQueue() }
 
         compose.onNodeWithContentDescription(s(R.string.nav_settings)).performClick()

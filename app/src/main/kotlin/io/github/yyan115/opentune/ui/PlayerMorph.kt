@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.IntOffset
@@ -39,7 +40,7 @@ internal fun PlayerMorph(
         val surface = playerMorphRect(Rect(target.left + insetX, target.top + insetY, target.right - insetX, target.bottom - insetY), screen, fraction)
         Surface(
             modifier = Modifier.offset { IntOffset(surface.left.roundToInt(), surface.top.roundToInt()) }
-                .size(with(density) { surface.width.toDp() }, with(density) { surface.height.toDp() }),
+                .size(with(density) { surface.width.toDp() }, with(density) { surface.height.toDp() }).testTag("player-panel"),
             shape = RoundedCornerShape(7.dp * (1f - fraction)),
             color = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.colorScheme.background, fraction),
             // Interpolated colors have no automatic contentColor mapping in MaterialTheme.
@@ -54,7 +55,7 @@ internal fun PlayerMorph(
                     full(Modifier)
                 }
                 if (fraction < .35f) {
-                    mini(Modifier.wrapContentSize(unbounded = true, align = Alignment.TopStart)
+                    mini(Modifier.clearAndSetSemantics {}.wrapContentSize(unbounded = true, align = Alignment.TopStart)
                         .offset { IntOffset(-insetX.roundToInt(), -insetY.roundToInt()) }
                         .requiredSize(with(density) { target.width.toDp() }, with(density) { target.height.toDp() })
                         .graphicsLayer { alpha = (1f - fraction / .35f).coerceIn(0f, 1f) })

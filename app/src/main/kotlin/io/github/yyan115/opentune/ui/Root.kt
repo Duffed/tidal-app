@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
@@ -157,7 +158,7 @@ private fun OpenTuneContent(vm: MainViewModel, state: AppState, initialDestinati
     Box(Modifier.fillMaxSize()) {
     if (welcome) WelcomeScreen(onSignIn = openLogin, onLocalOnly = vm::finishWelcome)
     else if (setup) SetupScreen(onContinue = vm::finishSetup)
-    else Row(Modifier.fillMaxSize().then(if (landscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Start)) else Modifier)) {
+    else Row(Modifier.fillMaxSize().then(if (playerExpansion.fraction >= .65f) Modifier.clearAndSetSemantics {} else Modifier).then(if (landscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Start)) else Modifier)) {
     if (rail && navigation) OpenTuneRail(destinations, destination, select)
     Scaffold(modifier = Modifier.weight(1f),
         topBar = {

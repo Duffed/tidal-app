@@ -285,7 +285,9 @@ class LocalPlaybackTest {
         InstrumentationRegistry.getInstrumentation().uiAutomation.waitForIdle(250, 5_000)
         val output = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
         val directory = (output?.let(::File) ?: File(app.getExternalFilesDir(null), "screenshots")).apply { mkdirs() }
-        val bitmap = node?.captureToImage()?.asAndroidBitmap() ?: InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        node?.assertIsDisplayed()
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            ?: error("Screenshot capture failed")
         File(directory, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
@@ -415,6 +417,18 @@ class LocalPlaybackTest {
         compose.onNodeWithTag("now-playing").assertIsDisplayed()
     }
 
+    @Test fun expandedPlayerHidesBackgroundAndBackRestoresIt() {
+        compose.runOnIdle { model.play(listOf(track)) }
+        compose.waitUntil(10_000) { model.state.value.playback.track != null }
+        compose.onNodeWithTag("mini-player").performClick()
+        compose.onNodeWithTag("now-playing").assertIsDisplayed()
+        compose.onNodeWithTag("mini-player").assertDoesNotExist()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        compose.waitForIdle()
+        compose.onNodeWithTag("player-panel").assertDoesNotExist()
+        compose.onNodeWithTag("mini-player").assertIsDisplayed()
+    }
+
     @Test fun playerFollowsTheFingerBeforeItIsReleased() {
         compose.runOnIdle { model.play(listOf(track)) }
         compose.waitUntil(10_000) { model.state.value.playback.track != null }
@@ -423,11 +437,11 @@ class LocalPlaybackTest {
             down(center)
             moveBy(Offset(0f, -height * 4f), 300)
         }
-        compose.onNodeWithTag("now-playing").assertIsDisplayed()
-        val firstTop = compose.onNodeWithTag("now-playing").fetchSemanticsNode().boundsInRoot.top
+        compose.onNodeWithTag("player-panel").assertIsDisplayed()
+        val firstTop = compose.onNodeWithTag("player-panel").fetchSemanticsNode().boundsInRoot.top
         mini.performTouchInput { moveBy(Offset(0f, -height * 2f), 200) }
-        val secondTop = compose.onNodeWithTag("now-playing").fetchSemanticsNode().boundsInRoot.top
-        assertTrue("The player must continue following the finger", secondTop < firstTop - 10f)
+        val secondTop = compose.onNodeWithTag("player-panel").fetchSemanticsNode().boundsInRoot.top
+        assertTrue("The player must continue following the finger ($firstTop -> $secondTop)", secondTop < firstTop - 10f)
         mini.performTouchInput { up() }
     }
 
@@ -436,9 +450,9 @@ class LocalPlaybackTest {
         compose.waitUntil(10_000) { model.state.value.playback.track != null }
         val mini = compose.onNodeWithTag("mini-player")
         mini.performTouchInput { down(center); moveBy(Offset(0f, -height * 4f), 300) }
-        compose.onNodeWithTag("now-playing").assertIsDisplayed()
+        compose.onNodeWithTag("player-panel").assertIsDisplayed()
         mini.performTouchInput { moveBy(Offset(0f, height * 3.8f), 600); up() }
-        compose.onNodeWithTag("now-playing").assertDoesNotExist()
+        compose.onNodeWithTag("player-panel").assertDoesNotExist()
         mini.assertIsDisplayed()
     }
 

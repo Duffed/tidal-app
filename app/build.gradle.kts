@@ -20,7 +20,7 @@ android {
         targetSdk = 36
         versionCode = versionParts[0] * 1_000_000 + versionParts[1] * 1_000 + versionParts[2]
         versionName = releaseVersion
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "io.github.yyan115.opentune.OpenTuneTestRunner"
     }
     fun signingValue(name: String) = providers.environmentVariable("OPENTUNE_$name")
     val releaseKeyPath = signingValue("KEYSTORE").orNull
