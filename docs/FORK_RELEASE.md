@@ -7,12 +7,12 @@ Keep the original LICENSE and THIRD_PARTY_NOTICES, including the Smart Shuffle l
 
 The fork Actions secrets `RELEASE_KEYSTORE_BASE64` and `RELEASE_KEYSTORE_PASSWORD` are configured. The checked-in certificate fingerprint identifies this fork's key.
 
-1. Open the fork's Actions tab and select **Release**.
-2. Choose **Run workflow**, branch `main`, and a new version (for example `0.7.1`; existing tags cannot be reused).
-3. The workflow runs checks, builds and verifies the signed APK, commits the version/changelog, tags and publishes in this fork. Versions starting with `0.` are marked as prereleases.
-4. Download `opentune-<version>.apk` from the release assets. It is a release build without a debug suffix.
+1. Prepare a new version on a branch with `python scripts/release.py prepare <version>`; commit VERSION, CHANGELOG.md and fastlane, test and merge into the fork's main.
+2. Open the fork's Actions tab, select **Release**, and run it on `main` with that same version. Dry run builds/tests without creating a release.
+3. The workflow checks the prepared version, signs the APK with this fork's key, and tests installation over the previous published fork release on Android 8 and 16. Without a previous release, only fresh installation can be checked.
+4. Download and test the APK from the resulting draft, then publish the draft. Versions starting with `0.` are marked as prereleases.
 
-The in-app update checker points to Duffed/tidal-app. A public release has not yet been published by this setup. The local signed build and its certificate have been verified; the hosted Release workflow has not yet been run.
+The in-app update checker points to Duffed/tidal-app. Release 0.7.1 was published from a locally signed build because the hosted workflow failed downloading dependencies before its Android 36 tests. Subsequent releases use the draft/upgrade workflow. No main-branch protection setting is assumed by this guide.
 
 ## Preserve the signing key
 

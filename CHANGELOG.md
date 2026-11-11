@@ -4,6 +4,12 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Changed
+
+- Ignore release candidates in update checks and retain sign-in when TIDAL refuses the app credentials during token renewal.
+- Prepare versions before releasing, test APK upgrades, and create release drafts before publication.
+- Verify migration of old segmented downloads, including cleanup after failures.
+
 ## [0.7.1] - 2026-11-11
 
 ### Added
