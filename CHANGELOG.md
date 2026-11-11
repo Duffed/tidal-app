@@ -6,6 +6,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ### Added
 
+- Keep recently opened search results with covers, offer an On device tab visibility setting, and restore list scroll positions when returning.
+
 - Add a personal TIDAL Updates tab with cached releases and a visibility setting.
 - Remember independent grid/list choices for library albums and playlists, including playlist folders.
 
@@ -23,6 +25,13 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 - Swipe between tracks with sliding cover previews, and swipe a song to queue it. Choose whether song swipes ask, play next or add to the queue (the default).
 
 ### Fixed
+
+- Load complete My Mixes track lists instead of limiting them to five songs.
+- Fetch saved tracks without dropping entries at pagination boundaries, keeping favorite indicators consistent.
+- Open playlists from artist pages and retain the surrounding artist sections.
+- Play valid lossy audio when TIDAL cannot supply the requested lossless format.
+- Start the selected top search result even when it is absent from the ordinary song results.
+- Reduce repeated work while scrolling large saved-track lists without shortening the shuffle queue.
 
 - Morph the full player surface and existing artwork into the measured mini-player bounds while dragging.
 
