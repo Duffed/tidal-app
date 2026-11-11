@@ -4,6 +4,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-11
+
 ### Added
 
 - Keep recently opened search results with covers, offer an On device tab visibility setting, and restore list scroll positions when returning.

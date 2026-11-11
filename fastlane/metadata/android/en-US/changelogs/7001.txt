@@ -1,0 +1,6 @@
+- Keep recently opened search results with covers, offer an On device tab visibility setting, and restore list scroll positions when returning.
+
+- Add a personal TIDAL Updates tab with cached releases and a visibility setting.
+- Remember independent grid/list choices for library albums and playlists, including playlist folders.
+
+- Show a direct favorite toggle in song rows across albums, playlists, artist pages and search.
