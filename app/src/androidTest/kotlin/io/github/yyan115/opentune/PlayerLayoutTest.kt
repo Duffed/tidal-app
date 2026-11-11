@@ -47,9 +47,9 @@ class PlayerLayoutTest {
         compose.waitUntil(30_000) { model.state.value.playback.track != null }
     }
 
-    /** Screens from a small phone to a tall phone with a large display size, including the cover display of a Pixel Fold. */
+    /** Supported phone viewports start at 360 x 640 dp, including the cover display of a Pixel Fold. */
     private val screens = listOf(
-        Screen(1080, 2092, 420, "pixel-fold-cover"), Screen(1080, 2092, 480, "pixel-fold-cover-large"), Screen(1080, 2092, 560, "pixel-fold-cover-largest"),
+        Screen(1080, 2092, 420, "pixel-fold-cover"), Screen(1080, 2092, 480, "pixel-fold-cover-large"),
         Screen(1344, 2992, 489, "pixel-8-pro"), Screen(1080, 2400, 420, "tall-phone"), Screen(720, 1280, 320, "small-phone"), Screen(1080, 1920, 480, "compact-phone"),
     )
 

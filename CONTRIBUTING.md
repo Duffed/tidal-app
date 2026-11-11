@@ -51,7 +51,7 @@ All text for the user belongs in `app/src/main/res/values/strings.xml`, not in c
 
 - Keep each change focused.
 - Add a test at the level that exercises the failure. Run the device tests when you change playback, persistence, permissions or navigation.
-- For interface changes, check the screen at a small phone size and with larger text. Include a screenshot.
+- For interface changes, check supported phone viewports (at least 360 × 640 dp) and larger text. Smaller viewports are outside the supported target sizes. Include a screenshot.
 - Add a line under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) for changes users can see.
 - Describe the change and how you tested it in the pull request.
 

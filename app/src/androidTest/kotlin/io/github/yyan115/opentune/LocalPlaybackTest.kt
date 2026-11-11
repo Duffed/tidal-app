@@ -188,12 +188,18 @@ class LocalPlaybackTest {
         // Rows that change how TIDAL is streamed and downloaded need an account.
         for (hidden in listOf("Wi-Fi audio quality", "Mobile audio quality", "Autoplay", "Volume normalization", "Offline mode", "Download over mobile data", "Download saved tracks", "Download played tracks", "Audio output", "Keep saved tracks offline"))
             compose.onAllNodesWithText(hidden).assertCountEquals(0)
-        // The update check can be turned off.
-        list.performScrollToNode(hasText("Check for updates"))
-        compose.onNode(hasText("Check for updates") and hasClickAction()).performClick()
-        compose.waitUntil(5_000) { !model.state.value.settings.checkUpdates }
-        compose.onNode(hasText("Check for updates") and hasClickAction()).performClick()
-        compose.waitUntil(5_000) { model.state.value.settings.checkUpdates }
+        // Exercise both switch states without starting a network update check during this UI test.
+        val initial = model.state.value.settings
+        compose.runOnIdle { model.settings { it.copy(offline = true) } }
+        try {
+            list.performScrollToNode(hasText("Check for updates"))
+            compose.onNode(hasText("Check for updates") and hasClickAction()).performClick()
+            compose.waitUntil(5_000) { model.state.value.settings.checkUpdates != initial.checkUpdates }
+            compose.onNode(hasText("Check for updates") and hasClickAction()).performClick()
+            compose.waitUntil(5_000) { model.state.value.settings.checkUpdates == initial.checkUpdates }
+        } finally {
+            compose.runOnIdle { model.settings { it.copy(checkUpdates = initial.checkUpdates, offline = initial.offline) } }
+        }
         // Experimental is a section of the list and not a page, so its rows show without a tap.
         list.performScrollToNode(hasText("Experimental"))
         list.performScrollToNode(hasText("Equalizer"))
@@ -432,28 +438,31 @@ class LocalPlaybackTest {
     @Test fun playerFollowsTheFingerBeforeItIsReleased() {
         compose.runOnIdle { model.play(listOf(track)) }
         compose.waitUntil(10_000) { model.state.value.playback.track != null }
-        val mini = compose.onNodeWithTag("mini-player")
-        mini.performTouchInput {
-            down(center)
-            moveBy(Offset(0f, -height * 4f), 300)
-        }
+        val mini = compose.onNodeWithTag("mini-player").fetchSemanticsNode().boundsInRoot
+        val root = compose.onRoot()
+        // Keep injecting through the same window even after the mini player's semantics disappear.
+        val distance = mini.top * .35f
+        root.performTouchInput { down(mini.center); moveBy(Offset(0f, -distance), 300) }
         compose.onNodeWithTag("player-panel").assertIsDisplayed()
         val firstTop = compose.onNodeWithTag("player-panel").fetchSemanticsNode().boundsInRoot.top
-        mini.performTouchInput { moveBy(Offset(0f, -height * 2f), 200) }
+        root.performTouchInput { moveBy(Offset(0f, -distance), 200) }
         val secondTop = compose.onNodeWithTag("player-panel").fetchSemanticsNode().boundsInRoot.top
         assertTrue("The player must continue following the finger ($firstTop -> $secondTop)", secondTop < firstTop - 10f)
-        mini.performTouchInput { up() }
+        root.performTouchInput { up() }
+        compose.onNodeWithTag("now-playing").assertIsDisplayed()
     }
 
     @Test fun reversingThePlayerDragReturnsToTheMiniPlayer() {
         compose.runOnIdle { model.play(listOf(track)) }
         compose.waitUntil(10_000) { model.state.value.playback.track != null }
-        val mini = compose.onNodeWithTag("mini-player")
-        mini.performTouchInput { down(center); moveBy(Offset(0f, -height * 4f), 300) }
+        val mini = compose.onNodeWithTag("mini-player").fetchSemanticsNode().boundsInRoot
+        val root = compose.onRoot()
+        val distance = mini.top * .4f
+        root.performTouchInput { down(mini.center); moveBy(Offset(0f, -distance), 300) }
         compose.onNodeWithTag("player-panel").assertIsDisplayed()
-        mini.performTouchInput { moveBy(Offset(0f, height * 3.8f), 600); up() }
+        root.performTouchInput { moveBy(Offset(0f, distance * .95f), 600); up() }
         compose.onNodeWithTag("player-panel").assertDoesNotExist()
-        mini.assertIsDisplayed()
+        compose.onNodeWithTag("mini-player").assertIsDisplayed()
     }
 
     /** Exercise a 360 x 640 dp viewport with large text without changing the device display. */
