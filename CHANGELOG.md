@@ -4,6 +4,8 @@ All notable changes to OpenTune are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-11
+
 ### Fixed
 
 - Hide the screen behind the expanded player from accessibility and keep player gesture, screenshot and localization tests independent of update popups.
